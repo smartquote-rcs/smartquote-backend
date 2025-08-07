@@ -1,0 +1,337 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "API infraWatch",
+    "description": "API para gerenciamento de autenticação e funcionários.",
+    "version": "1.0.0"
+  },
+  "host": "localhost:3000",
+  "basePath": "/api",
+  "schemes": [
+    "http"
+  ],
+  "paths": {
+    "/auth/signup": {
+      "post": {
+        "summary": "Registrar um novo usuário",
+        "description": "Cria um novo usuário no sistema com base nas informações fornecidas.",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Dados do usuário para registro",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "email": {
+                  "type": "string",
+                  "format": "email",
+                  "example": "user@example.com"
+                },
+                "password": {
+                  "type": "string",
+                  "example": "password123"
+                },
+                "name": {
+                  "type": "string",
+                  "example": "John Doe"
+                }
+              },
+              "required": ["email", "password", "name"]
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Usuário criado com sucesso",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Usuário cadastrado com sucesso."
+                },
+                "userId": {
+                  "type": "string",
+                  "example": "12345"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro na validação dos dados",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "errors": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/signin": {
+      "post": {
+        "summary": "Autenticar um usuário",
+        "description": "Realiza o login de um usuário e retorna um token de autenticação.",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Credenciais do usuário para login",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "email": {
+                  "type": "string",
+                  "format": "email",
+                  "example": "user@example.com"
+                },
+                "password": {
+                  "type": "string",
+                  "example": "password123"
+                }
+              },
+              "required": ["email", "password"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Login bem-sucedido",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "token": {
+                  "type": "string",
+                  "example": "jwt.token.here"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro na validação dos dados",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "errors": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credenciais inválidas",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Credenciais inválidas"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/employee/": {
+      "get": {
+        "summary": "Listar todos os funcionários",
+        "description": "Retorna uma lista de todos os funcionários cadastrados. Requer autenticação.",
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "description": "Token de autenticação JWT",
+            "required": true,
+            "type": "string",
+            "example": "Bearer jwt.token.here"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de funcionários retornada com sucesso",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Lista de funcionários."
+                },
+                "data": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "example": "12345"
+                      },
+                      "name": {
+                        "type": "string",
+                        "example": "John Doe"
+                      },
+                      "email": {
+                        "type": "string",
+                        "example": "john.doe@example.com"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autorizado",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Token inválido ou ausente"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro interno do servidor",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Erro interno do servidor"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/employee/create": {
+      "post": {
+        "summary": "Criar um novo funcionário",
+        "description": "Cria um novo funcionário no sistema. Requer autenticação.",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "description": "Token de autenticação JWT",
+            "required": true,
+            "type": "string",
+            "example": "Bearer jwt.token.here"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Dados do funcionário para criação",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "example": "Jane Doe"
+                },
+                "email": {
+                  "type": "string",
+                  "format": "email",
+                  "example": "jane.doe@example.com"
+                },
+                "role": {
+                  "type": "string",
+                  "example": "Developer"
+                }
+              },
+              "required": ["name", "email", "role"]
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Funcionário criado com sucesso",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Funcionário cadastrado com sucesso."
+                },
+                "user": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "example": "12345"
+                    },
+                    "name": {
+                      "type": "string",
+                      "example": "Jane Doe"
+                    },
+                    "email": {
+                      "type": "string",
+                      "example": "jane.doe@example.com"
+                    },
+                    "role": {
+                      "type": "string",
+                      "example": "Developer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro na validação dos dados",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "errors": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Não autorizado",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Token inválido ou ausente"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

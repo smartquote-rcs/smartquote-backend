@@ -1,4 +1,4 @@
-import { EmployeeService } from '../../services/EmployeeService';
+import { EmployeeService } from '../../src/services/EmployeeService';
 
 jest.mock('@infra/supabase/connect', () => {
   const supabaseMock = {

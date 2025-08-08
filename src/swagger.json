@@ -1,7 +1,7 @@
 {
   "swagger": "2.0",
   "info": {
-    "title": "API infraWatch",
+    "title": "API SmartQuote",
     "description": "API para gerenciamento de autenticação e funcionários.",
     "version": "1.0.0"
   },

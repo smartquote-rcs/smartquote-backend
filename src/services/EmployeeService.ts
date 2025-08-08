@@ -1,6 +1,6 @@
 import supabase from '../infra/supabase/connect';
 import { Employee, EmployeeDTO } from '../models/Employee';
-import AuthService from './authService';
+import AuthService from './AuthService';
 
 class EmployeeService {
   async create({ name, email, password, position }: Employee): Promise<EmployeeDTO> {
@@ -57,6 +57,27 @@ class EmployeeService {
 
     return data as EmployeeDTO[];
   }
+
+  async getById(id: string): Promise<EmployeeDTO | null> {
+    const { data, error } = await supabase
+      .from('employees')
+      .select(`
+        id,
+        name,
+        position,
+        created_at,
+        user:users(id, email, display_name)
+      `)
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to get employee by ID: ${error.message}`);
+    }
+
+    return data as EmployeeDTO;
+  }
+  
 }
 
 export default new EmployeeService();

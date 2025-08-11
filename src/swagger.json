@@ -332,6 +332,167 @@
           }
         }
       }
+    },
+    "/produtos": {
+      "get": {
+        "summary": "Listar todos os produtos",
+        "produces": ["application/json"],
+        "responses": {
+          "200": {
+            "description": "Lista de produtos retornada com sucesso",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": { "type": "string", "example": "Lista de produtos." },
+                "data": { "type": "array", "items": { "type": "object" } }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Criar um novo produto",
+        "consumes": ["application/json"],
+        "parameters": [{
+          "in": "body",
+          "name": "body",
+          "required": true,
+          "schema": {
+            "type": "object",
+            "properties": {
+              "nome": { "type": "string", "example": "Notebook Dell" },
+              "preco": { "type": "number", "example": 3500 },
+              "estoque": { "type": "integer", "example": 10 },
+              "descricao": { "type": "string", "example": "Notebook com 16GB RAM" }
+            },
+            "required": ["nome", "preco", "estoque"]
+          }
+        }],
+        "responses": {
+          "201": {
+            "description": "Produto criado com sucesso",
+            "schema": { "type": "object" }
+          }
+        }
+      }
+    },
+    "/produtos/{id}": {
+      "get": {
+        "summary": "Obter produto por ID",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "type": "integer" }],
+        "responses": {
+          "200": { "description": "Produto encontrado" },
+          "404": { "description": "Produto não encontrado" }
+        }
+      },
+      "patch": {
+        "summary": "Atualizar parcialmente um produto",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "type": "integer" },
+          {
+            "in": "body",
+            "name": "body",
+            "schema": { "type": "object" }
+          }
+        ],
+        "responses": { "200": { "description": "Produto atualizado" } }
+      },
+      "delete": {
+        "summary": "Deletar um produto",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "type": "integer" }],
+        "responses": { "200": { "description": "Produto deletado" } }
+      }
+    },"/fornecedores": {
+      "get": {
+        "summary": "Listar todos os fornecedores",
+        "produces": ["application/json"],
+        "responses": {
+          "200": { "description": "Lista de fornecedores" }
+        }
+      },
+      "post": {
+        "summary": "Criar um novo fornecedor",
+        "parameters": [{
+          "in": "body",
+          "name": "body",
+          "required": true,
+          "schema": {
+            "type": "object",
+            "properties": {
+              "nome": { "type": "string", "example": "Fornecedor X" },
+              "email": { "type": "string", "format": "email", "example": "contato@fornecedorx.com" },
+              "telefone": { "type": "string", "example": "+55 11 99999-9999" }
+            },
+            "required": ["nome", "email"]
+          }
+        }],
+        "responses": { "201": { "description": "Fornecedor criado" } }
+      }
+    },
+    "/fornecedores/{id}": {
+      "get": {
+        "summary": "Obter fornecedor por ID",
+        "parameters": [{ "name": "id", "in": "path", "type": "integer", "required": true }],
+        "responses": { "200": { "description": "Fornecedor encontrado" } }
+      },
+      "patch": {
+        "summary": "Atualizar fornecedor",
+        "parameters": [
+          { "name": "id", "in": "path", "type": "integer", "required": true },
+          { "in": "body", "name": "body", "schema": { "type": "object" } }
+        ],
+        "responses": { "200": { "description": "Fornecedor atualizado" } }
+      },
+      "delete": {
+        "summary": "Excluir fornecedor",
+        "parameters": [{ "name": "id", "in": "path", "type": "integer", "required": true }],
+        "responses": { "200": { "description": "Fornecedor excluído" } }
+      }
+    },    "/cotacoes": {
+      "get": {
+        "summary": "Listar todas as cotações",
+        "produces": ["application/json"],
+        "responses": { "200": { "description": "Lista de cotações" } }
+      },
+      "post": {
+        "summary": "Criar uma nova cotação",
+        "parameters": [{
+          "in": "body",
+          "name": "body",
+          "required": true,
+          "schema": {
+            "type": "object",
+            "properties": {
+              "prompt_id": { "type": "integer", "example": 1 },
+              "produto_id": { "type": "integer", "example": 5 },
+              "preco": { "type": "number", "example": 1200.50 },
+              "observacao": { "type": "string", "example": "Entrega em 7 dias" }
+            },
+            "required": ["prompt_id", "produto_id", "preco"]
+          }
+        }],
+        "responses": { "201": { "description": "Cotação criada" } }
+      }
+    },
+    "/cotacoes/{id}": {
+      "get": {
+        "summary": "Obter cotação por ID",
+        "parameters": [{ "name": "id", "in": "path", "type": "integer", "required": true }],
+        "responses": { "200": { "description": "Cotação encontrada" } }
+      },
+      "patch": {
+        "summary": "Atualizar parcialmente uma cotação",
+        "parameters": [
+          { "name": "id", "in": "path", "type": "integer", "required": true },
+          { "in": "body", "name": "body", "schema": { "type": "object" } }
+        ],
+        "responses": { "200": { "description": "Cotação atualizada" } }
+      },
+      "delete": {
+        "summary": "Excluir cotação",
+        "parameters": [{ "name": "id", "in": "path", "type": "integer", "required": true }],
+        "responses": { "200": { "description": "Cotação excluída" } }
+      }
     }
   }
 }

@@ -3,11 +3,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const Employee_schema_1 = require("../schemas/Employee.schema");
+const EmployeeSchema_1 = require("../schemas/EmployeeSchema");
 const EmployeeService_1 = __importDefault(require("../services/EmployeeService"));
 class EmployeeController {
     async create(req, res) {
-        const parsed = Employee_schema_1.employeeSchema.safeParse(req.body);
+        const parsed = EmployeeSchema_1.employeeSchema.safeParse(req.body);
         if (!parsed.success) {
             const errors = parsed.error.format();
             return res.status(400).json({ errors });

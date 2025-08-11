@@ -4,10 +4,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const FornecedoresService_1 = __importDefault(require("../services/FornecedoresService"));
-const Fornecedor_schema_1 = require("../schemas/Fornecedor.schema");
+const FornecedorSchema_1 = require("../schemas/FornecedorSchema");
 class FornecedoresController {
     async create(req, res) {
-        const parsed = Fornecedor_schema_1.fornecedorSchema.safeParse(req.body);
+        const parsed = FornecedorSchema_1.fornecedorSchema.safeParse(req.body);
         if (!parsed.success) {
             const errors = parsed.error.format();
             return res.status(400).json({ errors });

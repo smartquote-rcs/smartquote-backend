@@ -1,11 +1,11 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const ProdutoService_1 = require("../services/ProdutoService");
-const produto_schema_1 = require("../schemas/produto.schema");
+const ProdutoSchema_1 = require("../schemas/ProdutoSchema");
 const produtosService = new ProdutoService_1.ProdutosService();
 class ProdutosController {
     async create(req, res) {
-        const parsed = produto_schema_1.produtoSchema.safeParse(req.body);
+        const parsed = ProdutoSchema_1.produtoSchema.safeParse(req.body);
         if (!parsed.success) {
             const errors = parsed.error.format();
             return res.status(400).json({ errors });

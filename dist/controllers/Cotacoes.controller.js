@@ -4,10 +4,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const CotacoesService_1 = __importDefault(require("../services/CotacoesService"));
-const cotacao_schema_1 = require("../schemas/cotacao.schema");
+const CotacaoSchema_1 = require("../schemas/CotacaoSchema");
 class CotacoesController {
     async create(req, res) {
-        const parsed = cotacao_schema_1.cotacaoSchema.safeParse(req.body);
+        const parsed = CotacaoSchema_1.cotacaoSchema.safeParse(req.body);
         if (!parsed.success) {
             const errors = parsed.error.format();
             return res.status(400).json({ errors });

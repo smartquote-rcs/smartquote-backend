@@ -5,4 +5,4 @@ declare class AuthController {
 }
 declare const _default: AuthController;
 export default _default;
-//# sourceMappingURL=auth.controller.d.ts.map
+//# sourceMappingURL=AuthController.d.ts.map

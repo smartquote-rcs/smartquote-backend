@@ -1,11 +1,11 @@
 import { Request, Response } from 'express';
-declare class FornecedoresController {
+declare class EmployeeController {
     create(req: Request, res: Response): Promise<Response>;
     getAll(req: Request, res: Response): Promise<Response>;
     getById(req: Request, res: Response): Promise<Response>;
     delete(req: Request, res: Response): Promise<Response>;
     patch(req: Request, res: Response): Promise<Response>;
 }
-declare const _default: FornecedoresController;
+declare const _default: EmployeeController;
 export default _default;
-//# sourceMappingURL=fornecedores.controller.d.ts.map
+//# sourceMappingURL=EmployeeController.d.ts.map

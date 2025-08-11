@@ -74,4 +74,4 @@ class FornecedoresController {
     }
 }
 exports.default = new FornecedoresController();
-//# sourceMappingURL=fornecedores.controller.js.map
+//# sourceMappingURL=FornecedoresController.js.map

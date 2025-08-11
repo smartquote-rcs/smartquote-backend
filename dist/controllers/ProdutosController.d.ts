@@ -8,4 +8,4 @@ declare class ProdutosController {
 }
 declare const _default: ProdutosController;
 export default _default;
-//# sourceMappingURL=produto.controller.d.ts.map
+//# sourceMappingURL=ProdutosController.d.ts.map

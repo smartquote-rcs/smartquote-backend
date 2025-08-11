@@ -40,4 +40,4 @@ class AuthController {
     }
 }
 exports.default = new AuthController();
-//# sourceMappingURL=auth.controller.js.map
+//# sourceMappingURL=AuthController.js.map

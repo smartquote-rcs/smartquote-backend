@@ -1,20 +1,22 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-const ProdutoService_1 = require("../services/ProdutoService");
-const ProdutoSchema_1 = require("../schemas/ProdutoSchema");
-const produtosService = new ProdutoService_1.ProdutosService();
-class ProdutosController {
+const CotacoesService_1 = __importDefault(require("../services/CotacoesService"));
+const CotacaoSchema_1 = require("../schemas/CotacaoSchema");
+class CotacoesController {
     async create(req, res) {
-        const parsed = ProdutoSchema_1.produtoSchema.safeParse(req.body);
+        const parsed = CotacaoSchema_1.cotacaoSchema.safeParse(req.body);
         if (!parsed.success) {
             const errors = parsed.error.format();
             return res.status(400).json({ errors });
         }
         try {
-            const produto = await produtosService.create(parsed.data);
+            const cotacao = await CotacoesService_1.default.create(parsed.data);
             return res.status(201).json({
-                message: 'Produto cadastrado com sucesso.',
-                data: produto,
+                message: 'Cotação cadastrada com sucesso.',
+                data: cotacao,
             });
         }
         catch (err) {
@@ -23,10 +25,10 @@ class ProdutosController {
     }
     async getAll(req, res) {
         try {
-            const produtos = await produtosService.getAll();
+            const cotacoes = await CotacoesService_1.default.getAll();
             return res.status(200).json({
-                message: 'Lista de produtos.',
-                data: produtos,
+                message: 'Lista de cotações.',
+                data: cotacoes,
             });
         }
         catch (err) {
@@ -36,10 +38,10 @@ class ProdutosController {
     async getById(req, res) {
         try {
             const { id } = req.params;
-            const produto = await produtosService.getById(Number(id));
+            const cotacao = await CotacoesService_1.default.getById(Number(id));
             return res.status(200).json({
-                message: 'Produto encontrado.',
-                data: produto,
+                message: 'Cotação encontrada.',
+                data: cotacao,
             });
         }
         catch (err) {
@@ -49,8 +51,8 @@ class ProdutosController {
     async delete(req, res) {
         try {
             const { id } = req.params;
-            await produtosService.delete(Number(id));
-            return res.status(200).json({ message: 'Produto deletado com sucesso.' });
+            await CotacoesService_1.default.delete(Number(id));
+            return res.status(200).json({ message: 'Cotação deletada com sucesso.' });
         }
         catch (err) {
             return res.status(500).json({ error: err.message });
@@ -60,10 +62,10 @@ class ProdutosController {
         try {
             const { id } = req.params;
             const updates = req.body;
-            const produtoAtualizado = await produtosService.updatePartial(Number(id), updates);
+            const cotacaoAtualizada = await CotacoesService_1.default.updatePartial(Number(id), updates);
             return res.status(200).json({
-                message: 'Produto atualizado com sucesso.',
-                data: produtoAtualizado,
+                message: 'Cotação atualizada com sucesso.',
+                data: cotacaoAtualizada,
             });
         }
         catch (err) {
@@ -71,5 +73,5 @@ class ProdutosController {
         }
     }
 }
-exports.default = new ProdutosController();
-//# sourceMappingURL=produto.controller.js.map
+exports.default = new CotacoesController();
+//# sourceMappingURL=CotacoesController.js.map

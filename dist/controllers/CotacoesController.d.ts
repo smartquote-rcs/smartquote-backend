@@ -8,4 +8,4 @@ declare class CotacoesController {
 }
 declare const _default: CotacoesController;
 export default _default;
-//# sourceMappingURL=cotacoes.controller.d.ts.map
+//# sourceMappingURL=CotacoesController.d.ts.map

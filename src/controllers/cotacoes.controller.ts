@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import CotacoesService from '../services/CotacoesService';
-import { cotacaoSchema } from '../schemas/Cotacao.schema';
+import { cotacaoSchema } from '../schemas/cotacao.schema';
 import { Cotacao } from '../models/Cotacao';
 
 class CotacoesController {

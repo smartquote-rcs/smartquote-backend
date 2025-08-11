@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import CotacoesController from '../controllers/Cotacoes.controller';
+import CotacoesController from '../controllers/cotacoes.controller';
 
 const router = Router();
  

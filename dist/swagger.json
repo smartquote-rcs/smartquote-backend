@@ -2,7 +2,7 @@
     "swagger": "2.0",
     "info": {
         "title": "API SmartQuote",
-        "description": "API para gerenciamento de autenticação e funcionários.",
+        "description": "API para gerenciamento do SmartQuote.",
         "version": "1.0.0"
     },
     "host": "localhost:3000",

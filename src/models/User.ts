@@ -11,5 +11,6 @@ export interface UserDTO {
   id: string;
   name: string;
   position: string;
+  auth_id:string;
   created_at: string;
 }

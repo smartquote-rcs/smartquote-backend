@@ -29,7 +29,8 @@ async create(data: User): Promise<UserDTO> {
         contact: data.contact,
         password: await passwordHash(data.password),
         department: data.department,
-        position: data.position
+        position: data.position,
+        auth_id : userId
       })
       .select('*')
       .single();

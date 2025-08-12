@@ -2,9 +2,12 @@ import supabase from '../infra/supabase/connect';
 import { Fornecedor } from '../models/Fornecedor';
 
 class FornecedoresService {
+
+  private table = "Fornecedores";
+
   async create(FornecedorData: Fornecedor) {
     const { data, error } = await supabase
-      .from('Fornecedores')
+      .from(this.table)
       .insert(FornecedorData)
       .select('*')
       .single();
@@ -18,7 +21,7 @@ class FornecedoresService {
 
   async getAll() {
     const { data, error } = await supabase
-      .from('Fornecedores')
+      .from(this.table)
       .select('*')
       .order('cadastrado_em', { ascending: false });
 
@@ -31,7 +34,7 @@ class FornecedoresService {
 
   async getById(id: number) {
     const { data, error } = await supabase
-      .from('Fornecedores')
+      .from(this.table)
       .select('*')
       .eq('id', id)
       .single();
@@ -45,7 +48,7 @@ class FornecedoresService {
 
   async delete(id: number) {
     const { error } = await supabase
-      .from('Fornecedores')
+      .from(this.table)
       .delete()
       .eq('id', id);
 
@@ -57,7 +60,7 @@ class FornecedoresService {
   async updatePartial(id: number, dataToUpdate: Partial<Fornecedor>) {
  
     const { data, error } = await supabase
-      .from('Fornecedores')
+      .from(this.table)
       .update(dataToUpdate)
       .eq('id', id)
       .select('*')

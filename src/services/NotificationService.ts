@@ -1,31 +1,32 @@
 import supabase from '../infra/supabase/connect';
-import { Produto, ProdutoDTO } from '../models/Produto';
+import { Notification, NotificationDTO } from '../models/Notification';
 
-export class ProdutosService {
+export class NotificationService {
 
-  private table = "produtos";
+  private table = "notifications";
 
-  async create(produto: Produto): Promise<ProdutoDTO | null> {
+  async create(notification: Notification): Promise<NotificationDTO | null> {
     const { data, error } = await supabase
       .from(this.table)
-      .insert([produto])
+      .insert([notification])
       .select()
       .single();
 
     if (error) throw new Error(error.message);
-    return data as ProdutoDTO;
+    return data as NotificationDTO;
   }
 
-  async getAll(): Promise<ProdutoDTO[]> {
+  async getAll(): Promise<NotificationDTO[]> {
     const { data, error } = await supabase
       .from(this.table)
-      .select('*');
+      .select('*')
+      .order('created_at', { ascending: false });
 
     if (error) throw new Error(error.message);
-    return data as ProdutoDTO[];
+    return data as NotificationDTO[];
   }
 
-  async getById(id: number): Promise<ProdutoDTO | null> {
+  async getById(id: number): Promise<NotificationDTO | null> {
     const { data, error } = await supabase
       .from(this.table)
       .select('*')
@@ -33,7 +34,7 @@ export class ProdutosService {
       .single();
 
     if (error) throw new Error(error.message);
-    return data as ProdutoDTO;
+    return data as NotificationDTO;
   }
 
   async delete(id: number): Promise<void> {
@@ -45,15 +46,15 @@ export class ProdutosService {
     if (error) throw new Error(error.message);
   }
 
-  async updatePartial(id: number, produto: Partial<Produto>): Promise<ProdutoDTO | null> {
+  async updatePartial(id: number, notification: Partial<Notification>): Promise<NotificationDTO | null> {
     const { data, error } = await supabase
       .from(this.table)
-      .update(produto)
+      .update(notification)
       .eq('id', id)
       .select()
       .single();
 
     if (error) throw new Error(error.message);
-    return data as ProdutoDTO;
+    return data as NotificationDTO;
   }
 }

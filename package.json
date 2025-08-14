@@ -30,6 +30,8 @@
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
+    "google-auth-library": "^10.2.1",
+    "googleapis": "^156.0.0",
     "pdfkit": "^0.17.1",
     "swagger-ui-express": "^5.0.1",
     "ts-jest": "^29.4.1",

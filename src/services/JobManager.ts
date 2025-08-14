@@ -1,0 +1,294 @@
+/**
+ * Serviço para gerenciar jobs de busca em background
+ */
+
+import { fork, ChildProcess, spawn } from 'child_process';
+import { v4 as uuidv4 } from 'uuid';
+import path from 'path';
+
+interface JobStatus {
+  id: string;
+  status: 'pendente' | 'executando' | 'concluido' | 'erro';
+  criadoEm: Date;
+  iniciadoEm?: Date;
+  concluidoEm?: Date;
+  parametros: {
+    termo: string;
+    numResultados: number;
+    fornecedores: number[];
+    usuarioId?: number;
+  };
+  progresso?: {
+    etapa: 'busca' | 'salvamento';
+    fornecedores?: number;
+    produtos?: number;
+    detalhes?: string;
+  };
+  resultado?: {
+    produtos?: any[];
+    salvamento?: {
+      salvos: number;
+      erros: number;
+      detalhes: any[];
+    };
+    tempoExecucao?: number;
+  };
+  erro?: string;
+}
+
+class JobManager {
+  private jobs: Map<string, JobStatus> = new Map();
+  private processos: Map<string, ChildProcess> = new Map();
+
+  /**
+   * Cria um novo job de busca
+   */
+  criarJob(
+    termo: string,
+    numResultados: number,
+    fornecedores: number[],
+    usuarioId?: number
+  ): string {
+    const jobId = uuidv4();
+    
+    const job: JobStatus = {
+      id: jobId,
+      status: 'pendente',
+      criadoEm: new Date(),
+      parametros: {
+        termo,
+        numResultados,
+        fornecedores,
+        usuarioId
+      }
+    };
+    
+    this.jobs.set(jobId, job);
+    
+    console.log(`📝 Job criado: ${jobId} para busca "${termo}"`);
+    
+    // Executar job imediatamente
+    this.executarJob(jobId);
+    
+    return jobId;
+  }
+
+  /**
+   * Executa um job em processo filho
+   */
+  private executarJob(jobId: string): void {
+    const job = this.jobs.get(jobId);
+    if (!job) {
+      console.error(`❌ Job ${jobId} não encontrado`);
+      return;
+    }
+
+    // Atualizar status
+    job.status = 'executando';
+    job.iniciadoEm = new Date();
+    this.jobs.set(jobId, job);
+
+    console.log(`🚀 Iniciando execução do job ${jobId}`);
+
+    // Criar processo filho para executar o worker
+    const workerPath = path.join(__dirname, '../workers/buscaWorker.ts');
+    console.log(`🔧 Executando worker: ${workerPath}`);
+    
+    // Usar spawn com ts-node para executar TypeScript diretamente
+    const childProcess = spawn('npx', ['ts-node', workerPath], {
+      stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
+      cwd: process.cwd()
+    });
+    
+    this.processos.set(jobId, childProcess);
+
+    // Enviar dados do job para o processo filho via stdin
+    const jobData = {
+      id: jobId,
+      termo: job.parametros.termo,
+      numResultados: job.parametros.numResultados,
+      fornecedores: job.parametros.fornecedores,
+      usuarioId: job.parametros.usuarioId
+    };
+    
+    childProcess.stdin?.write(JSON.stringify(jobData) + '\n');
+
+    // Escutar mensagens do processo filho via stdout
+    childProcess.stdout?.on('data', (data) => {
+      try {
+        const lines = data.toString().trim().split('\n');
+        lines.forEach((line: string) => {
+          if (line.trim()) {
+            // Processar apenas linhas que começam com WORKER_MSG:
+            if (line.startsWith('WORKER_MSG:')) {
+              const jsonStr = line.substring('WORKER_MSG:'.length);
+              const message = JSON.parse(jsonStr);
+              this.processarMensagemDoFilho(jobId, message);
+            }
+            // Outras linhas são ignoradas (logs do dotenv, etc.)
+          }
+        });
+      } catch (error) {
+        console.error(`Erro ao processar mensagem do worker:`, error);
+      }
+    });
+
+    // Escutar erros do processo filho via stderr
+    childProcess.stderr?.on('data', (data) => {
+      const stderrData = data.toString();
+      
+      // Filtrar logs normais do worker que não são erros
+      if (stderrData.includes('[WORKER]') || 
+          stderrData.includes('[dotenv@') ||
+          stderrData.includes('tip:')) {
+        // Estes são logs normais, não erros
+        console.log(`🔧 Worker log [${jobId}]: ${stderrData.trim()}`);
+      } else {
+        // Estes são erros reais
+        console.error(`❌ Erro no worker do job ${jobId}: ${stderrData}`);
+      }
+    });
+
+    // Escutar erro do processo filho
+    childProcess.on('error', (error) => {
+      console.error(`❌ Erro no processo filho do job ${jobId}:`, error);
+      this.finalizarJobComErro(jobId, `Erro no processo: ${error.message}`);
+    });
+
+    // Escutar saída do processo filho
+    childProcess.on('exit', (code, signal) => {
+      console.log(`🔚 Processo filho do job ${jobId} encerrado (código: ${code}, sinal: ${signal})`);
+      this.processos.delete(jobId);
+    });
+  }
+
+  /**
+   * Processa mensagens do processo filho
+   */
+  private processarMensagemDoFilho(jobId: string, message: any): void {
+    const job = this.jobs.get(jobId);
+    if (!job) return;
+
+    if (message.progresso) {
+      // Atualizar progresso
+      job.progresso = message.progresso;
+      this.jobs.set(jobId, job);
+      
+      console.log(`📊 Job ${jobId} - ${message.progresso.etapa}: ${message.progresso.detalhes}`);
+      
+    } else if (message.status === 'sucesso') {
+      // Job concluído com sucesso
+      job.status = 'concluido';
+      job.concluidoEm = new Date();
+      job.resultado = {
+        produtos: message.produtos,
+        salvamento: message.salvamento,
+        tempoExecucao: message.tempoExecucao
+      };
+      this.jobs.set(jobId, job);
+      
+      console.log(`✅ Job ${jobId} concluído com sucesso em ${message.tempoExecucao}ms`);
+      
+    } else if (message.status === 'erro') {
+      // Job falhou
+      this.finalizarJobComErro(jobId, message.erro);
+    }
+  }
+
+  /**
+   * Finaliza um job com erro
+   */
+  private finalizarJobComErro(jobId: string, erro: string): void {
+    const job = this.jobs.get(jobId);
+    if (!job) return;
+
+    job.status = 'erro';
+    job.concluidoEm = new Date();
+    job.erro = erro;
+    this.jobs.set(jobId, job);
+
+    // Matar processo se ainda estiver rodando
+    const processo = this.processos.get(jobId);
+    if (processo && !processo.killed) {
+      processo.kill();
+      this.processos.delete(jobId);
+    }
+
+    console.error(`❌ Job ${jobId} falhou: ${erro}`);
+  }
+
+  /**
+   * Obtém o status de um job
+   */
+  getStatusJob(jobId: string): JobStatus | null {
+    return this.jobs.get(jobId) || null;
+  }
+
+  /**
+   * Lista todos os jobs
+   */
+  listarJobs(limite: number = 50): JobStatus[] {
+    const todosJobs = Array.from(this.jobs.values());
+    
+    // Ordenar por data de criação (mais recentes primeiro)
+    todosJobs.sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime());
+    
+    return todosJobs.slice(0, limite);
+  }
+
+  /**
+   * Cancela um job
+   */
+  cancelarJob(jobId: string): boolean {
+    const job = this.jobs.get(jobId);
+    if (!job) return false;
+
+    if (job.status === 'concluido' || job.status === 'erro') {
+      return false; // Não pode cancelar job já finalizado
+    }
+
+    // Matar processo se estiver rodando
+    const processo = this.processos.get(jobId);
+    if (processo && !processo.killed) {
+      processo.kill();
+      this.processos.delete(jobId);
+    }
+
+    // Atualizar status
+    job.status = 'erro';
+    job.concluidoEm = new Date();
+    job.erro = 'Job cancelado pelo usuário';
+    this.jobs.set(jobId, job);
+
+    console.log(`⏹️  Job ${jobId} cancelado`);
+    return true;
+  }
+
+  /**
+   * Remove jobs antigos da memória (limpeza)
+   */
+  limparJobsAntigos(diasParaManter: number = 7): number {
+    const dataLimite = new Date();
+    dataLimite.setDate(dataLimite.getDate() - diasParaManter);
+    
+    let removidos = 0;
+    
+    for (const [jobId, job] of this.jobs.entries()) {
+      if (job.criadoEm < dataLimite && (job.status === 'concluido' || job.status === 'erro')) {
+        this.jobs.delete(jobId);
+        removidos++;
+      }
+    }
+    
+    console.log(`🧹 Limpeza: ${removidos} jobs antigos removidos`);
+    return removidos;
+  }
+}
+
+// Singleton
+export const jobManager = new JobManager();
+
+// Limpeza automática a cada 6 horas
+setInterval(() => {
+  jobManager.limparJobsAntigos();
+}, 6 * 60 * 60 * 1000);

@@ -24,12 +24,14 @@
     "@mendable/firecrawl-js": "^1.29.3",
     "@supabase/supabase-js": "^2.53.0",
     "@types/jest": "^30.0.0",
+    "@types/uuid": "^10.0.0",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
     "swagger-ui-express": "^5.0.1",
     "ts-jest": "^29.4.1",
+    "uuid": "^11.1.0",
     "zod": "^4.0.14"
   },
   "devDependencies": {

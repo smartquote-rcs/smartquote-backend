@@ -81,10 +81,22 @@ export class ProdutosService {
   /**
    * Converte preço de string para centavos
    */
-  private converterPrecoParaCentavos(precoString: string): number {
+  private converterPrecoParaCentavos(precoString: string | null | undefined): number {
     try {
+      // Se preço é null, undefined ou string vazia, retorna 0
+      if (!precoString || precoString.trim() === '') {
+        console.warn('Preço vazio ou nulo, usando 0');
+        return 0;
+      }
+      
       // Remove símbolos de moeda e espaços, mantém apenas números, vírgulas e pontos
       const numeroLimpo = precoString.replace(/[^\d.,]/g, '');
+      
+      // Se after limpeza não sobrou nada
+      if (!numeroLimpo) {
+        console.warn('Preço sem números válidos:', precoString);
+        return 0;
+      }
       
       // Se tem vírgula, assume formato brasileiro (1.500,00)
       if (numeroLimpo.includes(',')) {
@@ -100,7 +112,15 @@ export class ProdutosService {
       
       // Formato americano ou sem vírgula
       const numero = parseFloat(numeroLimpo.replace(/\./g, ''));
-      return Math.round(numero * 100); // converte para centavos
+      const resultado = Math.round(numero * 100); // converte para centavos
+      
+      // Validar se é um número válido
+      if (isNaN(resultado)) {
+        console.warn('Resultado de conversão inválido:', precoString, '→', resultado);
+        return 0;
+      }
+      
+      return resultado;
     } catch (error) {
       console.warn('Erro ao converter preço:', precoString, error);
       return 0; // preço padrão em caso de erro

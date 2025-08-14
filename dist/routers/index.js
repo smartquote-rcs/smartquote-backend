@@ -10,14 +10,19 @@ const produtos_routes_1 = __importDefault(require("./produtos.routes"));
 const fornecedores_routes_1 = __importDefault(require("./fornecedores.routes"));
 const cotacoes_routes_1 = __importDefault(require("./cotacoes.routes"));
 const users_route_1 = __importDefault(require("./users.route"));
+const busca_routes_1 = __importDefault(require("./busca.routes"));
+const test_routes_1 = __importDefault(require("./test.routes"));
 const routers = (0, express_1.Router)();
 routers.get("/", (req, res) => {
     res.status(200).json("APi SmartQuote ON...");
 });
+routers.use("/test", test_routes_1.default);
 routers.use("/auth", auth_route_1.default);
 routers.use("/users", authMiddleware_1.authMiddleware, users_route_1.default);
 routers.use('/produtos', authMiddleware_1.authMiddleware, produtos_routes_1.default);
 routers.use('/fornecedores', authMiddleware_1.authMiddleware, fornecedores_routes_1.default);
 routers.use('/cotacoes', authMiddleware_1.authMiddleware, cotacoes_routes_1.default);
+//routers.use('/busca-automatica',authMiddleware, buscaRouter);
+routers.use('/busca-automatica', busca_routes_1.default);
 exports.default = routers;
 //# sourceMappingURL=index.js.map

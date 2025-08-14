@@ -3,6 +3,7 @@ import { BuscaAutomatica } from '../services/BuscaAtomatica';
 import { buscaSchema, BuscaData } from '../schemas/BuscaSchema';
 import FornecedorService from '../services/FornecedorService';
 import { ProdutosService } from '../services/ProdutoService';
+import { jobManager } from '../services/JobManager';
 
 interface BuscaRequest {
   produto: string;
@@ -183,6 +184,175 @@ class BuscaController {
       return res.status(500).json({
         success: false,
         message: "Erro interno do servidor durante a busca",
+        error: error instanceof Error ? error.message : "Erro desconhecido"
+      });
+    }
+  }
+
+  /**
+   * Inicia busca automática em background e retorna job ID imediatamente
+   */
+  async buscarProdutosBackground(req: Request<{}, {}, BuscaRequest>, res: Response): Promise<Response> {
+    // Validação usando schema
+    const parsed = buscaSchema.safeParse(req.body);
+
+    if (!parsed.success) {
+      const errors = parsed.error.format();
+      return res.status(400).json({ 
+        success: false,
+        message: "Dados inválidos",
+        errors 
+      });
+    }
+
+    try {
+      const { produto } = parsed.data;
+
+      // Buscar fornecedores ativos para validar que existem sites para buscar
+      const sitesFromDB = await FornecedorService.getFornecedoresAtivos();
+      
+      if (sitesFromDB.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Nenhum fornecedor ativo encontrado na base de dados"
+        });
+      }
+
+      // Buscar configurações do sistema
+      const configuracoes = await FornecedorService.getConfiguracoesSistema();
+      const numResultados = configuracoes.numResultadosPorSite;
+
+      // Criar job em background
+      const jobId = jobManager.criarJob(
+        produto,
+        numResultados,
+        sitesFromDB.map(f => f.id),
+        1 // TODO: usar ID do usuário autenticado
+      );
+
+      // Responder imediatamente com o job ID
+      return res.status(202).json({
+        success: true,
+        message: `Busca iniciada em background. Use o job ID para acompanhar o progresso.`,
+        jobId: jobId,
+        statusUrl: `/api/busca/job/${jobId}`,
+        parametros: {
+          termo: produto,
+          numResultados: numResultados,
+          fornecedores: sitesFromDB.length
+        }
+      });
+
+    } catch (error) {
+      console.error("Erro ao iniciar busca em background:", error);
+      
+      return res.status(500).json({
+        success: false,
+        message: "Erro interno do servidor ao iniciar busca",
+        error: error instanceof Error ? error.message : "Erro desconhecido"
+      });
+    }
+  }
+
+  /**
+   * Retorna o status de um job
+   */
+  async getJobStatus(req: Request, res: Response): Promise<Response> {
+    try {
+      const jobId = req.params.jobId;
+      
+      if (!jobId) {
+        return res.status(400).json({
+          success: false,
+          message: "Job ID é obrigatório"
+        });
+      }
+
+      const job = jobManager.getStatusJob(jobId);
+      
+      if (!job) {
+        return res.status(404).json({
+          success: false,
+          message: "Job não encontrado"
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        job: job
+      });
+
+    } catch (error) {
+      console.error("Erro ao buscar status do job:", error);
+      
+      return res.status(500).json({
+        success: false,
+        message: "Erro interno do servidor",
+        error: error instanceof Error ? error.message : "Erro desconhecido"
+      });
+    }
+  }
+
+  /**
+   * Lista todos os jobs
+   */
+  async listarJobs(req: Request, res: Response): Promise<Response> {
+    try {
+      const limite = req.query.limite ? parseInt(req.query.limite as string) : 50;
+      
+      const jobs = jobManager.listarJobs(limite);
+      
+      return res.status(200).json({
+        success: true,
+        message: `${jobs.length} jobs encontrados`,
+        jobs: jobs
+      });
+
+    } catch (error) {
+      console.error("Erro ao listar jobs:", error);
+      
+      return res.status(500).json({
+        success: false,
+        message: "Erro interno do servidor",
+        error: error instanceof Error ? error.message : "Erro desconhecido"
+      });
+    }
+  }
+
+  /**
+   * Cancela um job
+   */
+  async cancelarJob(req: Request, res: Response): Promise<Response> {
+    try {
+      const jobId = req.params.jobId;
+      
+      if (!jobId) {
+        return res.status(400).json({
+          success: false,
+          message: "Job ID é obrigatório"
+        });
+      }
+
+      const cancelado = jobManager.cancelarJob(jobId);
+      
+      if (!cancelado) {
+        return res.status(400).json({
+          success: false,
+          message: "Job não pode ser cancelado (não encontrado ou já finalizado)"
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: "Job cancelado com sucesso"
+      });
+
+    } catch (error) {
+      console.error("Erro ao cancelar job:", error);
+      
+      return res.status(500).json({
+        success: false,
+        message: "Erro interno do servidor",
         error: error instanceof Error ? error.message : "Erro desconhecido"
       });
     }

@@ -1,2 +1,22 @@
 node_modules
 .env
+
+# Arquivos de teste e desenvolvimento
+test-*.js
+verificar-*.js
+
+# Build/Dist
+dist/
+build/
+
+# Logs
+*.log
+logs/
+
+# IDEs
+.vscode/
+.idea/
+
+# OS generated files
+.DS_Store
+Thumbs.db

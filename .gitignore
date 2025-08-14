@@ -3,4 +3,4 @@ src/credentials.json
 .env
 node_modules/
 dist/
-*.log
+*.logdist/

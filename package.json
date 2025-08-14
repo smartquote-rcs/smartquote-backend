@@ -21,6 +21,7 @@
   "homepage": "https://github.com/smartquote-rcs/smartquote-backend#readme",
   "description": "",
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@mendable/firecrawl-js": "^1.29.3",
     "@supabase/supabase-js": "^2.53.0",
     "@types/jest": "^30.0.0",

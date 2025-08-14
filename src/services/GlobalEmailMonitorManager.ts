@@ -156,6 +156,27 @@ class GlobalEmailMonitorManager {
     
     console.log('✅ [GLOBAL] Shutdown do monitoramento concluído');
   }
+
+  /**
+   * Obtém o serviço de salvamento de emails
+   */
+  getEmailSaverService() {
+    return this.autoMonitorService.getEmailSaverService();
+  }
+
+  /**
+   * Obtém interpretação de um email específico
+   */
+  async getEmailInterpretation(emailId: string) {
+    return await this.autoMonitorService.getEmailInterpretation(emailId);
+  }
+
+  /**
+   * Lista todas as interpretações
+   */
+  async listInterpretations() {
+    return await this.autoMonitorService.listInterpretations();
+  }
 }
 
 export default GlobalEmailMonitorManager;

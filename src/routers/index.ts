@@ -8,6 +8,7 @@ import userRouter from "./users.route";
 import buscaRouter from "./busca.routes";
 import testRouter from "./test.routes";
 import emailRouter from "./email.routes";
+import geminiRouter from "./gemini.routes";
 
 const routers = Router();
 
@@ -24,6 +25,7 @@ routers.use('/cotacoes',authMiddleware, cotacoesRoutes);
 //routers.use('/busca-automatica',authMiddleware, buscaRouter);
 routers.use('/busca-automatica', buscaRouter);
 routers.use('/email', emailRouter);
+routers.use('/gemini', geminiRouter);
 // Rotas públicas RESTful para products (compatível com frontend)
 import { ProdutosService } from '../services/ProdutoService';
 const produtosService = new ProdutosService();

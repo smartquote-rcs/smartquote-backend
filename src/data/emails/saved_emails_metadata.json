@@ -22,5 +22,29 @@
       "/home/kali/Documents/Smartquote/back_end/src/data/emails/json/2025-08-14T17-36-44-797Z_198a9a7ca83b92d3_Re_Teste_de_monitoramento.json",
       "/home/kali/Documents/Smartquote/back_end/src/data/emails/pdf/2025-08-14T17-36-44-800Z_198a9a7ca83b92d3_Re_Teste_de_monitoramento.txt"
     ]
+  },
+  {
+    "id": "198a9c05eec2e434",
+    "savedAt": "2025-08-14T18:03:42.201Z",
+    "formats": [
+      "json",
+      "pdf"
+    ],
+    "filePaths": [
+      "/home/kali/Documents/Smartquote/back_end/src/data/emails/json/2025-08-14T18-03-42-069Z_198a9c05eec2e434_Preciso_de_uma_fatura_proforma.json",
+      "/home/kali/Documents/Smartquote/back_end/src/data/emails/pdf/2025-08-14T18-03-42-096Z_198a9c05eec2e434_Preciso_de_uma_fatura_proforma.txt"
+    ]
+  },
+  {
+    "id": "198a9c3fe450bc41",
+    "savedAt": "2025-08-14T18:07:37.313Z",
+    "formats": [
+      "json",
+      "pdf"
+    ],
+    "filePaths": [
+      "/home/kali/Documents/Smartquote/back_end/src/data/emails/json/2025-08-14T18-07-37-193Z_198a9c3fe450bc41_Re_Preciso_de_uma_fatura_profo.json",
+      "/home/kali/Documents/Smartquote/back_end/src/data/emails/pdf/2025-08-14T18-07-37-220Z_198a9c3fe450bc41_Re_Preciso_de_uma_fatura_profo.txt"
+    ]
   }
 ]

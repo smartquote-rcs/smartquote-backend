@@ -6,6 +6,7 @@
 import { spawn, ChildProcess } from 'child_process';
 import path from 'path';
 import EmailSaverService from './EmailSaverService';
+import GeminiInterpretationService from './GeminiInterpretationService';
 import type { EmailData } from './GmailMonitorService';
 
 interface AutoMonitorStatus {
@@ -37,9 +38,11 @@ class AutoEmailMonitorService {
   private messages: string[] = [];
   private callbacks: Map<string, (data: any) => void> = new Map();
   private emailSaver: EmailSaverService;
+  private geminiService: GeminiInterpretationService;
 
   constructor() {
     this.emailSaver = new EmailSaverService();
+    this.geminiService = new GeminiInterpretationService();
     this.status = {
       isRunning: false,
       startTime: null,
@@ -261,6 +264,10 @@ class AutoEmailMonitorService {
       
       console.log(`💾 [AUTO-SAVED] Email ${emailData.emailId} salvo automaticamente`);
       this.addMessage(`💾 Email salvo: ${emailData.subject.substring(0, 50)}...`);
+      
+      // Interpretar email com Gemini AI automaticamente
+      await this.interpretEmailWithGemini(emailToSave);
+      
     } catch (error) {
       console.error(`❌ [SAVE-ERROR] Falha ao salvar email ${emailData.emailId}:`, error);
       this.addMessage(`❌ Erro ao salvar email: ${error}`);
@@ -409,6 +416,47 @@ class AutoEmailMonitorService {
    */
   getEmailSaverService(): EmailSaverService {
     return this.emailSaver;
+  }
+
+  /**
+   * Interpreta email usando Gemini AI
+   */
+  private async interpretEmailWithGemini(emailData: EmailData): Promise<void> {
+    try {
+      console.log(`🧠 [GEMINI] Iniciando interpretação do email ${emailData.id}...`);
+      
+      const interpretation = await this.geminiService.interpretEmail(emailData);
+      
+      console.log(`🧠 [GEMINI-SUCCESS] Email ${emailData.id} interpretado: ${interpretation.tipo} (${interpretation.confianca}% confiança)`);
+      this.addMessage(`🧠 Interpretado: ${interpretation.tipo} - ${interpretation.resumo.substring(0, 50)}...`);
+      
+      // Log das informações extraídas
+      if (interpretation.produtos.length > 0) {
+        console.log(`📦 [GEMINI] ${interpretation.produtos.length} produto(s) identificado(s)`);
+      }
+      
+      if (interpretation.acoes_sugeridas.length > 0) {
+        console.log(`💡 [GEMINI] Ações sugeridas: ${interpretation.acoes_sugeridas.join(', ')}`);
+      }
+      
+    } catch (error: any) {
+      console.error(`❌ [GEMINI-ERROR] Falha ao interpretar email ${emailData.id}:`, error.message);
+      this.addMessage(`❌ Erro na interpretação: ${error.message}`);
+    }
+  }
+
+  /**
+   * Obtém interpretação de um email específico
+   */
+  async getEmailInterpretation(emailId: string) {
+    return await this.geminiService.getInterpretationByEmailId(emailId);
+  }
+
+  /**
+   * Lista todas as interpretações
+   */
+  async listInterpretations() {
+    return await this.geminiService.listInterpretations();
   }
 }
 

@@ -257,6 +257,43 @@ Salvo em: ${new Date().toLocaleString('pt-BR')}
     this.saveMetadata(toKeep);
     console.log(`🧹 Limpeza concluída. ${toKeep.length}/${metadata.length} emails mantidos`);
   }
+
+  /**
+   * Carrega dados completos de um email salvo
+   */
+  loadEmailFromFile(emailId: string): EmailData | null {
+    try {
+      const metadata = this.loadMetadata();
+      const emailMeta = metadata.find(item => item.id === emailId);
+      
+      if (!emailMeta) {
+        console.warn(`⚠️ Email ${emailId} não encontrado nos metadados`);
+        return null;
+      }
+
+      // Buscar arquivo JSON
+      const jsonPath = emailMeta.filePaths.find(path => path.endsWith('.json'));
+      if (!jsonPath) {
+        console.warn(`⚠️ Arquivo JSON não encontrado para email ${emailId}`);
+        return null;
+      }
+
+      if (!fs.existsSync(jsonPath)) {
+        console.warn(`⚠️ Arquivo JSON não existe: ${jsonPath}`);
+        return null;
+      }
+
+      const jsonContent = fs.readFileSync(jsonPath, 'utf8');
+      const emailData = JSON.parse(jsonContent) as EmailData;
+      
+      console.log(`📂 Email ${emailId} carregado com sucesso`);
+      return emailData;
+
+    } catch (error) {
+      console.error(`❌ Erro ao carregar email ${emailId}:`, error);
+      return null;
+    }
+  }
 }
 
 export default EmailSaverService;

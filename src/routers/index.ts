@@ -7,6 +7,7 @@ import cotacoesRoutes from "./cotacoes.routes";
 import userRouter from "./users.route";
 import buscaRouter from "./busca.routes";
 import testRouter from "./test.routes";
+import emailRouter from "./email.routes";
 
 const routers = Router();
 
@@ -21,4 +22,5 @@ routers.use('/fornecedores',authMiddleware, fornecedoresRoutes);
 routers.use('/cotacoes',authMiddleware, cotacoesRoutes);
 //routers.use('/busca-automatica',authMiddleware, buscaRouter);
 routers.use('/busca-automatica', buscaRouter);
+routers.use('/email', emailRouter);
 export default routers;

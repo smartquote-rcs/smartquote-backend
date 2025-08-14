@@ -5,6 +5,8 @@
 
 import { spawn, ChildProcess } from 'child_process';
 import path from 'path';
+import EmailSaverService from './EmailSaverService';
+import type { EmailData } from './GmailMonitorService';
 
 interface AutoMonitorStatus {
   isRunning: boolean;
@@ -34,8 +36,10 @@ class AutoEmailMonitorService {
   private status: AutoMonitorStatus;
   private messages: string[] = [];
   private callbacks: Map<string, (data: any) => void> = new Map();
+  private emailSaver: EmailSaverService;
 
   constructor() {
+    this.emailSaver = new EmailSaverService();
     this.status = {
       isRunning: false,
       startTime: null,
@@ -214,10 +218,35 @@ class AutoEmailMonitorService {
   /**
    * Manipula detecção de novo email
    */
-  private handleEmailDetected(emailData: EmailDetectedEvent): void {
+  private async handleEmailDetected(emailData: EmailDetectedEvent): Promise<void> {
     console.log(`📧 [AUTO-DETECTED] Novo email: ${emailData.subject}`);
     this.status.totalEmailsProcessed++;
     this.status.lastCheck = new Date();
+
+    // Converter EmailDetectedEvent para EmailData para salvamento
+    const emailToSave: EmailData = {
+      id: emailData.emailId,
+      threadId: '', // Será preenchido pelo worker se necessário
+      snippet: emailData.subject, // Usar assunto como snippet temporário
+      from: emailData.from,
+      subject: emailData.subject,
+      date: emailData.date,
+      content: emailData.content
+    };
+
+    // Salvar email automaticamente
+    try {
+      await this.emailSaver.saveEmail(emailToSave, {
+        saveAsJSON: true,
+        saveAsPDF: true,
+        includeRawData: false
+      });
+      console.log(`💾 [AUTO-SAVED] Email ${emailData.emailId} salvo automaticamente`);
+      this.addMessage(`💾 Email salvo: ${emailData.subject.substring(0, 50)}...`);
+    } catch (error) {
+      console.error(`❌ [SAVE-ERROR] Falha ao salvar email ${emailData.emailId}:`, error);
+      this.addMessage(`❌ Erro ao salvar email: ${error}`);
+    }
 
     // Executar callbacks registrados
     this.callbacks.forEach((callback, key) => {
@@ -321,15 +350,47 @@ class AutoEmailMonitorService {
 
       this.sendCommandToWorker('GET_RECENT_EMAILS', { limit });
       
-      // Aguardar resposta
-      const checkResponse = setInterval(() => {
+      // Se worker responder, use os dados mais recentes
+      const originalRecentEmails = this.status.recentEmails;
+      this.status.recentEmails = [];
+      
+      setTimeout(() => {
         if (this.status.recentEmails.length > 0) {
-          clearInterval(checkResponse);
           clearTimeout(timeout);
-          resolve(this.status.recentEmails);
+          resolve(this.status.recentEmails.slice(0, limit));
+        } else {
+          resolve(originalRecentEmails.slice(0, limit));
         }
-      }, 100);
+      }, 1500);
     });
+  }
+
+  /**
+   * Obtém lista de emails salvos
+   */
+  getSavedEmailsMetadata() {
+    return this.emailSaver.getSavedEmailsMetadata();
+  }
+
+  /**
+   * Verifica se um email já foi salvo
+   */
+  isEmailSaved(emailId: string): boolean {
+    return this.emailSaver.isEmailSaved(emailId);
+  }
+
+  /**
+   * Limpa emails antigos salvos
+   */
+  cleanOldSavedEmails(daysToKeep: number = 30): void {
+    this.emailSaver.cleanOldFiles(daysToKeep);
+  }
+
+  /**
+   * Obtém o serviço de salvamento de emails
+   */
+  getEmailSaverService(): EmailSaverService {
+    return this.emailSaver;
   }
 }
 

@@ -215,4 +215,123 @@ router.put('/auto-monitor/config', emailController.atualizarConfigAutoMonitorame
  */
 router.get('/auto-monitor/logs', emailController.logsAutoMonitoramento.bind(emailController));
 
+/**
+ * @swagger
+ * /email/saved:
+ *   get:
+ *     summary: Lista emails salvos
+ *     description: Retorna lista de emails que foram automaticamente salvos em PDF/JSON
+ *     tags: [Emails Salvos]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Número da página
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: Número de itens por página
+ *     responses:
+ *       200:
+ *         description: Lista de emails salvos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     emails:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                           savedAt:
+ *                             type: string
+ *                           formats:
+ *                             type: array
+ *                             items:
+ *                               type: string
+ *                           filePaths:
+ *                             type: array
+ *                             items:
+ *                               type: string
+ *                     pagination:
+ *                       type: object
+ *       500:
+ *         description: Erro interno
+ */
+router.get('/saved', emailController.listarEmailsSalvos.bind(emailController));
+
+/**
+ * @swagger
+ * /email/saved/{emailId}:
+ *   get:
+ *     summary: Verifica se um email foi salvo
+ *     description: Verifica se um email específico foi salvo no sistema
+ *     tags: [Emails Salvos]
+ *     parameters:
+ *       - in: path
+ *         name: emailId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do email
+ *     responses:
+ *       200:
+ *         description: Status do email
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     emailId:
+ *                       type: string
+ *                     isSaved:
+ *                       type: boolean
+ *                     savedAt:
+ *                       type: string
+ *       400:
+ *         description: ID do email é obrigatório
+ *       500:
+ *         description: Erro interno
+ */
+router.get('/saved/:emailId', emailController.verificarEmailSalvo.bind(emailController));
+
+/**
+ * @swagger
+ * /email/saved/cleanup:
+ *   delete:
+ *     summary: Remove emails salvos antigos
+ *     description: Remove emails salvos há mais de X dias do sistema
+ *     tags: [Emails Salvos]
+ *     parameters:
+ *       - in: query
+ *         name: days
+ *         schema:
+ *           type: integer
+ *           default: 30
+ *         description: Número de dias para manter emails salvos
+ *     responses:
+ *       200:
+ *         description: Limpeza realizada com sucesso
+ *       500:
+ *         description: Erro interno
+ */
+router.delete('/saved/cleanup', emailController.limparEmailsSalvosAntigos.bind(emailController));
+
 export default router;

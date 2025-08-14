@@ -354,6 +354,112 @@ class EmailMonitorController {
       });
     }
   }
+
+  /**
+   * Endpoint para listar emails salvos
+   */
+  async listarEmailsSalvos(req: Request, res: Response): Promise<void> {
+    try {
+      const autoService = this.globalMonitor.getAutoMonitorService();
+      const emailsMetadata = autoService.getSavedEmailsMetadata();
+      
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 20;
+      const skip = (page - 1) * limit;
+      
+      const paginatedEmails = emailsMetadata
+        .sort((a, b) => new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime())
+        .slice(skip, skip + limit);
+      
+      res.status(200).json({
+        success: true,
+        data: {
+          emails: paginatedEmails,
+          pagination: {
+            page,
+            limit,
+            total: emailsMetadata.length,
+            totalPages: Math.ceil(emailsMetadata.length / limit)
+          }
+        },
+        message: `${paginatedEmails.length} emails salvos encontrados`,
+        timestamp: new Date().toISOString()
+      });
+      
+    } catch (error: any) {
+      console.error('❌ Erro ao listar emails salvos:', error);
+      
+      res.status(500).json({
+        success: false,
+        error: error.message,
+        message: 'Erro ao listar emails salvos'
+      });
+    }
+  }
+
+  /**
+   * Endpoint para verificar se um email foi salvo
+   */
+  async verificarEmailSalvo(req: Request, res: Response): Promise<void> {
+    try {
+      const { emailId } = req.params;
+      
+      if (!emailId) {
+        res.status(400).json({
+          success: false,
+          message: 'ID do email é obrigatório'
+        });
+        return;
+      }
+      
+      const autoService = this.globalMonitor.getAutoMonitorService();
+      const isSaved = autoService.isEmailSaved(emailId);
+      
+      res.status(200).json({
+        success: true,
+        data: {
+          emailId,
+          isSaved,
+          savedAt: isSaved ? autoService.getSavedEmailsMetadata().find(m => m.id === emailId)?.savedAt : null
+        },
+        message: isSaved ? 'Email foi salvo' : 'Email não foi salvo'
+      });
+      
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        error: error.message,
+        message: 'Erro ao verificar email salvo'
+      });
+    }
+  }
+
+  /**
+   * Endpoint para limpar emails salvos antigos
+   */
+  async limparEmailsSalvosAntigos(req: Request, res: Response): Promise<void> {
+    try {
+      const daysToKeep = parseInt(req.query.days as string) || 30;
+      
+      const autoService = this.globalMonitor.getAutoMonitorService();
+      autoService.cleanOldSavedEmails(daysToKeep);
+      
+      res.status(200).json({
+        success: true,
+        message: `Emails salvos com mais de ${daysToKeep} dias foram removidos`,
+        timestamp: new Date().toISOString()
+      });
+      
+    } catch (error: any) {
+      console.error('❌ Erro ao limpar emails salvos:', error);
+      
+      res.status(500).json({
+        success: false,
+        error: error.message,
+        message: 'Erro ao limpar emails salvos antigos'
+      });
+    }
+  }
 }
 
 export default EmailMonitorController;

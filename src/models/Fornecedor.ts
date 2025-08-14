@@ -1,29 +1,13 @@
 export interface Fornecedor {
   id?: number;
-  nomeEmpresa: string;
-  observacoes: string;
-  ativo?: boolean;
-  cadastradoEm: string; 
-  cadastradoPor: number;
-  atualizadoEm: string;
-  atualizadoPor: number;
-  categoriaMercado: string;
-  contactos: any;
-  rating?: number;
-  localizacao: string;
-}
-
-export interface FornecedorDTO {
-  id: number;
-  nomeEmpresa: string;
-  observacoes: string;
+  nome: string;
+  contato_email: string;
+  contato_telefone?: string;
+  site?: string;
+  observacoes?: string;
   ativo: boolean;
-  cadastradoEm: string;
-  cadastradoPor: number;
-  atualizadoEm: string;
-  atualizadoPor: number;
-  categoriaMercado: string;
-  contactos: any;
-  rating: number;
-  localizacao: string;
+  cadastrado_em: string;
+  cadastrado_por: number;
+  atualizado_em: string;
+  atualizado_por: number;
 }

@@ -1,17 +1,29 @@
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { userSchema } from '../schemas/UserSchema';
 import UserService from '../services/UserService';
 
 class UserController {
-
+  async getByEmail(req: Request, res: Response): Promise<Response> {
+    try {
+      const email = req.params.email as string;
+      const user = await UserService.getByEmail(email);
+      // Log para depuração
+      console.log('DEBUG USER:', user);
+      if (!user) {
+        return res.status(404).json({ error: 'Usuário não encontrado' });
+      }
+      // Retorna exatamente o que está no banco, inclusive position
+      return res.status(200).json(user);
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
   async create(req: Request, res: Response): Promise<Response> {
     const parsed = userSchema.safeParse(req.body);
-
     if (!parsed.success) {
       const errors = parsed.error.format();
       return res.status(400).json({ errors });
     }
-
     try {
       const user = await UserService.create(parsed.data);
       return res.status(201).json({
@@ -19,7 +31,7 @@ class UserController {
         user: user,
       });
     } catch (err: any) {
-      return res.status(400).json({ error: err.message });
+      return res.status(500).json({ error: err.message });
     }
   }
 
@@ -62,9 +74,7 @@ class UserController {
     try {
       const { id } = req.params;
       const updates = req.body;
-
       const updatedUser = await UserService.updatePartial(String(id), updates);
-
       return res.status(200).json({
         message: 'User atualizado com sucesso.',
         data: updatedUser,
@@ -76,3 +86,5 @@ class UserController {
 }
 
 export default new UserController();
+
+

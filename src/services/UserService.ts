@@ -5,6 +5,18 @@ import AuthService from './AuthService';
 
 class UserService {
 
+  async getByEmail(email: string): Promise<UserDTO | null> {
+    const { data, error } = await supabase
+      .from(this.table)
+      .select('*')
+      .eq('email', email)
+      .single();
+    if (error) {
+      throw new Error(`Failed to get user by email: ${error.message}`);
+    }
+    return data as unknown as UserDTO;
+  }
+
   private table = "users";
 
 
@@ -85,7 +97,7 @@ async create(data: User): Promise<UserDTO> {
 
     const { data: user, error: fetchError } = await supabase
       .from(this.table)
-      .select('user_id')
+      .select('auth_id')
       .eq('id', id)
       .single();
 
@@ -93,7 +105,7 @@ async create(data: User): Promise<UserDTO> {
       throw new Error(`Failed to fetch user before delete: ${fetchError.message}`);
     }
 
-    const userId = user?.user_id;
+    const userId = user?.auth_id;
 
     const { error: deleteError } = await supabase
       .from(this.table)

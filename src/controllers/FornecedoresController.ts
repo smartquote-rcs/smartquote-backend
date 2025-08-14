@@ -6,14 +6,12 @@ import { Fornecedor } from '../models/Fornecedor';
 class FornecedoresController {
   async create(req: Request, res: Response): Promise<Response> {
     const parsed = fornecedorSchema.safeParse(req.body);
-
     if (!parsed.success) {
       const errors = parsed.error.format();
       return res.status(400).json({ errors });
     }
-
     try {
-      const fornecedor = await FornecedoresService.create(parsed.data as unknown as Fornecedor);
+      const fornecedor = await FornecedoresService.create(parsed.data as Fornecedor);
       return res.status(201).json({
         message: 'Fornecedor cadastrado com sucesso.',
         data: fornecedor,
@@ -31,7 +29,8 @@ class FornecedoresController {
         data: fornecedores,
       });
     } catch (err: any) {
-      return res.status(500).json({ error: err.message });
+      console.error('Erro ao buscar fornecedores:', err);
+      return res.status(500).json({ error: err.message, stack: err.stack });
     }
   }
 
@@ -62,9 +61,7 @@ class FornecedoresController {
     try {
       const { id } = req.params;
       const updates = req.body;
-
       const fornecedorAtualizado = await FornecedoresService.updatePartial(Number(id), updates);
-
       return res.status(200).json({
         message: 'Fornecedor atualizado com sucesso.',
         data: fornecedorAtualizado,

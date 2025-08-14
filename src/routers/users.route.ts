@@ -9,4 +9,7 @@ userRouter.post("/create",UserController.create);
 userRouter.delete("/:id",UserController.delete);
 userRouter.patch("/:id",UserController.patch);
 
+
+// Nova rota: buscar usuário por email
+userRouter.get("/by-email/:email", UserController.getByEmail);
 export default userRouter;

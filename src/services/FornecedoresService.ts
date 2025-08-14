@@ -3,12 +3,12 @@ import { Fornecedor } from '../models/Fornecedor';
 
 class FornecedoresService {
 
-  private table = "Fornecedores";
+  private table = "fornecedores";
 
   async create(FornecedorData: Fornecedor) {
     const { data, error } = await supabase
       .from(this.table)
-      .insert(FornecedorData)
+      .insert([FornecedorData])
       .select('*')
       .single();
 
@@ -59,17 +59,34 @@ class FornecedoresService {
 
   async updatePartial(id: number, dataToUpdate: Partial<Fornecedor>) {
  
+    // Atualiza apenas os campos válidos
+    const allowedFields = [
+      'nome',
+      'contato_email',
+      'contato_telefone',
+      'site',
+      'observacoes',
+      'ativo',
+      'cadastrado_em',
+      'cadastrado_por',
+      'atualizado_em',
+      'atualizado_por'
+    ];
+    const updateData: Partial<Fornecedor> = {};
+    for (const key of allowedFields) {
+      if (key in dataToUpdate) {
+        (updateData as any)[key] = (dataToUpdate as any)[key];
+      }
+    }
     const { data, error } = await supabase
       .from(this.table)
-      .update(dataToUpdate)
+      .update(updateData)
       .eq('id', id)
       .select('*')
       .single();
-
     if (error) {
       throw new Error(`Failed to update fornecedor: ${error.message}`);
     }
-
     return data;
   }
 }

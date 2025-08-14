@@ -16,6 +16,7 @@ routers.use("/users",authMiddleware, userRouter);
 routers.use('/produtos',authMiddleware, produtosRoutes);
 routers.use('/fornecedores',authMiddleware, fornecedoresRoutes);
 routers.use('/cotacoes',authMiddleware, cotacoesRoutes);
+<<<<<<< HEAD
 
 // Rotas públicas para compatibilidade com frontend
 routers.get('/products', async (req, res) => {
@@ -38,4 +39,6 @@ routers.get('/suppliers', async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
+=======
+>>>>>>> beff5d7f06a32efabe78aa568292af3dc4172de6
 export default routers;

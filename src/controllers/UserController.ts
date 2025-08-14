@@ -1,25 +1,3 @@
-  // Buscar usuário por email
-  async getByEmail(req: Request, res: Response): Promise<Response> {
-    try {
-      const { email } = req.params;
-      if (!email) {
-        return res.status(400).json({ error: 'Email é obrigatório.' });
-      }
-      const user = await UserService.getByEmail(decodeURIComponent(email));
-      if (!user) {
-        return res.status(404).json({ error: 'Usuário não encontrado.' });
-      }
-      // Retorna função/role se existir
-      return res.status(200).json({
-        id: user.id,
-        email: user.email,
-        função: user.position || user.function || 'user',
-        name: user.name
-      });
-    } catch (err: any) {
-      return res.status(500).json({ error: err.message });
-    }
-  }
 import { Request, Response } from 'express';
 import { userSchema } from '../schemas/UserSchema';
 import UserService from '../services/UserService';
@@ -57,48 +35,24 @@ class UserController {
     }
   }
 
+  async getById(req: Request, res: Response): Promise<Response> {
+    try {
+      const {id} = req.params;
+      const user = await UserService.getById(String(id));
+      return res.status(200).json({
+        message: 'User.',
+        data: user,
+      });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
 
-  async patch(req: Request, res: Response): Promise<Response> {
+  async delete(req: Request, res: Response): Promise<Response> {
     try {
       const { id } = req.params;
-      const updates = req.body;
-
-      const updatedUser = await UserService.updatePartial(String(id), updates);
-
-      return res.status(200).json({
-        message: 'User atualizado com sucesso.',
-        data: updatedUser,
-      });
-    } catch (err: any) {
-      return res.status(500).json({ error: err.message });
-    }
-  }
-
-  // Buscar usuário por email
-  async getByEmail(req: Request, res: Response): Promise<Response> {
-    try {
-      const { email } = req.params;
-      if (!email) {
-        return res.status(400).json({ error: 'Email é obrigatório.' });
-      }
-      const user = await UserService.getByEmail(decodeURIComponent(email));
-      if (!user) {
-        return res.status(404).json({ error: 'Usuário não encontrado.' });
-      }
-      // Retorna função/role se existir
-      return res.status(200).json({
-        id: user.id,
-        email: user.email,
-        função: user.position || user.function || 'user',
-        name: user.name
-      });
-    } catch (err: any) {
-      return res.status(500).json({ error: err.message });
-    }
-  }
-}
-
-export default new UserController();
+      await UserService.delete(String(id));
+      return res.status(200).json({ message: 'User deletado com sucesso.' });
     } catch (err: any) {
       return res.status(500).json({ error: err.message });
     }
@@ -122,27 +76,3 @@ export default new UserController();
 }
 
 
-  // Buscar usuário por email
-  async getByEmail(req: Request, res: Response): Promise<Response> {
-    try {
-      const { email } = req.params;
-      if (!email) {
-        return res.status(400).json({ error: 'Email é obrigatório.' });
-      }
-      const user = await UserService.getByEmail(decodeURIComponent(email));
-      if (!user) {
-        return res.status(404).json({ error: 'Usuário não encontrado.' });
-      }
-      // Retorna função/role se existir
-      return res.status(200).json({
-        id: user.id,
-        email: user.email,
-        função: user.position || user.function || 'user',
-        name: user.name
-      });
-    } catch (err: any) {
-      return res.status(500).json({ error: err.message });
-    }
-  }
-
-export default new UserController();

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
   async getByEmail(email: string): Promise<UserDTO | null> {
     const { data, error } = await supabase
       .from(this.table)
@@ -12,6 +13,8 @@
     }
     return data as unknown as UserDTO;
   }
+=======
+>>>>>>> beff5d7f06a32efabe78aa568292af3dc4172de6
 import supabase from '../infra/supabase/connect';
 import { User, UserDTO } from '../models/User';
 import { passwordHash } from '../utils/passwordHash';
@@ -19,6 +22,7 @@ import AuthService from './AuthService';
 
 class UserService {
 
+<<<<<<< HEAD
   async getByEmail(email: string): Promise<UserDTO | null> {
     const { data, error } = await supabase
       .from(this.table)
@@ -34,6 +38,8 @@ class UserService {
     return data as unknown as UserDTO;
   }
 
+=======
+>>>>>>> beff5d7f06a32efabe78aa568292af3dc4172de6
   private table = "users";
 
 

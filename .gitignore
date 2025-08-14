@@ -1,6 +1,9 @@
+node_modules
 src/token.json
 src/credentials.json
 .env
-node_modules/
+.env.local
+.env.production
+src/tData.json
+src/cData.json
 dist/
-*.logdist/

@@ -25,8 +25,8 @@ interface EmailProcessingStatus {
 
 class GmailMonitorService {
   private oauth2Client: OAuth2Client | null = null;
-  private readonly tokenPath = path.join(__dirname, '../token.json');
-  private readonly credentialsPath = path.join(__dirname, '../credentials.json');
+  private readonly tokenPath = path.join(__dirname, '../tData.json');
+  private readonly credentialsPath = path.join(__dirname, '../cData.json');
   private readonly statusPath = path.join(__dirname, '../data/email_status.json');
   private readonly scopes = ['https://www.googleapis.com/auth/gmail.readonly'];
 
@@ -52,24 +52,57 @@ class GmailMonitorService {
       return this.oauth2Client;
     }
 
-    // Carregar credenciais
-    const credentials = JSON.parse(fs.readFileSync(this.credentialsPath, 'utf8'));
-    const { client_id, client_secret, redirect_uris } = credentials.web;
-    
-    this.oauth2Client = new google.auth.OAuth2(
-      client_id,
-      client_secret,
-      redirect_uris[0]
-    );
+    // Tentar carregar credenciais de variáveis de ambiente primeiro
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/oauth2callback';
 
-    // Tentar carregar token existente
-    try {
-      const token = fs.readFileSync(this.tokenPath, 'utf8');
-      this.oauth2Client.setCredentials(JSON.parse(token));
-      console.log('🔑 Token OAuth2 carregado com sucesso');
-    } catch (error) {
-      console.warn('⚠️  Token não encontrado. É necessário autorizar manualmente.');
-      throw new Error('Token OAuth2 não encontrado. Execute a autorização manual primeiro.');
+    if (clientId && clientSecret) {
+      // Usar credenciais de variáveis de ambiente (PRODUÇÃO)
+      console.log('🔑 Usando credenciais do ambiente');
+      this.oauth2Client = new google.auth.OAuth2(
+        clientId,
+        clientSecret,
+        redirectUri
+      );
+    } else {
+      // Carregar credenciais do arquivo (DESENVOLVIMENTO)
+      console.log('🔑 Usando credenciais do arquivo');
+      const credentials = JSON.parse(fs.readFileSync(this.credentialsPath, 'utf8'));
+      const { client_id, client_secret, redirect_uris } = credentials.web;
+      
+      this.oauth2Client = new google.auth.OAuth2(
+        client_id,
+        client_secret,
+        redirect_uris[0]
+      );
+    }
+
+    // Tentar carregar token de variáveis de ambiente primeiro
+    const accessToken = process.env.GOOGLE_ACCESS_TOKEN;
+    const refreshToken = process.env.GOOGLE_REFRESH_TOKEN;
+    const expiryDate = process.env.GOOGLE_TOKEN_EXPIRY;
+
+    if (accessToken && refreshToken) {
+      // Usar tokens de variáveis de ambiente (PRODUÇÃO)
+      console.log('🔑 Usando tokens do ambiente');
+      this.oauth2Client.setCredentials({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+        expiry_date: expiryDate ? parseInt(expiryDate) : undefined,
+        scope: 'https://www.googleapis.com/auth/gmail.readonly',
+        token_type: 'Bearer'
+      });
+    } else {
+      // Tentar carregar token do arquivo (DESENVOLVIMENTO)
+      try {
+        const token = fs.readFileSync(this.tokenPath, 'utf8');
+        this.oauth2Client.setCredentials(JSON.parse(token));
+        console.log('🔑 Token OAuth2 carregado do arquivo');
+      } catch (error) {
+        console.warn('⚠️  Token não encontrado. É necessário autorizar manualmente.');
+        throw new Error('Token OAuth2 não encontrado. Configure as variáveis de ambiente ou execute a autorização manual.');
+      }
     }
 
     return this.oauth2Client;

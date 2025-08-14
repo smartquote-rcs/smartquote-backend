@@ -334,4 +334,19 @@ router.get('/saved/:emailId', emailController.verificarEmailSalvo.bind(emailCont
  */
 router.delete('/saved/cleanup', emailController.limparEmailsSalvosAntigos.bind(emailController));
 
+/**
+ * @swagger
+ * /email/test/save:
+ *   post:
+ *     summary: Testa o salvamento de email
+ *     description: Endpoint de teste para verificar se o sistema de salvamento está funcionando
+ *     tags: [Teste]
+ *     responses:
+ *       200:
+ *         description: Email de teste salvo com sucesso
+ *       500:
+ *         description: Erro no teste
+ */
+router.post('/test/save', emailController.testarSalvamentoEmail.bind(emailController));
+
 export default router;

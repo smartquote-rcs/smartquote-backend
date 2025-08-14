@@ -70,14 +70,16 @@ class AutoEmailMonitorService {
     try {
       console.log('🚀 Iniciando worker de monitoramento automático...');
 
-      // Usar script shell para execução mais confiável
-      const scriptPath = path.join(__dirname, '../../scripts/run-email-worker.sh');
+      // Executar worker diretamente em Node.js para IPC funcionar
+      const workerPath = path.join(__dirname, '../workers/emailMonitorWorker.ts');
       
-      console.log(`📁 Script path: ${scriptPath}`);
+      console.log(`📁 Worker path: ${workerPath}`);
       
-      this.worker = spawn('bash', [scriptPath], {
+      // Usar node com ts-node/register para melhor compatibilidade com IPC
+      this.worker = spawn('node', ['-r', 'ts-node/register', workerPath], {
         stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
-        cwd: path.join(__dirname, '../..')
+        cwd: path.join(__dirname, '../..'),
+        env: { ...process.env }
       });
 
       this.setupWorkerHandlers();
@@ -187,11 +189,16 @@ class AutoEmailMonitorService {
    * Processa mensagens do worker
    */
   private processWorkerMessage(message: any): void {
+    console.log(`📨 [DEBUG] Mensagem recebida do worker:`, message);
+    
     if (message.type === 'WORKER_MSG') {
       const { action, data, timestamp } = message.payload;
 
+      console.log(`📨 [DEBUG] Action: ${action}, Data:`, data);
+
       switch (action) {
         case 'EMAIL_DETECTED':
+          console.log(`📧 [DEBUG] Chamando handleEmailDetected...`);
           this.handleEmailDetected(data as EmailDetectedEvent);
           break;
 
@@ -220,6 +227,14 @@ class AutoEmailMonitorService {
    */
   private async handleEmailDetected(emailData: EmailDetectedEvent): Promise<void> {
     console.log(`📧 [AUTO-DETECTED] Novo email: ${emailData.subject}`);
+    console.log(`📧 [DEBUG] Email data:`, {
+      id: emailData.emailId,
+      from: emailData.from,
+      subject: emailData.subject,
+      date: emailData.date,
+      contentLength: emailData.content?.length || 0
+    });
+    
     this.status.totalEmailsProcessed++;
     this.status.lastCheck = new Date();
 
@@ -236,11 +251,14 @@ class AutoEmailMonitorService {
 
     // Salvar email automaticamente
     try {
+      console.log(`💾 [DEBUG] Iniciando salvamento do email ${emailData.emailId}...`);
+      
       await this.emailSaver.saveEmail(emailToSave, {
         saveAsJSON: true,
         saveAsPDF: true,
         includeRawData: false
       });
+      
       console.log(`💾 [AUTO-SAVED] Email ${emailData.emailId} salvo automaticamente`);
       this.addMessage(`💾 Email salvo: ${emailData.subject.substring(0, 50)}...`);
     } catch (error) {

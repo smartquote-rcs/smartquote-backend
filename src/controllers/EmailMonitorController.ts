@@ -460,6 +460,55 @@ class EmailMonitorController {
       });
     }
   }
+
+  /**
+   * Endpoint de teste para simular salvamento de email
+   */
+  async testarSalvamentoEmail(req: Request, res: Response): Promise<void> {
+    try {
+      const autoService = this.globalMonitor.getAutoMonitorService();
+      
+      // Criar email de teste
+      const emailTeste: EmailData = {
+        id: `test_${Date.now()}`,
+        threadId: 'thread_test',
+        snippet: 'Este é um email de teste para verificar o salvamento',
+        from: 'teste@exemplo.com',
+        subject: 'Email de Teste - Salvamento Automático',
+        date: new Date().toISOString(),
+        content: 'Este é o conteúdo completo do email de teste. Aqui podemos verificar se o sistema de salvamento está funcionando corretamente.'
+      };
+
+      // Salvar manualmente usando o EmailSaverService
+      const emailSaver = autoService.getEmailSaverService();
+      const result = await emailSaver.saveEmail(emailTeste, {
+        saveAsJSON: true,
+        saveAsPDF: true,
+        includeRawData: false
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Email de teste salvo com sucesso',
+        data: {
+          emailId: emailTeste.id,
+          savedFormats: result.formats,
+          savedPaths: result.filePaths,
+          savedAt: result.savedAt
+        },
+        timestamp: new Date().toISOString()
+      });
+      
+    } catch (error: any) {
+      console.error('❌ Erro ao testar salvamento:', error);
+      
+      res.status(500).json({
+        success: false,
+        error: error.message,
+        message: 'Erro ao testar salvamento de email'
+      });
+    }
+  }
 }
 
 export default EmailMonitorController;

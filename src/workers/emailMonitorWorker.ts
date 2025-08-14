@@ -124,6 +124,9 @@ class EmailMonitorWorker {
           console.log(`  ✉️  ${email.subject.substring(0, 40)}... (${email.from})`);
           
           // Enviar mensagem para processo pai (se existir)
+          console.log(`📤 [DEBUG] Enviando mensagem EMAIL_DETECTED para o processo pai...`);
+          console.log(`📤 [DEBUG] process.send existe:`, !!process.send);
+          
           this.sendMessageToParent('EMAIL_DETECTED', {
             emailId: email.id,
             from: email.from,
@@ -131,6 +134,8 @@ class EmailMonitorWorker {
             date: email.date,
             content: email.content.substring(0, 200) + '...'
           });
+          
+          console.log(`📤 [DEBUG] Mensagem EMAIL_DETECTED enviada!`);
         }
 
         // Reset contador de erros após sucesso
@@ -162,6 +167,11 @@ class EmailMonitorWorker {
    * Envia mensagem para o processo pai
    */
   public sendMessageToParent(type: string, data: any): void {
+    console.log(`📤 [DEBUG] sendMessageToParent called with type: ${type}`);
+    console.log(`📤 [DEBUG] Data:`, JSON.stringify(data, null, 2));
+    console.log(`📤 [DEBUG] process.send available:`, !!process.send);
+    console.log(`📤 [DEBUG] process.connected:`, process.connected);
+    
     if (process.send) {
       const message = {
         type: 'WORKER_MSG',
@@ -171,7 +181,17 @@ class EmailMonitorWorker {
           data
         }
       };
-      process.send(message);
+      
+      console.log(`📤 [DEBUG] Sending message:`, JSON.stringify(message, null, 2));
+      
+      try {
+        process.send(message);
+        console.log(`📤 [DEBUG] Message sent successfully!`);
+      } catch (error) {
+        console.error(`📤 [ERROR] Failed to send message:`, error);
+      }
+    } else {
+      console.warn(`📤 [WARNING] process.send not available - running standalone?`);
     }
   }
 

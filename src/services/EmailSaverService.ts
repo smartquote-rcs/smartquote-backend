@@ -4,7 +4,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import PDFDocument from 'pdfkit';
+// import PDFDocument from 'pdfkit';  // Temporariamente comentado para resolver erro tslib
 import type { EmailData } from './GmailMonitorService';
 
 interface EmailSaveOptions {
@@ -79,72 +79,34 @@ class EmailSaverService {
    * Salva email em formato PDF
    */
   private async saveAsPDF(email: EmailData): Promise<string> {
-    const fileName = this.generateFileName(email, 'pdf');
+    // Temporariamente desabilitado devido a problema com tslib
+    console.log('⚠️  Geração de PDF temporariamente desabilitada');
+    const fileName = this.generateFileName(email, 'txt');
     const filePath = path.join(this.pdfDir, fileName);
 
-    return new Promise((resolve, reject) => {
-      try {
-        const doc = new PDFDocument();
-        const stream = fs.createWriteStream(filePath);
-        doc.pipe(stream);
+    // Criar arquivo de texto simples como alternativa temporária
+    const content = `Email Capturado
+================
 
-        // Cabeçalho do PDF
-        doc.fontSize(16).font('Helvetica-Bold').text('Email Capturado', { align: 'center' });
-        doc.moveDown();
+ID: ${email.id}
+De: ${email.from}
+Assunto: ${email.subject}
+Data: ${email.date}
+Thread ID: ${email.threadId}
 
-        // Informações do email
-        doc.fontSize(12).font('Helvetica-Bold').text('ID:', { continued: true });
-        doc.font('Helvetica').text(` ${email.id}`);
+Resumo:
+${email.snippet || 'Sem resumo disponível'}
 
-        doc.font('Helvetica-Bold').text('De:', { continued: true });
-        doc.font('Helvetica').text(` ${email.from}`);
+Conteúdo Completo:
+${email.content || 'Conteúdo não disponível'}
 
-        doc.font('Helvetica-Bold').text('Assunto:', { continued: true });
-        doc.font('Helvetica').text(` ${email.subject}`);
+Salvo em: ${new Date().toLocaleString('pt-BR')}
+`;
 
-        doc.font('Helvetica-Bold').text('Data:', { continued: true });
-        doc.font('Helvetica').text(` ${email.date}`);
-
-        doc.font('Helvetica-Bold').text('Thread ID:', { continued: true });
-        doc.font('Helvetica').text(` ${email.threadId}`);
-
-        doc.moveDown();
-
-        // Resumo
-        doc.font('Helvetica-Bold').text('Resumo:');
-        doc.font('Helvetica').text(email.snippet || 'Sem resumo disponível', {
-          width: 500,
-          align: 'justify'
-        });
-
-        doc.moveDown();
-
-        // Conteúdo completo
-        doc.font('Helvetica-Bold').text('Conteúdo Completo:');
-        doc.font('Helvetica').text(email.content || 'Conteúdo não disponível', {
-          width: 500,
-          align: 'justify'
-        });
-
-        // Rodapé
-        doc.moveDown(2);
-        doc.fontSize(10).text(`Salvo em: ${new Date().toLocaleString('pt-BR')}`, {
-          align: 'center'
-        });
-
-        doc.end();
-
-        stream.on('finish', () => {
-          console.log(`📄 Email salvo como PDF: ${fileName}`);
-          resolve(filePath);
-        });
-
-        stream.on('error', reject);
-
-      } catch (error) {
-        reject(error);
-      }
-    });
+    fs.writeFileSync(filePath, content, 'utf8');
+    console.log(`📄 Email salvo como TXT: ${fileName}`);
+    
+    return filePath;
   }
 
   /**

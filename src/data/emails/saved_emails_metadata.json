@@ -1,0 +1,26 @@
+[
+  {
+    "id": "test_1755192650751",
+    "savedAt": "2025-08-14T17:30:50.764Z",
+    "formats": [
+      "json",
+      "pdf"
+    ],
+    "filePaths": [
+      "/home/kali/Documents/Smartquote/back_end/src/data/emails/json/2025-08-14T17-30-50-752Z_test_1755192650751_Email_de_Teste_Salvamento_Aut.json",
+      "/home/kali/Documents/Smartquote/back_end/src/data/emails/pdf/2025-08-14T17-30-50-754Z_test_1755192650751_Email_de_Teste_Salvamento_Aut.txt"
+    ]
+  },
+  {
+    "id": "198a9a7ca83b92d3",
+    "savedAt": "2025-08-14T17:36:44.802Z",
+    "formats": [
+      "json",
+      "pdf"
+    ],
+    "filePaths": [
+      "/home/kali/Documents/Smartquote/back_end/src/data/emails/json/2025-08-14T17-36-44-797Z_198a9a7ca83b92d3_Re_Teste_de_monitoramento.json",
+      "/home/kali/Documents/Smartquote/back_end/src/data/emails/pdf/2025-08-14T17-36-44-800Z_198a9a7ca83b92d3_Re_Teste_de_monitoramento.txt"
+    ]
+  }
+]

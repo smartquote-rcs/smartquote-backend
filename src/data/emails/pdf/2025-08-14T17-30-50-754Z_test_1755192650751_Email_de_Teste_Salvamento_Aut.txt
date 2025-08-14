@@ -1,0 +1,16 @@
+Email Capturado
+================
+
+ID: test_1755192650751
+De: teste@exemplo.com
+Assunto: Email de Teste - Salvamento Automático
+Data: 2025-08-14T17:30:50.751Z
+Thread ID: thread_test
+
+Resumo:
+Este é um email de teste para verificar o salvamento
+
+Conteúdo Completo:
+Este é o conteúdo completo do email de teste. Aqui podemos verificar se o sistema de salvamento está funcionando corretamente.
+
+Salvo em: 14/08/2025, 18:30:50

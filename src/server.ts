@@ -17,39 +17,15 @@ app.use(express.json());
 
 app.use("/api",routers);
 
-// Inicializar monitoramento automático de emails
-const initializeEmailMonitoring = async () => {
-  try {
-    console.log('🚀 [SERVIDOR] Inicializando monitoramento automático de emails...');
-    const monitor = GlobalEmailMonitorManager.getInstance();
-    await monitor.initializeAutoMonitoring();
-  } catch (error) {
-    console.error('❌ [SERVIDOR] Erro ao inicializar monitoramento de emails:', error);
-  }
-};
-
-// Graceful shutdown
-const gracefulShutdown = async () => {
-  console.log('📤 [SERVIDOR] Recebido sinal de shutdown...');
-  
-  try {
-    const monitor = GlobalEmailMonitorManager.getInstance();
-    await monitor.gracefulShutdown();
-    console.log('✅ [SERVIDOR] Shutdown concluído');
-    process.exit(0);
-  } catch (error) {
-    console.error('❌ [SERVIDOR] Erro durante shutdown:', error);
-    process.exit(1);
-  }
-};
-
-// Capturar sinais de shutdown
-process.on('SIGTERM', gracefulShutdown);
-process.on('SIGINT', gracefulShutdown);
-
 app.listen(port, async ()=>{
   console.log(`Server running in port=${port}`);
   
-  // Aguardar um pouco para o servidor estabilizar, depois iniciar monitoramento
-  setTimeout(initializeEmailMonitoring, 2000);
+  // Inicializar monitoramento de email automaticamente
+  try {
+    const globalMonitor = GlobalEmailMonitorManager.getInstance();
+    await globalMonitor.initializeAutoMonitoring();
+    console.log('📧 Email monitoring initialized successfully');
+  } catch (error) {
+    console.error('❌ Failed to initialize email monitoring:', error);
+  }
 });

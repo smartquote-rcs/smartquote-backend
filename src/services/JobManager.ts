@@ -90,15 +90,48 @@ class JobManager {
 
     console.log(`🚀 Iniciando execução do job ${jobId}`);
 
+    // Detectar ambiente
+    const isDevelopment = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === undefined;
+    const isProduction = process.env.NODE_ENV === 'production';
+    
+    console.log(`🔧 Ambiente: ${isDevelopment ? 'desenvolvimento' : 'produção'}`);
+
     // Criar processo filho para executar o worker
     const workerPath = path.join(__dirname, '../workers/buscaWorker.ts');
-    console.log(`🔧 Executando worker: ${workerPath}`);
+    console.log(`� Worker path: ${workerPath}`);
     
-    // Usar spawn com ts-node para executar TypeScript diretamente
-    const childProcess = spawn('npx', ['ts-node', workerPath], {
-      stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
-      cwd: process.cwd()
-    });
+    let childProcess;
+    
+    if (isDevelopment) {
+      // Desenvolvimento: usar ts-node/register
+      console.log('🔧 Usando ts-node/register para desenvolvimento');
+      childProcess = spawn('node', ['-r', 'ts-node/register', workerPath], {
+        stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
+        cwd: process.cwd(),
+        env: { ...process.env }
+      });
+    } else {
+      // Produção: compilar TypeScript ou usar JavaScript
+      const jsWorkerPath = path.join(__dirname, '../workers/buscaWorker.js');
+      
+      // Verificar se arquivo JS existe
+      const fs = require('fs');
+      if (fs.existsSync(jsWorkerPath)) {
+        console.log('🔧 Usando arquivo JavaScript compilado para produção');
+        childProcess = spawn('node', [jsWorkerPath], {
+          stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
+          cwd: process.cwd(),
+          env: { ...process.env }
+        });
+      } else {
+        console.log('🔧 Fallback: usando ts-node em produção');
+        childProcess = spawn('node', ['-r', 'ts-node/register', workerPath], {
+          stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
+          cwd: process.cwd(),
+          env: { ...process.env }
+        });
+      }
+    }
     
     this.processos.set(jobId, childProcess);
 

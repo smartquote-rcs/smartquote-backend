@@ -1,0 +1,22 @@
+{
+  "id": "interp_1755255692861_z6xbzl1xh",
+  "emailId": "198ad642a9fe80a1",
+  "tipo": "outro",
+  "prioridade": "baixa",
+  "produtos": [],
+  "cliente": {
+    "nome": "Hudson Mateque",
+    "empresa": null,
+    "email": "hmateque@gmail.com",
+    "telefone": null,
+    "website": null,
+    "localizacao": null
+  },
+  "resumo": "E-mail com um elogio sobre a foto do Facebook do destinatário.",
+  "acoes_sugeridas": [
+    "Nenhuma ação necessária, exceto talvez um agradecimento casual."
+  ],
+  "confianca": 95,
+  "interpretedAt": "2025-08-15T11:01:32.861Z",
+  "rawGeminiResponse": "```json\n{\n  \"tipo\": \"outro\",\n  \"prioridade\": \"baixa\",\n  \"produtos\": [],\n  \"cliente\": {\n    \"nome\": \"Hudson Mateque\",\n    \"empresa\": null,\n    \"email\": \"hmateque@gmail.com\",\n    \"telefone\": null,\n    \"website\": null,\n    \"localizacao\": null\n  },\n  \"resumo\": \"E-mail com um elogio sobre a foto do Facebook do destinatário.\",\n  \"acoes_sugeridas\": [\"Nenhuma ação necessária, exceto talvez um agradecimento casual.\"],\n  \"confianca\": 95\n}\n```"
+}

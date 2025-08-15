@@ -4,26 +4,23 @@
 
 import fs from 'fs';
 import path from 'path';
-// import PDFDocument from 'pdfkit';  // Temporariamente comentado para resolver erro tslib
 import type { EmailData } from './GmailMonitorService';
 
 interface EmailSaveOptions {
   saveAsJSON?: boolean;
-  saveAsPDF?: boolean;
   includeRawData?: boolean;
 }
 
 interface SavedEmailMetadata {
   id: string;
   savedAt: Date;
-  formats: string[]; // ['json', 'pdf']
+  formats: string[]; // ['json']
   filePaths: string[];
 }
 
 class EmailSaverService {
-  private readonly emailsDir = path.join(__dirname, '../data/emails');
+  private readonly emailsDir = path.join(process.cwd(), 'src/data/emails');
   private readonly jsonDir = path.join(this.emailsDir, 'json');
-  private readonly pdfDir = path.join(this.emailsDir, 'pdf');
   private readonly metadataPath = path.join(this.emailsDir, 'saved_emails_metadata.json');
 
   constructor() {
@@ -34,7 +31,7 @@ class EmailSaverService {
    * Garante que os diretórios necessários existem
    */
   private ensureDirectories(): void {
-    const dirs = [this.emailsDir, this.jsonDir, this.pdfDir];
+    const dirs = [this.emailsDir, this.jsonDir];
     dirs.forEach(dir => {
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
@@ -76,40 +73,6 @@ class EmailSaverService {
   }
 
   /**
-   * Salva email em formato PDF
-   */
-  private async saveAsPDF(email: EmailData): Promise<string> {
-    // Temporariamente desabilitado devido a problema com tslib
-    console.log('⚠️  Geração de PDF temporariamente desabilitada');
-    const fileName = this.generateFileName(email, 'txt');
-    const filePath = path.join(this.pdfDir, fileName);
-
-    // Criar arquivo de texto simples como alternativa temporária
-    const content = `Email Capturado
-================
-
-ID: ${email.id}
-De: ${email.from}
-Assunto: ${email.subject}
-Data: ${email.date}
-Thread ID: ${email.threadId}
-
-Resumo:
-${email.snippet || 'Sem resumo disponível'}
-
-Conteúdo Completo:
-${email.content || 'Conteúdo não disponível'}
-
-Salvo em: ${new Date().toLocaleString('pt-BR')}
-`;
-
-    fs.writeFileSync(filePath, content, 'utf8');
-    console.log(`📄 Email salvo como TXT: ${fileName}`);
-    
-    return filePath;
-  }
-
-  /**
    * Carrega metadados dos emails salvos
    */
   private loadMetadata(): SavedEmailMetadata[] {
@@ -137,11 +100,11 @@ Salvo em: ${new Date().toLocaleString('pt-BR')}
   }
 
   /**
-   * Salva um email nos formatos especificados
+   * Salva um email em formato JSON
    */
   async saveEmail(
     email: EmailData, 
-    options: EmailSaveOptions = { saveAsJSON: true, saveAsPDF: true, includeRawData: false }
+    options: EmailSaveOptions = { saveAsJSON: true, includeRawData: false }
   ): Promise<SavedEmailMetadata> {
     console.log(`💾 Salvando email: ${email.subject.substring(0, 50)}...`);
 
@@ -154,13 +117,6 @@ Salvo em: ${new Date().toLocaleString('pt-BR')}
         const jsonPath = await this.saveAsJSON(email, options.includeRawData);
         savedPaths.push(jsonPath);
         formats.push('json');
-      }
-
-      // Salvar como PDF
-      if (options.saveAsPDF) {
-        const pdfPath = await this.saveAsPDF(email);
-        savedPaths.push(pdfPath);
-        formats.push('pdf');
       }
 
       // Criar metadata
@@ -176,7 +132,7 @@ Salvo em: ${new Date().toLocaleString('pt-BR')}
       allMetadata.push(metadata);
       this.saveMetadata(allMetadata);
 
-      console.log(`✅ Email ${email.id} salvo com sucesso em ${formats.length} formato(s)`);
+      console.log(`✅ Email ${email.id} salvo com sucesso em JSON`);
       return metadata;
 
     } catch (error) {
@@ -190,7 +146,7 @@ Salvo em: ${new Date().toLocaleString('pt-BR')}
    */
   async saveEmails(
     emails: EmailData[], 
-    options: EmailSaveOptions = { saveAsJSON: true, saveAsPDF: true, includeRawData: false }
+    options: EmailSaveOptions = { saveAsJSON: true, includeRawData: false }
   ): Promise<SavedEmailMetadata[]> {
     console.log(`💾 Salvando ${emails.length} emails...`);
 
@@ -256,6 +212,43 @@ Salvo em: ${new Date().toLocaleString('pt-BR')}
 
     this.saveMetadata(toKeep);
     console.log(`🧹 Limpeza concluída. ${toKeep.length}/${metadata.length} emails mantidos`);
+  }
+
+  /**
+   * Carrega dados completos de um email salvo
+   */
+  loadEmailFromFile(emailId: string): EmailData | null {
+    try {
+      const metadata = this.loadMetadata();
+      const emailMeta = metadata.find(item => item.id === emailId);
+      
+      if (!emailMeta) {
+        console.warn(`⚠️ Email ${emailId} não encontrado nos metadados`);
+        return null;
+      }
+
+      // Buscar arquivo JSON
+      const jsonPath = emailMeta.filePaths.find(path => path.endsWith('.json'));
+      if (!jsonPath) {
+        console.warn(`⚠️ Arquivo JSON não encontrado para email ${emailId}`);
+        return null;
+      }
+
+      if (!fs.existsSync(jsonPath)) {
+        console.warn(`⚠️ Arquivo JSON não existe: ${jsonPath}`);
+        return null;
+      }
+
+      const jsonContent = fs.readFileSync(jsonPath, 'utf8');
+      const emailData = JSON.parse(jsonContent) as EmailData;
+      
+      console.log(`📂 Email ${emailId} carregado com sucesso`);
+      return emailData;
+
+    } catch (error) {
+      console.error(`❌ Erro ao carregar email ${emailId}:`, error);
+      return null;
+    }
   }
 }
 

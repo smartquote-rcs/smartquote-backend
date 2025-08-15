@@ -6,6 +6,8 @@
 import { spawn, ChildProcess } from 'child_process';
 import path from 'path';
 import EmailSaverService from './EmailSaverService';
+import GeminiInterpretationService from './GeminiInterpretationService';
+import WorkerCommunication from './WorkerCommunication';
 import type { EmailData } from './GmailMonitorService';
 
 interface AutoMonitorStatus {
@@ -37,9 +39,14 @@ class AutoEmailMonitorService {
   private messages: string[] = [];
   private callbacks: Map<string, (data: any) => void> = new Map();
   private emailSaver: EmailSaverService;
+  private geminiService: GeminiInterpretationService;
+  private workerComm: WorkerCommunication;
+  private pollInterval: NodeJS.Timeout | null = null;
 
   constructor() {
     this.emailSaver = new EmailSaverService();
+    this.geminiService = new GeminiInterpretationService();
+    this.workerComm = new WorkerCommunication();
     this.status = {
       isRunning: false,
       startTime: null,
@@ -70,22 +77,55 @@ class AutoEmailMonitorService {
     try {
       console.log('🚀 Iniciando worker de monitoramento automático...');
 
+      // Detectar ambiente
+      const isDevelopment = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === undefined;
+      const isProduction = process.env.NODE_ENV === 'production';
+      
+      console.log(`🔧 Ambiente: ${isDevelopment ? 'desenvolvimento' : 'produção'}`);
+
       // Executar worker diretamente em Node.js para IPC funcionar
       const workerPath = path.join(__dirname, '../workers/emailMonitorWorker.ts');
       
       console.log(`📁 Worker path: ${workerPath}`);
       
-      // Usar node com ts-node/register para melhor compatibilidade com IPC
-      this.worker = spawn('node', ['-r', 'ts-node/register', workerPath], {
-        stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
-        cwd: path.join(__dirname, '../..'),
-        env: { ...process.env }
-      });
+      if (isDevelopment) {
+        // Desenvolvimento: usar ts-node/register
+        console.log('🔧 Usando ts-node/register para desenvolvimento');
+        this.worker = spawn('node', ['-r', 'ts-node/register', workerPath], {
+          stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
+          cwd: path.join(__dirname, '../..'),
+          env: { ...process.env }
+        });
+      } else {
+        // Produção: compilar TypeScript ou usar JavaScript
+        const jsWorkerPath = path.join(__dirname, '../workers/emailMonitorWorker.js');
+        
+        // Verificar se arquivo JS existe
+        const fs = require('fs');
+        if (fs.existsSync(jsWorkerPath)) {
+          console.log('🔧 Usando arquivo JavaScript compilado para produção');
+          this.worker = spawn('node', [jsWorkerPath], {
+            stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
+            cwd: path.join(__dirname, '../..'),
+            env: { ...process.env }
+          });
+        } else {
+          console.log('🔧 Fallback: usando ts-node em produção');
+          this.worker = spawn('node', ['-r', 'ts-node/register', workerPath], {
+            stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
+            cwd: path.join(__dirname, '../..'),
+            env: { ...process.env }
+          });
+        }
+      }
 
       this.setupWorkerHandlers();
 
       // Enviar comando de start
       this.sendCommandToWorker('START', {});
+
+      // Iniciar polling para mensagens em produção
+      this.startMessagePolling();
 
       this.status.isRunning = true;
       this.status.startTime = new Date();
@@ -121,6 +161,9 @@ class AutoEmailMonitorService {
       console.log('🛑 Parando worker de monitoramento automático...');
 
       this.sendCommandToWorker('STOP', {});
+      
+      // Parar polling
+      this.stopMessagePolling();
       
       // Aguardar um pouco e depois terminar o processo
       setTimeout(() => {
@@ -235,6 +278,14 @@ class AutoEmailMonitorService {
       contentLength: emailData.content?.length || 0
     });
     
+    // ✅ VERIFICAÇÃO DE DUPLICADOS
+    const isAlreadySaved = this.emailSaver.isEmailSaved(emailData.emailId);
+    if (isAlreadySaved) {
+      console.log(`🔄 [DUPLICADO] Email ${emailData.emailId} já foi salvo anteriormente - ignorando`);
+      this.addMessage(`🔄 Email duplicado ignorado: ${emailData.subject.substring(0, 50)}...`);
+      return;
+    }
+    
     this.status.totalEmailsProcessed++;
     this.status.lastCheck = new Date();
 
@@ -255,12 +306,15 @@ class AutoEmailMonitorService {
       
       await this.emailSaver.saveEmail(emailToSave, {
         saveAsJSON: true,
-        saveAsPDF: true,
         includeRawData: false
       });
       
       console.log(`💾 [AUTO-SAVED] Email ${emailData.emailId} salvo automaticamente`);
       this.addMessage(`💾 Email salvo: ${emailData.subject.substring(0, 50)}...`);
+      
+      // Interpretar email com Gemini AI automaticamente
+      await this.interpretEmailWithGemini(emailToSave);
+      
     } catch (error) {
       console.error(`❌ [SAVE-ERROR] Falha ao salvar email ${emailData.emailId}:`, error);
       this.addMessage(`❌ Erro ao salvar email: ${error}`);
@@ -409,6 +463,92 @@ class AutoEmailMonitorService {
    */
   getEmailSaverService(): EmailSaverService {
     return this.emailSaver;
+  }
+
+  /**
+   * Interpreta email usando Gemini AI
+   */
+  private async interpretEmailWithGemini(emailData: EmailData): Promise<void> {
+    try {
+      console.log(`🧠 [GEMINI] Iniciando interpretação do email ${emailData.id}...`);
+      
+      const interpretation = await this.geminiService.interpretEmail(emailData);
+      
+      console.log(`🧠 [GEMINI-SUCCESS] Email ${emailData.id} interpretado: ${interpretation.tipo} (${interpretation.confianca}% confiança)`);
+      this.addMessage(`🧠 Interpretado: ${interpretation.tipo} - ${interpretation.resumo.substring(0, 50)}...`);
+      
+      // Log das informações extraídas
+      if (interpretation.produtos.length > 0) {
+        console.log(`📦 [GEMINI] ${interpretation.produtos.length} produto(s) identificado(s)`);
+      }
+      
+      if (interpretation.acoes_sugeridas.length > 0) {
+        console.log(`💡 [GEMINI] Ações sugeridas: ${interpretation.acoes_sugeridas.join(', ')}`);
+      }
+      
+    } catch (error: any) {
+      console.error(`❌ [GEMINI-ERROR] Falha ao interpretar email ${emailData.id}:`, error.message);
+      this.addMessage(`❌ Erro na interpretação: ${error.message}`);
+    }
+  }
+
+  /**
+   * Obtém interpretação de um email específico
+   */
+  async getEmailInterpretation(emailId: string) {
+    return await this.geminiService.getInterpretationByEmailId(emailId);
+  }
+
+  /**
+   * Lista todas as interpretações
+   */
+  async listInterpretations() {
+    return await this.geminiService.listInterpretations();
+  }
+
+  /**
+   * Inicia polling de mensagens para produção
+   */
+  private startMessagePolling(): void {
+    // Debug: mostrar environment
+    console.log(`🔧 NODE_ENV: ${process.env.NODE_ENV}`);
+    
+    // Só fazer polling se IPC não estiver disponível
+    const isDevelopment = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === undefined;
+    
+    console.log(`🔧 isDevelopment: ${isDevelopment}`);
+    
+    if (isDevelopment) {
+      console.log('🔧 Desenvolvimento: usando IPC direto, polling desabilitado');
+      return;
+    }
+    
+    console.log('🔧 Produção: iniciando polling de mensagens a cada 2 segundos');
+    
+    this.pollInterval = setInterval(() => {
+      try {
+        if (this.workerComm.hasMessages()) {
+          console.log('📨 Mensagens encontradas, processando...');
+          const messages = this.workerComm.readMessages();
+          messages.forEach(message => {
+            this.processWorkerMessage(message);
+          });
+        }
+      } catch (error) {
+        console.error('❌ Erro no polling de mensagens:', error);
+      }
+    }, 2000); // Polling a cada 2 segundos
+  }
+
+  /**
+   * Para polling de mensagens
+   */
+  private stopMessagePolling(): void {
+    if (this.pollInterval) {
+      clearInterval(this.pollInterval);
+      this.pollInterval = null;
+      console.log('⏹️ Polling de mensagens parado');
+    }
   }
 }
 

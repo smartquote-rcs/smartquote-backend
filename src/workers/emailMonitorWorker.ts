@@ -4,6 +4,7 @@
  */
 
 import GmailMonitorService from '../services/GmailMonitorService';
+import WorkerCommunication from '../services/WorkerCommunication';
 import type { EmailData } from '../services/GmailMonitorService';
 
 interface MonitoringConfig {
@@ -29,9 +30,11 @@ class EmailMonitorWorker {
   private lastCheck: Date = new Date();
   private errorCount: number = 0;
   private maxErrors: number = 5;
+  private communication: WorkerCommunication;
 
   constructor() {
     this.gmailService = new GmailMonitorService();
+    this.communication = new WorkerCommunication();
     this.config = {
       intervalSeconds: 10, // Verificar a cada 10 segundos
       maxEmails: 4,
@@ -123,11 +126,10 @@ class EmailMonitorWorker {
 
           console.log(`  ✉️  ${email.subject.substring(0, 40)}... (${email.from})`);
           
-          // Enviar mensagem para processo pai (se existir)
+          // Enviar mensagem para processo pai usando sistema robusto
           console.log(`📤 [DEBUG] Enviando mensagem EMAIL_DETECTED para o processo pai...`);
-          console.log(`📤 [DEBUG] process.send existe:`, !!process.send);
           
-          this.sendMessageToParent('EMAIL_DETECTED', {
+          this.communication.sendMessage('EMAIL_DETECTED', {
             emailId: email.id,
             from: email.from,
             subject: email.subject,
@@ -155,7 +157,7 @@ class EmailMonitorWorker {
         console.error('🚨 Muitos erros consecutivos. Parando monitoramento automático.');
         this.stop();
         
-        this.sendMessageToParent('MONITORING_ERROR', {
+        this.communication.sendMessage('MONITORING_ERROR', {
           error: `Monitoramento parado após ${this.maxErrors} erros consecutivos`,
           lastError: error.message
         });

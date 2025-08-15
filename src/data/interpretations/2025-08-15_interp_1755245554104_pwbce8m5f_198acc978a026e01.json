@@ -1,0 +1,35 @@
+{
+  "id": "interp_1755245554104_pwbce8m5f",
+  "emailId": "198acc978a026e01",
+  "tipo": "cotacao",
+  "prioridade": "media",
+  "produtos": [
+    {
+      "nome": "Mouse pad",
+      "descricao": null,
+      "quantidade": null,
+      "unidade": null,
+      "preco": null,
+      "moeda": null,
+      "codigo": null,
+      "categoria": "acessorios_informatica"
+    }
+  ],
+  "cliente": {
+    "nome": "Hudson Mateque",
+    "empresa": null,
+    "email": "hmateque@gmail.com",
+    "telefone": null,
+    "website": null,
+    "localizacao": null
+  },
+  "resumo": "O cliente Hudson Mateque solicitou o preço de um mouse pad.",
+  "acoes_sugeridas": [
+    "Responder ao email com o preço do mouse pad.",
+    "Verificar o estoque do mouse pad.",
+    "Enviar catálogo de mouse pads, caso possua variedade."
+  ],
+  "confianca": 95,
+  "interpretedAt": "2025-08-15T08:12:34.104Z",
+  "rawGeminiResponse": "```json\n{\n  \"tipo\": \"cotacao\",\n  \"prioridade\": \"media\",\n  \"produtos\": [\n    {\n      \"nome\": \"Mouse pad\",\n      \"descricao\": null,\n      \"quantidade\": null,\n      \"unidade\": null,\n      \"preco\": null,\n      \"moeda\": null,\n      \"codigo\": null,\n      \"categoria\": \"acessorios_informatica\"\n    }\n  ],\n  \"cliente\": {\n    \"nome\": \"Hudson Mateque\",\n    \"empresa\": null,\n    \"email\": \"hmateque@gmail.com\",\n    \"telefone\": null,\n    \"website\": null,\n    \"localizacao\": null\n  },\n  \"resumo\": \"O cliente Hudson Mateque solicitou o preço de um mouse pad.\",\n  \"acoes_sugeridas\": [\n    \"Responder ao email com o preço do mouse pad.\",\n    \"Verificar o estoque do mouse pad.\",\n    \"Enviar catálogo de mouse pads, caso possua variedade.\"\n  ],\n  \"confianca\": 95\n}\n```"
+}

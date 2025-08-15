@@ -483,7 +483,6 @@ class EmailMonitorController {
       const emailSaver = autoService.getEmailSaverService();
       const result = await emailSaver.saveEmail(emailTeste, {
         saveAsJSON: true,
-        saveAsPDF: true,
         includeRawData: false
       });
 

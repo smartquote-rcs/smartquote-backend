@@ -46,5 +46,63 @@
       "/home/kali/Documents/Smartquote/back_end/src/data/emails/json/2025-08-14T18-07-37-193Z_198a9c3fe450bc41_Re_Preciso_de_uma_fatura_profo.json",
       "/home/kali/Documents/Smartquote/back_end/src/data/emails/pdf/2025-08-14T18-07-37-220Z_198a9c3fe450bc41_Re_Preciso_de_uma_fatura_profo.txt"
     ]
+  },
+  {
+    "id": "198ac934f53f5cfb",
+    "savedAt": "2025-08-15T07:13:13.958Z",
+    "formats": [
+      "json",
+      "pdf"
+    ],
+    "filePaths": [
+      "/home/kali/Documents/Smartquote/back_end/src/data/emails/json/2025-08-15T07-13-13-949Z_198ac934f53f5cfb_Fwd_Cotao.json",
+      "/home/kali/Documents/Smartquote/back_end/src/data/emails/pdf/2025-08-15T07-13-13-951Z_198ac934f53f5cfb_Fwd_Cotao.txt"
+    ]
+  },
+  {
+    "id": "198acb759d57fed5",
+    "savedAt": "2025-08-15T07:52:44.820Z",
+    "formats": [
+      "json",
+      "pdf"
+    ],
+    "filePaths": [
+      "/home/kali/Documents/Smartquote/back_end/src/data/emails/json/2025-08-15T07-52-44-817Z_198acb759d57fed5_T004.json",
+      "/home/kali/Documents/Smartquote/back_end/src/data/emails/pdf/2025-08-15T07-52-44-820Z_198acb759d57fed5_T004.txt"
+    ]
+  },
+  {
+    "id": "198acbf10453d3e4",
+    "savedAt": "2025-08-15T08:01:05.890Z",
+    "formats": [
+      "json",
+      "pdf"
+    ],
+    "filePaths": [
+      "/home/kali/Documents/Smartquote/back_end/src/data/emails/json/2025-08-15T08-01-05-887Z_198acbf10453d3e4_T005.json",
+      "/home/kali/Documents/Smartquote/back_end/src/data/emails/pdf/2025-08-15T08-01-05-888Z_198acbf10453d3e4_T005.txt"
+    ]
+  },
+  {
+    "id": "198acc978a026e01",
+    "savedAt": "2025-08-15T08:12:31.688Z",
+    "formats": [
+      "json",
+      "pdf"
+    ],
+    "filePaths": [
+      "/home/kali/Documents/Smartquote/back_end/src/data/emails/json/2025-08-15T08-12-31-681Z_198acc978a026e01_T010.json",
+      "/home/kali/Documents/Smartquote/back_end/src/data/emails/pdf/2025-08-15T08-12-31-686Z_198acc978a026e01_T010.txt"
+    ]
+  },
+  {
+    "id": "198acd222703dead",
+    "savedAt": "2025-08-15T08:22:01.107Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "/home/kali/Documents/Smartquote/back_end/src/data/emails/json/2025-08-15T08-22-01-106Z_198acd222703dead_Ultimo_teste.json"
+    ]
   }
 ]

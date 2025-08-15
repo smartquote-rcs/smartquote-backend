@@ -214,7 +214,7 @@ Responda APENAS com o JSON válido, sem texto adicional.
       const fs = await import('fs/promises');
       const path = await import('path');
       
-      const interpretationsDir = path.join(__dirname, '../data/interpretations');
+      const interpretationsDir = path.join(process.cwd(), 'src/data/interpretations');
       
       // Criar diretório se não existir
       try {
@@ -250,7 +250,7 @@ Responda APENAS com o JSON válido, sem texto adicional.
       const fs = await import('fs/promises');
       const path = await import('path');
       
-      const interpretationsDir = path.join(__dirname, '../data/interpretations');
+      const interpretationsDir = path.join(process.cwd(), 'src/data/interpretations');
       
       try {
         const files = await fs.readdir(interpretationsDir);

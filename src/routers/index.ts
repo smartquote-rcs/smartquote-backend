@@ -9,8 +9,10 @@ import buscaRouter from "./busca.routes";
 import testRouter from "./test.routes";
 import emailRouter from "./email.routes";
 import geminiRouter from "./gemini.routes";
+import { ProdutosService } from '../services/ProdutoService';
 
 const routers = Router();
+const produtosService = new ProdutosService();
 
 routers.get("/",(req, res)=>{
     res.status(200).json("APi SmartQuote ON...");
@@ -26,9 +28,9 @@ routers.use('/cotacoes',authMiddleware, cotacoesRoutes);
 routers.use('/busca-automatica', buscaRouter);
 routers.use('/email', emailRouter);
 routers.use('/gemini', geminiRouter);
+
+
 // Rotas públicas RESTful para products (compatível com frontend)
-import { ProdutosService } from '../services/ProdutoService';
-const produtosService = new ProdutosService();
 // GET /api/products
 routers.get('/products', async (req, res) => {
     try {

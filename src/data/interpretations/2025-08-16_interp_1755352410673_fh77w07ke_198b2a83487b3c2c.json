@@ -1,0 +1,35 @@
+{
+  "id": "interp_1755352410673_fh77w07ke",
+  "emailId": "198b2a83487b3c2c",
+  "tipo": "cotacao",
+  "prioridade": "media",
+  "produtos": [
+    {
+      "nome": "Impressora 3D",
+      "descricao": "Impressora 3D para prototipagem",
+      "quantidade": null,
+      "unidade": null,
+      "preco": null,
+      "moeda": null,
+      "codigo": null,
+      "categoria": "Periféricos"
+    }
+  ],
+  "cliente": {
+    "nome": "Dario Nzita",
+    "empresa": null,
+    "email": "darionzita90@gmail.com",
+    "telefone": null,
+    "website": null,
+    "localizacao": null
+  },
+  "resumo": "O cliente Dario Nzita está perguntando sobre a disponibilidade de impressoras 3D como periféricos para prototipagem.",
+  "acoes_sugeridas": [
+    "Responder ao email perguntando sobre as especificações desejadas para a impressora 3D (tamanho, tecnologia de impressão, materiais)",
+    "Enviar um catálogo de impressoras 3D disponíveis.",
+    "Oferecer um orçamento com base nas especificações fornecidas."
+  ],
+  "confianca": 95,
+  "interpretedAt": "2025-08-16T13:53:30.673Z",
+  "rawGeminiResponse": "```json\n{\n  \"tipo\": \"cotacao\",\n  \"prioridade\": \"media\",\n  \"produtos\": [\n    {\n      \"nome\": \"Impressora 3D\",\n      \"descricao\": \"Impressora 3D para prototipagem\",\n      \"quantidade\": null,\n      \"unidade\": null,\n      \"preco\": null,\n      \"moeda\": null,\n      \"codigo\": null,\n      \"categoria\": \"Periféricos\"\n    }\n  ],\n  \"cliente\": {\n    \"nome\": \"Dario Nzita\",\n    \"empresa\": null,\n    \"email\": \"darionzita90@gmail.com\",\n    \"telefone\": null,\n    \"website\": null,\n    \"localizacao\": null\n  },\n  \"resumo\": \"O cliente Dario Nzita está perguntando sobre a disponibilidade de impressoras 3D como periféricos para prototipagem.\",\n  \"acoes_sugeridas\": [\n    \"Responder ao email perguntando sobre as especificações desejadas para a impressora 3D (tamanho, tecnologia de impressão, materiais)\",\n    \"Enviar um catálogo de impressoras 3D disponíveis.\",\n    \"Oferecer um orçamento com base nas especificações fornecidas.\"\n  ],\n  \"confianca\": 95\n}\n```"
+}

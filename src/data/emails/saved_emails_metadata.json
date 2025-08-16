@@ -144,5 +144,85 @@
     "filePaths": [
       "/home/kali/Documents/Smartquote/back_end/src/data/emails/json/2025-08-15T11-05-06-144Z_198acaa567b34c05_T003.json"
     ]
+  },
+  {
+    "id": "198b2b17e05f4fd6",
+    "savedAt": "2025-08-16T13:53:26.882Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-08-16T13-53-26-872Z_198b2b17e05f4fd6_firewall.json"
+    ]
+  },
+  {
+    "id": "198b2a83487b3c2c",
+    "savedAt": "2025-08-16T13:53:27.064Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-08-16T13-53-27-061Z_198b2a83487b3c2c_Impressoras_3D_no_hardware_TI.json"
+    ]
+  },
+  {
+    "id": "198b25b138b97eb0",
+    "savedAt": "2025-08-16T13:53:27.091Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-08-16T13-53-27-086Z_198b25b138b97eb0_Integrao_de_API_para_Monitoriz.json"
+    ]
+  },
+  {
+    "id": "198b2355915f4cba",
+    "savedAt": "2025-08-16T13:53:27.235Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-08-16T13-53-27-202Z_198b2355915f4cba_blockchain_integrado.json"
+    ]
+  },
+  {
+    "id": "198b1e4bd45fe049",
+    "savedAt": "2025-08-16T13:53:39.036Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-08-16T13-53-39-032Z_198b1e4bd45fe049_blockchain_integrado_ao_ML.json"
+    ]
+  },
+  {
+    "id": "198b1e2d70c36c8c",
+    "savedAt": "2025-08-16T13:53:39.067Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-08-16T13-53-39-064Z_198b1e2d70c36c8c_comprar.json"
+    ]
+  },
+  {
+    "id": "198b1e1f23bb359a",
+    "savedAt": "2025-08-16T13:53:39.093Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-08-16T13-53-39-090Z_198b1e1f23bb359a_Integrao_com_sistemas_legados.json"
+    ]
+  },
+  {
+    "id": "198b1de2c3a44f60",
+    "savedAt": "2025-08-16T13:53:39.124Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-08-16T13-53-39-122Z_198b1de2c3a44f60_Integrao_de_API_para_Monitoriz.json"
+    ]
   }
 ]

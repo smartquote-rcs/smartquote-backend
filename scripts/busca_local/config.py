@@ -4,9 +4,13 @@ from pathlib import Path
 # Carregar variáveis de ambiente do arquivo .env se existir
 def load_env():
     """Carrega variáveis de ambiente do arquivo .env"""
-    env_file = Path(__file__).parent / '.env'
+    # procura .env na raiz do repo (3 níveis acima) e, se não existir, usa local
+    root_env = Path(__file__).parent.parent.parent / '.env'
+    local_env = Path(__file__).parent / '.env'
+    env_file = root_env if root_env.exists() else local_env
     if env_file.exists():
         try:
+            print(f"🔎 Carregando .env de: {env_file}")
             with open(env_file, 'r', encoding='utf-8') as f:
                 for line in f:
                     line = line.strip()
@@ -15,14 +19,24 @@ def load_env():
                         os.environ.setdefault(key.strip(), value.strip())
         except Exception as e:
             print(f"⚠️ Erro ao carregar .env: {e}")
+    else:
+        print("⚠️ Arquivo .env não encontrado (raiz ou local)")
 
 # Carregar .env antes de definir configurações
 load_env()
 
 # --- CONFIGURAÇÃO SUPABASE ---
-SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://tkfmjqwjgacngabgzubj.supabase.co")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRrZm1qcXdqZ2FjbmdhYmd6dWJqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ3Njc0MjUsImV4cCI6MjA3MDM0MzQyNX0.r1iFQJguowfjZZ7pNOVsxDGdvPxS_8N6wilaEOv5c1o")
+# Preferir SERVICE_ROLE; cair para SUPABASE_KEY ou SUPABASE_ANON_KEY
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_KEY = (
+    os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+    or os.environ.get("SUPABASE_KEY")
+    or os.environ.get("SUPABASE_ANON_KEY")
+)
 SUPABASE_TABLE = "produtos"
+
+if not SUPABASE_URL or not SUPABASE_KEY:
+    print("❌ Variáveis do Supabase ausentes. Defina SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY (ou ANON).")
 
 # --- CONFIGURAÇÃO WEAVIATE ---
 WEAVIATE_HOST = "localhost"
@@ -52,7 +66,7 @@ SYNONYMS = {
 CATEGORY_EQUIV = {
     "hardware de posto de trabalho": [
         "perifericos",
-        "informática", 
+        "informática",
         "computadores",
         "hardware",
     ],

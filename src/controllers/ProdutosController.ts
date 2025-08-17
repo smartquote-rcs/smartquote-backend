@@ -7,7 +7,10 @@ const produtosService = new ProdutosService();
 
 class ProdutosController {
   async create(req: Request, res: Response): Promise<Response> {
-    const parsed = produtoSchema.safeParse(req.body);
+  // normaliza fornecedorId -> fornecedor_id para compatibilidade
+  const body = { ...req.body };
+  if (body.fornecedorId && !body.fornecedor_id) body.fornecedor_id = body.fornecedorId;
+  const parsed = produtoSchema.safeParse(body);
 
     if (!parsed.success) {
       const errors = parsed.error.format();
@@ -15,7 +18,7 @@ class ProdutosController {
     }
 
     try {
-      const produto = await produtosService.create(parsed.data as unknown as Produto);
+  const produto = await produtosService.create(parsed.data as unknown as Produto);
       return res.status(201).json({
         message: 'Produto cadastrado com sucesso.',
         data: produto,
@@ -63,7 +66,8 @@ class ProdutosController {
   async patch(req: Request, res: Response): Promise<Response> {
     try {
       const { id } = req.params;
-      const updates = req.body;
+  const updates = { ...req.body };
+  if (updates.fornecedorId && !updates.fornecedor_id) updates.fornecedor_id = updates.fornecedorId;
 
       const produtoAtualizado = await produtosService.updatePartial(Number(id), updates);
 

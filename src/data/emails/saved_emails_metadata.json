@@ -144,5 +144,265 @@
     "filePaths": [
       "/home/kali/Documents/Smartquote/back_end/src/data/emails/json/2025-08-15T11-05-06-144Z_198acaa567b34c05_T003.json"
     ]
+  },
+  {
+    "id": "198ad93bfe8ea522",
+    "savedAt": "2025-08-15T12:01:56.127Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\smartquote-backend\\src\\data\\emails\\json\\2025-08-15T12-01-56-118Z_198ad93bfe8ea522_Backup_com_Ransomware_Protecti.json"
+    ]
+  },
+  {
+    "id": "198ad80c54e5ad2e",
+    "savedAt": "2025-08-15T12:01:56.600Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\smartquote-backend\\src\\data\\emails\\json\\2025-08-15T12-01-56-581Z_198ad80c54e5ad2e_Cloud_barata_pra_backups.json"
+    ]
+  },
+  {
+    "id": "198ad9c7e4cbd26c",
+    "savedAt": "2025-08-15T12:03:03.651Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\smartquote-backend\\src\\data\\emails\\json\\2025-08-15T12-03-03-648Z_198ad9c7e4cbd26c_Solicitao_de_Cotao_para_Servid.json"
+    ]
+  },
+  {
+    "id": "198ae3e3a1617258",
+    "savedAt": "2025-08-15T14:59:41.741Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\smartquote-backend\\src\\data\\emails\\json\\2025-08-15T14-59-41-738Z_198ae3e3a1617258_Tsunami.json"
+    ]
+  },
+  {
+    "id": "198ae446ec435f2d",
+    "savedAt": "2025-08-15T15:06:23.017Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\smartquote-backend\\src\\data\\emails\\json\\2025-08-15T15-06-23-015Z_198ae446ec435f2d_Quero_automatizar_meu_posto_de.json"
+    ]
+  },
+  {
+    "id": "198ae492cb043962",
+    "savedAt": "2025-08-15T15:11:31.400Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\smartquote-backend\\src\\data\\emails\\json\\2025-08-15T15-11-31-396Z_198ae492cb043962_Painis_Solares_pra_TI.json"
+    ]
+  },
+  {
+    "id": "198b1ddb11d14e80",
+    "savedAt": "2025-08-16T07:52:44.264Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\smartquote-backend\\src\\data\\emails\\json\\2025-08-16T07-52-44-261Z_198b1ddb11d14e80_Comprar.json"
+    ]
+  },
+  {
+    "id": "198b1de2c3a44f60",
+    "savedAt": "2025-08-16T07:53:15.059Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\smartquote-backend\\src\\data\\emails\\json\\2025-08-16T07-53-15-057Z_198b1de2c3a44f60_Integrao_de_API_para_Monitoriz.json"
+    ]
+  },
+  {
+    "id": "198b1e1f23bb359a",
+    "savedAt": "2025-08-16T07:57:16.264Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\smartquote-backend\\src\\data\\emails\\json\\2025-08-16T07-57-16-261Z_198b1e1f23bb359a_Integrao_com_sistemas_legados.json"
+    ]
+  },
+  {
+    "id": "198b1e4bd45fe049",
+    "savedAt": "2025-08-16T08:00:28.339Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\smartquote-backend\\src\\data\\emails\\json\\2025-08-16T08-00-28-338Z_198b1e4bd45fe049_blockchain_integrado_ao_ML.json"
+    ]
+  },
+  {
+    "id": "198b2355915f4cba",
+    "savedAt": "2025-08-16T09:28:25.764Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\smartquote-backend\\src\\data\\emails\\json\\2025-08-16T09-28-25-761Z_198b2355915f4cba_blockchain_integrado.json"
+    ]
+  },
+  {
+    "id": "198b25b138b97eb0",
+    "savedAt": "2025-08-16T10:09:35.993Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\smartquote-backend\\src\\data\\emails\\json\\2025-08-16T10-09-35-991Z_198b25b138b97eb0_Integrao_de_API_para_Monitoriz.json"
+    ]
+  },
+  {
+    "id": "198b2a83487b3c2c",
+    "savedAt": "2025-08-16T11:33:51.501Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\smartquote-backend\\src\\data\\emails\\json\\2025-08-16T11-33-51-499Z_198b2a83487b3c2c_Impressoras_3D_no_hardware_TI.json"
+    ]
+  },
+  {
+    "id": "198b2b17e05f4fd6",
+    "savedAt": "2025-08-16T11:44:04.254Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\smartquote-backend\\src\\data\\emails\\json\\2025-08-16T11-44-04-252Z_198b2b17e05f4fd6_firewall.json"
+    ]
+  },
+  {
+    "id": "198b4cac626c7162",
+    "savedAt": "2025-08-16T21:31:30.220Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\smartquote-backend\\src\\data\\emails\\json\\2025-08-16T21-31-30-217Z_198b4cac626c7162_TI.json"
+    ]
+  },
+  {
+    "id": "198b4cac626c7162",
+    "savedAt": "2025-08-16T21:31:30.575Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\smartquote-backend\\src\\data\\emails\\json\\2025-08-16T21-31-30-571Z_198b4cac626c7162_TI.json"
+    ]
+  },
+  {
+    "id": "198b4cac626c7162",
+    "savedAt": "2025-08-16T21:31:30.885Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\smartquote-backend\\src\\data\\emails\\json\\2025-08-16T21-31-30-881Z_198b4cac626c7162_TI.json"
+    ]
+  },
+  {
+    "id": "198b4cac626c7162",
+    "savedAt": "2025-08-16T21:31:30.963Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\smartquote-backend\\src\\data\\emails\\json\\2025-08-16T21-31-30-961Z_198b4cac626c7162_TI.json"
+    ]
+  },
+  {
+    "id": "198b4cac626c7162",
+    "savedAt": "2025-08-16T21:31:31.182Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\smartquote-backend\\src\\data\\emails\\json\\2025-08-16T21-31-31-179Z_198b4cac626c7162_TI.json"
+    ]
+  },
+  {
+    "id": "198b4fb3b3dfe5fa",
+    "savedAt": "2025-08-16T22:23:49.896Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\smartquote-backend\\src\\data\\emails\\json\\2025-08-16T22-23-49-893Z_198b4fb3b3dfe5fa_TI.json"
+    ]
+  },
+  {
+    "id": "198b51b669ca58c3",
+    "savedAt": "2025-08-16T22:59:13.620Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\smartquote-backend\\src\\data\\emails\\json\\2025-08-16T22-59-13-615Z_198b51b669ca58c3_TI.json"
+    ]
+  },
+  {
+    "id": "198b524ba7240abb",
+    "savedAt": "2025-08-16T23:09:16.504Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\smartquote-backend\\src\\data\\emails\\json\\2025-08-16T23-09-16-500Z_198b524ba7240abb_Fwd_Integrao_de_API_para_Monit.json"
+    ]
+  },
+  {
+    "id": "198b532f6ac2541e",
+    "savedAt": "2025-08-16T23:24:51.044Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\smartquote-backend\\src\\data\\emails\\json\\2025-08-16T23-24-51-038Z_198b532f6ac2541e_Re_Integrao_de_API_para_Monito.json"
+    ]
+  },
+  {
+    "id": "198b72a07ba68e9d",
+    "savedAt": "2025-08-17T08:34:09.624Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\smartquote-backend\\src\\data\\emails\\json\\2025-08-17T08-34-09-618Z_198b72a07ba68e9d_TI.json"
+    ]
+  },
+  {
+    "id": "198b7408c848c22b",
+    "savedAt": "2025-08-17T08:58:50.159Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\smartquote-backend\\src\\data\\emails\\json\\2025-08-17T08-58-50-156Z_198b7408c848c22b_Fwd_Solicitao_de_Cotao_para_Se.json"
+    ]
+  },
+  {
+    "id": "198b7e7d76a67f14",
+    "savedAt": "2025-08-17T12:01:32.801Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\smartquote-backend\\src\\data\\emails\\json\\2025-08-17T12-01-32-798Z_198b7e7d76a67f14_Fwd_Quero_automatizar_meu_post.json"
+    ]
   }
 ]

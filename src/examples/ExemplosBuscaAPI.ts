@@ -19,7 +19,7 @@ async function exemploRequisicaoBusca() {
       })
     });
 
-    const data = await response.json();
+  const data: any = await response.json();
     
     if (data.success) {
       console.log(`Encontrados ${data.data.total} produtos:`);
@@ -48,7 +48,7 @@ async function exemploListarSites() {
       }
     });
 
-    const data = await response.json();
+  const data: any = await response.json();
     console.log('Sites disponíveis:', data.data.sites_ativos);
   } catch (error) {
     console.error('Erro ao listar sites:', error);
@@ -67,7 +67,7 @@ async function exemploConfiguracoes() {
       }
     });
 
-    const data = await response.json();
+  const data: any = await response.json();
     console.log('Configurações padrão:', data.data);
   } catch (error) {
     console.error('Erro ao buscar configurações:', error);

@@ -4,16 +4,22 @@
  */
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { pythonProcessor } from './PythonInterpretationProcessor';
+import { BuscaAutomatica } from './BuscaAtomatica';
+import FornecedorService from './FornecedorService';
+import CotacoesItensService from './CotacoesItensService';
+import supabase from '../infra/supabase/connect';
+import PromptsService from './PromptsService';
+import CotacoesService from './CotacoesService';
+import type { Cotacao } from '../models/Cotacao';
 
 export interface EmailInterpretation {
   id: string;
   emailId: string;
-  tipo: 'cotacao' | 'pedido' | 'informacao' | 'resposta' | 'promocao' | 'outro';
+  tipo: 'pedido' | 'outro';
   prioridade: 'baixa' | 'media' | 'alta' | 'urgente';
-  produtos: ProductInfo[];
+  solicitacao: string;
   cliente: ClientInfo;
-  resumo: string;
-  acoes_sugeridas: string[];
   confianca: number; // 0-100%
   interpretedAt: string;
   rawGeminiResponse?: string;
@@ -50,6 +56,7 @@ export interface EmailData {
 class GeminiInterpretationService {
   private genAI: GoogleGenerativeAI;
   private model: any;
+  // Usa singleton compartilhado do processador Python
 
   constructor() {
     const apiKey = process.env.GEMINI_API_KEY;
@@ -82,8 +89,13 @@ class GeminiInterpretationService {
       // Parse da resposta JSON do Gemini
       const interpretation = this.parseGeminiResponse(text, emailData);
       
-      // Salvar interpretação
-      await this.saveInterpretation(interpretation);
+      // Salvar interpretação apenas se for classificado como "pedido"
+      if (interpretation.tipo === 'pedido') {
+        await this.saveInterpretation(interpretation);
+        console.log(`💾 [GEMINI] Interpretação salva para pedido ${emailData.id}`);
+      } else {
+        console.log(`📄 [GEMINI] Interpretação não salva - tipo: ${interpretation.tipo}`);
+      }
       
       console.log(`✅ [GEMINI] Email ${emailData.id} interpretado com sucesso`);
       
@@ -104,6 +116,14 @@ class GeminiInterpretationService {
     return `
 Você é um assistente especializado em análise de emails comerciais. Analise o email abaixo e extraia informações estruturadas.
 
+Seu objetivo é retornar EXCLUSIVAMENTE um json válido e completo, compatível com o schema abaixo. Não adicione comentários nem formatação Markdown.
+
+---
+
+CONTEXTO DA EMPRESA:
+Oferecemos soluções em: IT Hardware, Automação de Postos, Software, Cloud, Cibersegurança, Realidade Virtual (VR), Internet das Coisas (IoT), Hospitais Inteligentes, Quiosques Self-Service, Business Intelligence (BI), KYC-AML, CCTV, Controle de Acesso.
+
+        ---
 DADOS DO EMAIL:
 - De: ${emailData.from}
 - Assunto: ${emailData.subject}
@@ -111,30 +131,17 @@ DADOS DO EMAIL:
 - Conteúdo: ${emailData.content}
 
 INSTRUÇÕES:
-1. Identifique o tipo de email (cotacao, pedido, informacao, resposta, promocao, outro)
+1. Identifique o tipo de email: caso seja um pedido de serviço ou produtos relacionados aos nossos serviços, mesmo que seja implícito, classifique como "pedido", caso contrário, "outro".
 2. Determine a prioridade (baixa, media, alta, urgente)
-3. Extraia informações sobre produtos mencionados
+3. A solicitação que foi feita, só reformule em uma frase clara e objetiva sem omitir informações, escreva na primeira pessoa.
 4. Identifique dados do cliente/remetente
-5. Crie um resumo conciso
-6. Sugira ações a serem tomadas
-7. Avalie sua confiança na análise (0-100%)
+5. Avalie sua confiança na análise (0-100%)
 
 RESPOSTA EM JSON:
 {
   "tipo": "string",
   "prioridade": "string", 
-  "produtos": [
-    {
-      "nome": "string",
-      "descricao": "string",
-      "quantidade": number,
-      "unidade": "string",
-      "preco": number,
-      "moeda": "string",
-      "codigo": "string",
-      "categoria": "string"
-    }
-  ],
+  "solicitacao": "string",
   "cliente": {
     "nome": "string",
     "empresa": "string",
@@ -143,8 +150,6 @@ RESPOSTA EM JSON:
     "website": "string",
     "localizacao": "string"
   },
-  "resumo": "string",
-  "acoes_sugeridas": ["string"],
   "confianca": number
 }
 
@@ -170,10 +175,8 @@ Responda APENAS com o JSON válido, sem texto adicional.
         emailId: emailData.id,
         tipo: parsedResponse.tipo || 'outro',
         prioridade: parsedResponse.prioridade || 'media',
-        produtos: parsedResponse.produtos || [],
+        solicitacao: parsedResponse.solicitacao || [],
         cliente: parsedResponse.cliente || {},
-        resumo: parsedResponse.resumo || 'Resumo não disponível',
-        acoes_sugeridas: parsedResponse.acoes_sugeridas || [],
         confianca: parsedResponse.confianca || 50,
         interpretedAt: new Date().toISOString(),
         rawGeminiResponse: response
@@ -194,12 +197,10 @@ Responda APENAS com o JSON válido, sem texto adicional.
       emailId: emailData.id,
       tipo: 'outro',
       prioridade: 'media',
-      produtos: [],
+      solicitacao: '',
       cliente: {
         email: emailData.from
       },
-      resumo: `Email de ${emailData.from} sobre: ${emailData.subject}`,
-      acoes_sugeridas: ['Revisar manualmente'],
       confianca: 0,
       interpretedAt: new Date().toISOString(),
       rawGeminiResponse: `ERROR: ${errorMessage}`
@@ -207,7 +208,7 @@ Responda APENAS com o JSON válido, sem texto adicional.
   }
 
   /**
-   * Salva a interpretação em arquivo JSON
+   * Salva a interpretação em arquivo JSON e processa com Python
    */
   private async saveInterpretation(interpretation: EmailInterpretation): Promise<void> {
     try {
@@ -229,6 +230,120 @@ Responda APENAS com o JSON válido, sem texto adicional.
       await fs.writeFile(filepath, JSON.stringify(interpretation, null, 2), 'utf8');
       
       console.log(`💾 [GEMINI] Interpretação salva: ${filename}`);
+      
+      // 🐍 PROCESSAR COM PYTHON EM PROCESSO FILHO
+      console.log(`🐍 [GEMINI] Iniciando processamento Python para interpretação ${interpretation.id}`);
+      
+      // Executar processamento Python de forma assíncrona (não bloquear)
+      pythonProcessor.processInterpretation(interpretation)
+        .then((result) => {
+          if (result.success) {
+            console.log(`✅ [PYTHON-SUCCESS] Interpretação ${interpretation.id} processada em ${result.executionTime}ms`);
+            console.log(`📄 [PYTHON-RESULT]`, result.result);
+
+            // 🌐 Fluxo adicional: buscar na web itens faltantes e inserir na cotação principal
+      (async () => {
+              try {
+                const payload: any = result.result || {};
+                const faltantes = Array.isArray(payload.faltantes) ? payload.faltantes : [];
+        let cotacaoPrincipalId: number | null = payload?.cotacoes?.principal_id ?? null;
+
+        const fornecedores = await FornecedorService.getFornecedoresAtivos();
+                const sites = fornecedores.map((f: any) => f.url).filter(Boolean);
+        if (!sites.length) return;
+                const cfg = await FornecedorService.getConfiguracoesSistema();
+                const numPorSite = cfg?.numResultadosPorSite ?? 5;
+
+                const busca = new BuscaAutomatica();
+                const promessas = faltantes.map((f: any) => busca.buscarProdutosMultiplosSites(f.query_sugerida || interpretation.solicitacao, sites, numPorSite));
+                const resultados = await Promise.all(promessas);
+
+                // Combinar todos os produtos
+                const produtosWeb = resultados.reduce((acc: any[], arr) => {
+                  const produtos = (new BuscaAutomatica()).combinarResultados(arr);
+                  acc.push(...produtos);
+                  return acc;
+                }, [] as any[]);
+
+                // Se não há cotação principal ainda, criar uma para receber itens/faltantes
+                if (!cotacaoPrincipalId && (produtosWeb.length > 0 || faltantes.length > 0)) {
+                  // Usar dados extraídos do Python se disponível, senão criar estrutura mínima
+                  const dadosExtraidos = payload?.dados_extraidos || {
+                    solucao_principal: interpretation.solicitacao,
+                    tipo_de_solucao: 'sistema',
+                    tags_semanticas: [],
+                    itens_a_comprar: faltantes.map((f: any) => ({
+                      nome: f.nome || 'Item não especificado',
+                      natureza_componente: 'software',
+                      prioridade: 'media',
+                      categoria: f.categoria || 'Geral',
+                      quantidade: f.quantidade || 1
+                    }))
+                  };
+                  const promptId = await PromptsService.create({
+                    texto_original: interpretation.solicitacao,
+                    dados_extraidos: dadosExtraidos,
+                    origem: { tipo: 'servico', fonte: 'email' },
+                    status: 'analizado',
+                  });
+                  if (promptId) {
+                    const nova: Cotacao = {
+                      prompt_id: promptId,
+                      status: 'incompleta',
+                      faltantes: faltantes?.length ? faltantes : [],
+                      orcamento_geral: 0,
+                    };
+                    try {
+                      const criada = await CotacoesService.create(nova);
+                      cotacaoPrincipalId = criada?.id ?? null;
+                    } catch (e) {
+                      console.error('❌ [COTACAO] Erro ao criar cotação principal:', (e as any)?.message || e);
+                    }
+                  }
+                }
+
+                // Inserir itens web na cotação principal
+                let inseridos = 0;
+                if (cotacaoPrincipalId) {
+                  for (const p of produtosWeb) {
+                    try {
+                      const idItem = await CotacoesItensService.insertWebItem(Number(cotacaoPrincipalId), p);
+                      if (idItem) inseridos++;
+                    } catch (e) {
+                      console.error('❌ [COTACAO-ITEM] Erro ao inserir item web:', (e as any)?.message || e);
+                    }
+                  }
+                }
+
+                // Recalcular orçamento geral
+                try {
+                  if (!cotacaoPrincipalId) return;
+                  const { data: itens, error } = await supabase
+                    .from('cotacoes_itens')
+                    .select('item_preco, quantidade')
+                    .eq('cotacao_id', Number(cotacaoPrincipalId));
+                  if (!error && Array.isArray(itens)) {
+                    let total = 0;
+                    for (const it of itens) {
+                      const preco = parseFloat(String(it.item_preco ?? 0));
+                      const qtd = parseInt(String(it.quantidade ?? 1));
+                      if (!isNaN(preco) && !isNaN(qtd)) total += preco * qtd;
+                    }
+                    await supabase.from('cotacoes').update({ orcamento_geral: total }).eq('id', Number(cotacaoPrincipalId));
+                    console.log(`🧮 [COTACAO] Orçamento recalculado: ${total} (itens web inseridos: ${inseridos})`);
+                  }
+                } catch {}
+              } catch (e: any) {
+                console.error('❌ [BUSCA-WEB] Falha no fluxo pós-Python:', e?.message || e);
+              }
+            })();
+          } else {
+            console.error(`❌ [PYTHON-ERROR] Falha ao processar interpretação ${interpretation.id}: ${result.error}`);
+          }
+        })
+        .catch((error) => {
+          console.error(`❌ [PYTHON-CRITICAL] Erro crítico no processamento Python: ${error}`);
+        });
       
     } catch (error) {
       console.error('❌ [GEMINI] Erro ao salvar interpretação:', error);

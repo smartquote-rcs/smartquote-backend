@@ -5,8 +5,9 @@
 
 import { spawn, ChildProcess } from 'child_process';
 import path from 'path';
+import fs from 'fs';
 import EmailSaverService from './EmailSaverService';
-import GeminiInterpretationService from './GeminiInterpretationService';
+import GeminiInterpretationService, { EmailInterpretation } from './GeminiInterpretationService';
 import WorkerCommunication from './WorkerCommunication';
 import type { EmailData } from './GmailMonitorService';
 
@@ -42,6 +43,10 @@ class AutoEmailMonitorService {
   private geminiService: GeminiInterpretationService;
   private workerComm: WorkerCommunication;
   private pollInterval: NodeJS.Timeout | null = null;
+  // Dedup: locks em memória por processo e por arquivo (entre processos)
+  private processingEmails: Set<string> = new Set();
+  private lockDir: string = path.join(process.cwd(), 'src/data/.locks');
+  private exitHandlersRegistered = false;
 
   constructor() {
     this.emailSaver = new EmailSaverService();
@@ -61,6 +66,9 @@ class AutoEmailMonitorService {
       recentEmails: [],
       messages: []
     };
+  // Garante pasta de locks
+  try { fs.mkdirSync(this.lockDir, { recursive: true }); } catch {}
+  this.registerExitHandlers();
   }
 
   /**
@@ -190,6 +198,21 @@ class AutoEmailMonitorService {
   }
 
   /**
+   * Registra handlers de saída para encerrar worker e liberar locks
+   */
+  private registerExitHandlers() {
+    if (this.exitHandlersRegistered) return;
+    this.exitHandlersRegistered = true;
+    const cleanup = async () => {
+      try { await this.stopAutoMonitoring(); } catch {}
+      // Não removemos arquivos de lock aqui; cada handler os remove no finally
+    };
+    process.once('exit', () => { cleanup(); });
+    process.once('SIGINT', () => { cleanup(); process.exit(0); });
+    process.once('SIGTERM', () => { cleanup(); process.exit(0); });
+  }
+
+  /**
    * Configura os handlers do worker
    */
   private setupWorkerHandlers(): void {
@@ -278,19 +301,46 @@ class AutoEmailMonitorService {
       contentLength: emailData.content?.length || 0
     });
     
-    // ✅ VERIFICAÇÃO DE DUPLICADOS
+    // ✅ Dedup 1: por processo (evita concorrência intra-processo)
+    if (this.processingEmails.has(emailData.emailId)) {
+      console.log(`🔁 [LOCK-MEM] Email ${emailData.emailId} já em processamento neste processo — ignorando.`);
+      return;
+    }
+    this.processingEmails.add(emailData.emailId);
+
+    // ✅ Dedup 2: lock por arquivo (evita concorrência entre processos)
+    const lockPath = path.join(this.lockDir, `${emailData.emailId}.lock`);
+    let lockFd: fs.promises.FileHandle | null = null;
+    try {
+      // Tenta criar lock exclusivo; falha se já existir
+      lockFd = await fs.promises.open(lockPath, 'wx');
+    } catch (e: any) {
+      if (e && (e.code === 'EEXIST' || e.code === 'EACCES')) {
+        console.log(`🔒 [LOCK-FILE] Já existe lock para ${emailData.emailId} — outro processo está tratando. Ignorando.`);
+        this.processingEmails.delete(emailData.emailId);
+        return;
+      }
+      // Outro erro inesperado: loga mas tenta seguir para não travar o fluxo
+      console.warn(`⚠️ [LOCK-FILE] Erro ao criar lock para ${emailData.emailId}: ${e?.message || e}`);
+    }
+
+    // ✅ Dedup 3: verificação rápida se já foi salvo
     const isAlreadySaved = this.emailSaver.isEmailSaved(emailData.emailId);
     if (isAlreadySaved) {
       console.log(`🔄 [DUPLICADO] Email ${emailData.emailId} já foi salvo anteriormente - ignorando`);
       this.addMessage(`🔄 Email duplicado ignorado: ${emailData.subject.substring(0, 50)}...`);
+      // Libera lock antes de sair
+      try { if (lockFd) await lockFd.close(); } catch {}
+      try { await fs.promises.unlink(lockPath); } catch {}
+      this.processingEmails.delete(emailData.emailId);
       return;
     }
     
     this.status.totalEmailsProcessed++;
     this.status.lastCheck = new Date();
 
-    // Converter EmailDetectedEvent para EmailData para salvamento
-    const emailToSave: EmailData = {
+    // Converter EmailDetectedEvent para EmailData
+    const emailToAnalyze: EmailData = {
       id: emailData.emailId,
       threadId: '', // Será preenchido pelo worker se necessário
       snippet: emailData.subject, // Usar assunto como snippet temporário
@@ -300,24 +350,42 @@ class AutoEmailMonitorService {
       content: emailData.content
     };
 
-    // Salvar email automaticamente
-    try {
-      console.log(`💾 [DEBUG] Iniciando salvamento do email ${emailData.emailId}...`);
+  try {
+      // 1. REGISTRO DE STATUS (marca como processado para evitar reprocessamento)
+      console.log(`📝 [STATUS] Registrando email ${emailData.emailId} como processado...`);
+      await this.markEmailAsProcessed(emailData.emailId);
+      this.addMessage(`📝 Status registrado: ${emailData.subject.substring(0, 50)}...`);
       
-      await this.emailSaver.saveEmail(emailToSave, {
-        saveAsJSON: true,
-        includeRawData: false
-      });
+      // 2. INTERPRETAÇÃO COM GEMINI AI
+      console.log(`🧠 [GEMINI] Iniciando interpretação do email ${emailData.emailId}...`);
+      const interpretation = await this.interpretEmailWithGemini(emailToAnalyze);
       
-      console.log(`💾 [AUTO-SAVED] Email ${emailData.emailId} salvo automaticamente`);
-      this.addMessage(`💾 Email salvo: ${emailData.subject.substring(0, 50)}...`);
-      
-      // Interpretar email com Gemini AI automaticamente
-      await this.interpretEmailWithGemini(emailToSave);
+      // 3. SALVAMENTO CONDICIONAL (apenas se for "pedido")
+      if (interpretation.tipo === 'pedido') {
+        console.log(`📋 [PEDIDO-DETECTED] Email classificado como pedido - salvando dados...`);
+        
+        // Salvar email em JSON
+        await this.emailSaver.saveEmail(emailToAnalyze, {
+          saveAsJSON: true,
+          includeRawData: false
+        });
+        
+        console.log(`💾 [AUTO-SAVED] Email ${emailData.emailId} salvo como pedido`);
+        this.addMessage(`💾 📋 Pedido salvo: ${emailData.subject.substring(0, 50)}... (${interpretation.confianca}% confiança)`);
+        
+      } else {
+        console.log(`📄 [OUTRO-EMAIL] Email classificado como "${interpretation.tipo}" - não será salvo`);
+        this.addMessage(`📄 Email ignorado (${interpretation.tipo}): ${emailData.subject.substring(0, 50)}...`);
+      }
       
     } catch (error) {
-      console.error(`❌ [SAVE-ERROR] Falha ao salvar email ${emailData.emailId}:`, error);
-      this.addMessage(`❌ Erro ao salvar email: ${error}`);
+      console.error(`❌ [PROCESS-ERROR] Falha ao processar email ${emailData.emailId}:`, error);
+      this.addMessage(`❌ Erro ao processar email: ${error}`);
+    } finally {
+      // Libera lock de arquivo e de memória
+      try { if (lockFd) await lockFd.close(); } catch {}
+      try { await fs.promises.unlink(lockPath); } catch {}
+      this.processingEmails.delete(emailData.emailId);
     }
 
     // Executar callbacks registrados
@@ -468,27 +536,38 @@ class AutoEmailMonitorService {
   /**
    * Interpreta email usando Gemini AI
    */
-  private async interpretEmailWithGemini(emailData: EmailData): Promise<void> {
+  private async interpretEmailWithGemini(emailData: EmailData): Promise<EmailInterpretation> {
     try {
       console.log(`🧠 [GEMINI] Iniciando interpretação do email ${emailData.id}...`);
       
       const interpretation = await this.geminiService.interpretEmail(emailData);
       
       console.log(`🧠 [GEMINI-SUCCESS] Email ${emailData.id} interpretado: ${interpretation.tipo} (${interpretation.confianca}% confiança)`);
-      this.addMessage(`🧠 Interpretado: ${interpretation.tipo} - ${interpretation.resumo.substring(0, 50)}...`);
-      
-      // Log das informações extraídas
-      if (interpretation.produtos.length > 0) {
-        console.log(`📦 [GEMINI] ${interpretation.produtos.length} produto(s) identificado(s)`);
+      const solicit = (interpretation as any).solicitacao ? String((interpretation as any).solicitacao) : '';
+      if (solicit) {
+        this.addMessage(`🧠 Interpretado: ${interpretation.tipo} - ${solicit.substring(0, 50)}...`);
+      } else {
+        this.addMessage(`🧠 Interpretado: ${interpretation.tipo}`);
       }
-      
-      if (interpretation.acoes_sugeridas.length > 0) {
-        console.log(`💡 [GEMINI] Ações sugeridas: ${interpretation.acoes_sugeridas.join(', ')}`);
-      }
-      
+
+      return interpretation;
+
     } catch (error: any) {
       console.error(`❌ [GEMINI-ERROR] Falha ao interpretar email ${emailData.id}:`, error.message);
       this.addMessage(`❌ Erro na interpretação: ${error.message}`);
+      
+      // Retornar interpretação básica em caso de erro
+      return {
+        id: `interp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        emailId: emailData.id,
+        tipo: 'outro',
+        prioridade: 'media',
+        solicitacao: '',
+        cliente: { email: emailData.from },
+        confianca: 0,
+        interpretedAt: new Date().toISOString(),
+        rawGeminiResponse: `ERROR: ${error.message}`
+      };
     }
   }
 
@@ -548,6 +627,67 @@ class AutoEmailMonitorService {
       clearInterval(this.pollInterval);
       this.pollInterval = null;
       console.log('⏹️ Polling de mensagens parado');
+    }
+  }
+
+  /**
+   * Verifica se um email já foi processado anteriormente
+   */
+  private async isEmailAlreadyProcessed(emailId: string): Promise<boolean> {
+    try {
+      const fs = await import('fs/promises');
+      const statusPath = path.join(process.cwd(), 'src/data/email_status.json');
+      
+      const data = await fs.readFile(statusPath, 'utf8');
+      const status: { processed: string[]; lastCheck: string } = JSON.parse(data);
+      
+      return Array.isArray(status.processed) && status.processed.includes(emailId);
+    } catch (error) {
+      // Se arquivo não existe ou erro de leitura, considerar como não processado
+      return false;
+    }
+  }
+
+  /**
+   * Marca um email como processado no status
+   */
+  private async markEmailAsProcessed(emailId: string): Promise<void> {
+    try {
+      const fs = await import('fs/promises');
+      const statusPath = path.join(process.cwd(), 'src/data/email_status.json');
+      
+      let status: { processed: string[]; lastCheck: string } = {
+        processed: [],
+        lastCheck: new Date().toISOString()
+      };
+
+      try {
+        const data = await fs.readFile(statusPath, 'utf8');
+        status = JSON.parse(data);
+        // Garantir que processed é um array
+        if (!Array.isArray(status.processed)) {
+          status.processed = [];
+        }
+      } catch (error) {
+        // Arquivo não existe, usar status inicial
+      }
+
+      // Adicionar email se não existir
+      if (!status.processed.includes(emailId)) {
+        status.processed.push(emailId);
+        status.lastCheck = new Date().toISOString();
+        
+        // Manter apenas últimos 100 IDs para evitar arquivo muito grande
+        if (status.processed.length > 100) {
+          status.processed = status.processed.slice(-100);
+        }
+        
+        await fs.writeFile(statusPath, JSON.stringify(status, null, 2), 'utf8');
+        console.log(`📝 [STATUS] Email ${emailId} marcado como processado`);
+      }
+    } catch (error) {
+      console.error(`❌ [STATUS-ERROR] Erro ao marcar email como processado:`, error);
+      throw error;
     }
   }
 }

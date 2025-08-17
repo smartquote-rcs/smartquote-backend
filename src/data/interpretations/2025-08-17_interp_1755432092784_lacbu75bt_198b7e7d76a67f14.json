@@ -1,0 +1,18 @@
+{
+  "id": "interp_1755432092784_lacbu75bt",
+  "emailId": "198b7e7d76a67f14",
+  "tipo": "pedido",
+  "prioridade": "media",
+  "solicitacao": "Gostaria de automatizar meu posto de gasolina.",
+  "cliente": {
+    "nome": "Dario Nzita",
+    "empresa": "",
+    "email": "darionzita90@gmail.com",
+    "telefone": "",
+    "website": "",
+    "localizacao": ""
+  },
+  "confianca": 95,
+  "interpretedAt": "2025-08-17T12:01:32.785Z",
+  "rawGeminiResponse": "```json\n{\n  \"tipo\": \"pedido\",\n  \"prioridade\": \"media\",\n  \"solicitacao\": \"Gostaria de automatizar meu posto de gasolina.\",\n  \"cliente\": {\n    \"nome\": \"Dario Nzita\",\n    \"empresa\": \"\",\n    \"email\": \"darionzita90@gmail.com\",\n    \"telefone\": \"\",\n    \"website\": \"\",\n    \"localizacao\": \"\"\n  },\n  \"confianca\": 95\n}\n```"
+}

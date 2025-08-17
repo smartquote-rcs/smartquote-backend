@@ -5,7 +5,20 @@ import { Cotacao } from '../models/Cotacao';
 
 class CotacoesController {
   async create(req: Request, res: Response): Promise<Response> {
-    const parsed = cotacaoSchema.safeParse(req.body);
+  // compat: aceitar camelCase e converter
+    const body = { ...req.body } as any;
+  if (body.promptId && !body.prompt_id) body.prompt_id = body.promptId;
+  if (body.produtoId && !body.produto_id) body.produto_id = body.produtoId;
+  if (body.aprovadoPor && !body.aprovado_por) body.aprovado_por = body.aprovadoPor;
+    if (body.orcamentoGeral && !body.orcamento_geral) body.orcamento_geral = body.orcamentoGeral;
+    if (body.dataAprovacao && !body.data_aprovacao) body.data_aprovacao = body.dataAprovacao;
+    if (body.dataSolicitacao && !body.data_solicitacao) body.data_solicitacao = body.dataSolicitacao;
+    if (body.prazoValidade && !body.prazo_validade) body.prazo_validade = body.prazoValidade;
+    // mapear status antigo -> novo
+    if (body.status && ['pendente','aceite','recusado'].includes(body.status)) {
+      body.status = body.status === 'aceite' ? 'completa' : 'incompleta';
+    }
+  const parsed = cotacaoSchema.safeParse(body);
 
     if (!parsed.success) {
       const errors = parsed.error.format();
@@ -13,7 +26,7 @@ class CotacoesController {
     }
 
     try {
-      const cotacao = await CotacoesService.create(parsed.data as unknown as Cotacao);
+  const cotacao = await CotacoesService.create(parsed.data as unknown as Cotacao);
       return res.status(201).json({
         message: 'Cotação cadastrada com sucesso.',
         data: cotacao,
@@ -61,7 +74,17 @@ class CotacoesController {
   async patch(req: Request, res: Response): Promise<Response> {
     try {
       const { id } = req.params;
-      const updates = req.body;
+      const updates = { ...req.body } as any;
+  if (updates.promptId && !updates.prompt_id) updates.prompt_id = updates.promptId;
+  if (updates.produtoId && !updates.produto_id) updates.produto_id = updates.produtoId;
+  if (updates.aprovadoPor && !updates.aprovado_por) updates.aprovado_por = updates.aprovadoPor;
+      if (updates.orcamentoGeral && !updates.orcamento_geral) updates.orcamento_geral = updates.orcamentoGeral;
+      if (updates.dataAprovacao && !updates.data_aprovacao) updates.data_aprovacao = updates.dataAprovacao;
+      if (updates.dataSolicitacao && !updates.data_solicitacao) updates.data_solicitacao = updates.dataSolicitacao;
+      if (updates.prazoValidade && !updates.prazo_validade) updates.prazo_validade = updates.prazoValidade;
+      if (updates.status && ['pendente','aceite','recusado'].includes(updates.status)) {
+        updates.status = updates.status === 'aceite' ? 'completa' : 'incompleta';
+      }
 
       const cotacaoAtualizada = await CotacoesService.updatePartial(Number(id), updates);
 

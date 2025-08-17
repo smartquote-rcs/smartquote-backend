@@ -987,43 +987,35 @@
     "ProdutoUpdate": {
       "type": "object",
       "properties": {
-        "nome": {
-          "type": "string",
-          "example": "Novo Notebook"
-        },
-        "preco": {
-          "type": "number",
-          "example": 4000
-        },
-        "estoque": {
-          "type": "integer",
-          "example": 15
-        },
-        "descricao": {
-          "type": "string",
-          "example": "Notebook com 32GB RAM"
-        }
+        "fornecedor_id": { "type": "integer", "example": 1 },
+        "nome": { "type": "string", "example": "Novo Notebook" },
+        "preco": { "type": "number", "example": 400000 },
+        "estoque": { "type": "integer", "example": 15 },
+        "descricao": { "type": "string", "example": "Notebook com 32GB RAM" },
+        "codigo": { "type": "string", "example": "F1-NOTE-123456" },
+        "modelo": { "type": "string", "example": "i7 16GB 512GB" },
+        "unidade": { "type": "string", "example": "un" },
+        "origem": { "type": "string", "enum": ["local", "externo"], "example": "externo" },
+        "image_url": { "type": "string", "example": "https://example.com/img.jpg" },
+        "produto_url": { "type": "string", "example": "https://loja.com/produto" },
+        "tags": { "type": "array", "items": {"type": "string"}, "example": ["notebook","intel"] },
+        "categoria": { "type": "string", "example": "Informática" },
+        "disponibilidade": { "type": "string", "enum": ["imediata","por encomenda","limitada"], "example": "imediata" },
+        "especificacoes_tecnicas": { "type": "object", "example": {"tela":"15.6","ram":"16GB"} }
       }
     },
     "CotacaoUpdate": {
       "type": "object",
       "properties": {
-        "prompt_id": {
-          "type": "integer",
-          "example": 2
-        },
-        "produto_id": {
-          "type": "integer",
-          "example": 6
-        },
-        "preco": {
-          "type": "number",
-          "example": 1500.75
-        },
-        "observacao": {
-          "type": "string",
-          "example": "Entrega em 5 dias úteis"
-        }
+        "prompt_id": { "type": "integer", "example": 2 },
+        "produto_id": { "type": "integer", "example": 6 },
+        "aprovacao": { "type": "boolean", "example": false },
+        "motivo": { "type": "string", "example": "Aguardando orçamento" },
+        "aprovado_por": { "type": "integer", "example": 1 },
+        "status": { "type": "string", "enum": ["completa","incompleta"], "example": "incompleta" },
+        "orcamento_geral": { "type": "number", "example": 0 },
+        "faltantes": { "type": "array", "items": {"type": "string"}, "example": ["prazo","quantidade"] },
+        "observacao": { "type": "string", "example": "Entrega em 5 dias úteis" }
       }
     },
     "NotificationUpdate": {

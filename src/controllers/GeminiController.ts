@@ -203,12 +203,12 @@ export class GeminiController {
         tipos: {} as Record<string, number>,
         prioridades: {} as Record<string, number>,
         confianca_media: 0,
-        produtos_total: 0,
-        emails_com_produtos: 0,
-        acoes_sugeridas: {} as Record<string, number>
+        pedidos: 0,
+        tamanho_medio_solicitacao: 0
       };
 
       let confiancaTotal = 0;
+      let totalTamanhoSolic = 0;
 
       interpretations.forEach(interp => {
         // Contar tipos
@@ -219,20 +219,20 @@ export class GeminiController {
         
         // Somar confiança
         confiancaTotal += interp.confianca;
-        
-        // Contar produtos
-        stats.produtos_total += interp.produtos.length;
-        if (interp.produtos.length > 0) {
-          stats.emails_com_produtos++;
+
+        // Contar pedidos
+        if (interp.tipo === 'pedido') {
+          stats.pedidos++;
         }
-        
-        // Contar ações sugeridas
-        interp.acoes_sugeridas.forEach(acao => {
-          stats.acoes_sugeridas[acao] = (stats.acoes_sugeridas[acao] || 0) + 1;
-        });
+
+        // Somar tamanho de solicitações
+        if (typeof (interp as any).solicitacao === 'string') {
+          totalTamanhoSolic += ((interp as any).solicitacao as string).length;
+        }
       });
 
       stats.confianca_media = Math.round(confiancaTotal / interpretations.length);
+      stats.tamanho_medio_solicitacao = interpretations.length > 0 ? Math.round(totalTamanhoSolic / interpretations.length) : 0;
 
       return res.status(200).json({
         success: true,

@@ -1,0 +1,47 @@
+{
+  "id": "interp_1755352423564_1o4t6t9gt",
+  "emailId": "198b1e4bd45fe049",
+  "tipo": "informacao",
+  "prioridade": "media",
+  "produtos": [
+    {
+      "nome": "Blockchain",
+      "descricao": "Blockchain para rastrear fraudes, integrado ao Machine Learning (ML), além da API AML (Anti-Money Laundering) para criptomoedas.",
+      "quantidade": null,
+      "unidade": null,
+      "preco": null,
+      "moeda": null,
+      "codigo": null,
+      "categoria": "Tecnologia Financeira"
+    },
+    {
+      "nome": "API AML",
+      "descricao": "API Anti-Money Laundering",
+      "quantidade": null,
+      "unidade": null,
+      "preco": null,
+      "moeda": null,
+      "codigo": null,
+      "categoria": "Serviços Financeiros"
+    }
+  ],
+  "cliente": {
+    "nome": "Dario Nzita",
+    "empresa": "Crypto Invest",
+    "email": "darionzita90@gmail.com",
+    "telefone": null,
+    "website": null,
+    "localizacao": "Angola (mencionada no contexto)"
+  },
+  "resumo": "Cliente da Crypto Invest questiona sobre a disponibilidade de soluções blockchain integradas ao Machine Learning para rastrear fraudes em criptomoedas, além da API AML, com foco em Angola.",
+  "acoes_sugeridas": [
+    "Responder ao email do cliente confirmando o recebimento e o interesse.",
+    "Agendar uma conversa com o cliente para entender melhor suas necessidades e o escopo do projeto.",
+    "Apresentar as soluções blockchain e API AML disponíveis, destacando os benefícios para o rastreamento de fraudes e a conformidade com as regulamentações.",
+    "Fornecer informações sobre casos de uso relevantes e demonstrações, se possível.",
+    "Enviar um orçamento detalhado com os custos envolvidos na implementação da solução."
+  ],
+  "confianca": 95,
+  "interpretedAt": "2025-08-16T13:53:43.565Z",
+  "rawGeminiResponse": "```json\n{\n  \"tipo\": \"informacao\",\n  \"prioridade\": \"media\",\n  \"produtos\": [\n    {\n      \"nome\": \"Blockchain\",\n      \"descricao\": \"Blockchain para rastrear fraudes, integrado ao Machine Learning (ML), além da API AML (Anti-Money Laundering) para criptomoedas.\",\n      \"quantidade\": null,\n      \"unidade\": null,\n      \"preco\": null,\n      \"moeda\": null,\n      \"codigo\": null,\n      \"categoria\": \"Tecnologia Financeira\"\n    },\n    {\n      \"nome\": \"API AML\",\n      \"descricao\": \"API Anti-Money Laundering\",\n      \"quantidade\": null,\n      \"unidade\": null,\n      \"preco\": null,\n      \"moeda\": null,\n      \"codigo\": null,\n      \"categoria\": \"Serviços Financeiros\"\n    }\n  ],\n  \"cliente\": {\n    \"nome\": \"Dario Nzita\",\n    \"empresa\": \"Crypto Invest\",\n    \"email\": \"darionzita90@gmail.com\",\n    \"telefone\": null,\n    \"website\": null,\n    \"localizacao\": \"Angola (mencionada no contexto)\"\n  },\n  \"resumo\": \"Cliente da Crypto Invest questiona sobre a disponibilidade de soluções blockchain integradas ao Machine Learning para rastrear fraudes em criptomoedas, além da API AML, com foco em Angola.\",\n  \"acoes_sugeridas\": [\n    \"Responder ao email do cliente confirmando o recebimento e o interesse.\",\n    \"Agendar uma conversa com o cliente para entender melhor suas necessidades e o escopo do projeto.\",\n    \"Apresentar as soluções blockchain e API AML disponíveis, destacando os benefícios para o rastreamento de fraudes e a conformidade com as regulamentações.\",\n    \"Fornecer informações sobre casos de uso relevantes e demonstrações, se possível.\",\n    \"Enviar um orçamento detalhado com os custos envolvidos na implementação da solução.\"\n  ],\n  \"confianca\": 95\n}\n```"
+}

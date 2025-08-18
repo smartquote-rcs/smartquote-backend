@@ -83,28 +83,10 @@ def executar_estrutura_de_queries(
     ids_por_tipo: Dict[str, str] = {q["id"]: q.get("tipo", "") for q in estrutura}
     item_ids: List[str] = [q["id"] for q in estrutura if q.get("tipo") == "item"]
 
-    has_q0 = ("Q0" in ids_por_tipo) and bool(resultados_por_query.get("Q0"))
-    has_q1 = ("Q1" in ids_por_tipo) and bool(resultados_por_query.get("Q1"))
+    # Considerar somente itens (Q1..QN) para determinar faltantes
     missing_items: List[str] = [qid for qid in item_ids if not resultados_por_query.get(qid)]
 
-    faltando: List[str] = []
-    if has_q0 or has_q1:
-        # Núcleo tem algum resultado; listar apenas itens faltantes, se houver
-        if missing_items:
-            faltando = missing_items
-        else:
-            faltando = []
-    else:
-        # Núcleo sem resultados (nem Q0 nem Q1): listar Q0, Q1 (se existirem) e todos os itens
-        base: List[str] = []
-        if "Q0" in ids_por_tipo:
-            base.append("Q0")
-        if "Q1" in ids_por_tipo:
-            base.append("Q1")
-        base.extend(item_ids)
-        # manter ordem única
-        seen: set[str] = set()
-        faltando = [x for x in base if not (x in seen or seen.add(x))]
+    faltando: List[str] = missing_items
 
     if verbose:
         if faltando:
@@ -161,6 +143,19 @@ def processar_interpretacao(
     solicitacao = (interpretation or {}).get("solicitacao")
     if not solicitacao:
         raise ValueError("Campo 'solicitacao' ausente na interpretação fornecida")
+
+    # Sincronizar dados antes da busca: se houver novos produtos no Supabase, indexá-los no Weaviate
+    try:
+        if supabase_manager and supabase_manager.is_available():
+            novos = supabase_manager.get_novos_produtos()
+            if novos:
+                print(f"🔍 Novos produtos detectados no Supabase: {len(novos)}. Indexando...", file=sys.stderr)
+                weaviate_manager.sincronizar_com_supabase(novos)
+        else:
+            # caso não esteja disponível, manter fluxo
+            pass
+    except Exception as e:
+        print(f"⚠️ Falha ao sincronizar com Supabase antes da busca: {e}", file=sys.stderr)
 
     print("🤖 Decompondo solicitação...", file=sys.stderr)
     brief = decomposer.gerar_brief(solicitacao)

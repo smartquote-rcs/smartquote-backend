@@ -22,7 +22,7 @@ async function testPythonProcessor() {
     emailId: 'test_email_' + i,
     tipo: 'pedido',
     prioridade: 'alta',
-    solicitacao: `Solicitamos uma proposta para licenças de software Microsoft Office 365 Enterprise E5 para 200 usuários, com foco em conformidade GDPR e integração com Azure AD. Inclua opções de subscrição anual e suporte para migração de dados existentes.`,
+    solicitacao: `um computador portatil qualquer`,
     cliente: {
       nome: 'João Silva',
       empresa: 'Silva & Cia',

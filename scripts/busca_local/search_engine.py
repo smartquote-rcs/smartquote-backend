@@ -1,9 +1,11 @@
 import weaviate
 import weaviate.classes as wvc
 from typing import Dict, Any, List, Tuple
+import json
 import re
 import sys
 import os
+from groq import Groq
 
 # Adicionar o diretório pai ao path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -13,7 +15,117 @@ from busca_local.text_utils import (
     normalize_text, expand_query_with_synonyms, preprocess_termos, 
     _detectar_especificidade
 )
-from busca_local.config import CATEGORY_EQUIV, STOPWORDS_PT
+from busca_local.config import CATEGORY_EQUIV, STOPWORDS_PT, GROQ_API_KEY
+
+
+def _llm_escolher_indice(query: str, filtros: dict | None, candidatos: List[Dict[str, Any]]) -> int:
+    """Usa LLM (Groq) para escolher o índice do melhor candidato ou -1 se nenhum servir.
+
+    Contrato rápido:
+    - Input: query (str), filtros (dict ou None), candidatos (lista já limitada)
+    - Output: int (índice 0-based do candidato escolhido; -1 se nenhum adequado)
+    - Falhas: em erro de API ou chave ausente, retorna -1
+    """
+    if not candidatos:
+        return -1
+
+    api_key = os.environ.get("GROQ_API_KEY", GROQ_API_KEY)
+    if not api_key:
+        # Sem chave, não conseguimos refinar
+        return -1
+
+    # Compactar candidatos para o prompt (evitar payloads enormes)
+    compacts: List[Dict[str, Any]] = []
+    for i, c in enumerate(candidatos):
+        compacts.append({
+            "index": i,
+            "nome": c.get("nome", ""),
+            "categoria": c.get("categoria") or c.get("modelo") or "",
+            "tags": c.get("tags") or [],
+            "descricao": (c.get("descricao") or "")[:400],
+            "preco": c.get("preco", None),
+            "estoque": c.get("estoque", None),
+        })
+
+    prompt_sistema = (
+        "Você é um assistente especializado em análise de produtos. Sua tarefa é analisar candidatos e escolher o melhor.\n"
+        "IMPORTANTE: Responda APENAS com um número JSON válido no formato exato: {\"index\": N}\n"
+        "Onde N é o índice (0, 1, 2...) do melhor candidato ou -1 se nenhum for adequado.\n"
+        "Critérios de avaliação:\n"
+        "1. Correspondência com a categoria solicitada\n"
+        "2. Atendimento às especificações técnicas\n"
+        "3. Relevância geral da consulta\n"
+        "4. Disponibilidade em estoque\n"
+        "NÃO adicione explicações, comentários ou texto extra. APENAS o JSON."
+    )
+    filtros_str = "{}" if not filtros else json.dumps(filtros, ensure_ascii=False)
+    user_msg = (
+        f"QUERY: {query}\n"
+        f"FILTROS: {filtros_str}\n"
+        f"CANDIDATOS: {json.dumps(compacts, ensure_ascii=False)}\n"
+        "Escolha o melhor índice ou -1."
+    )
+
+    try:
+        client = Groq(api_key=api_key)
+        resp = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {"role": "system", "content": prompt_sistema},
+                {"role": "user", "content": user_msg},
+            ],
+            temperature=0,
+            max_tokens=50,
+            stream=False,
+        )
+        
+        content = (resp.choices[0].message.content or "").strip()
+        print(f"[LLM] Resposta bruta: '{content}'")
+        
+        # Tentar extrair JSON {"index": X}
+        idx = -1
+        try:
+            # Primeiro, tentar buscar por um padrão JSON na resposta
+            json_match = re.search(r'\{\s*"index"\s*:\s*(-?\d+)\s*\}', content)
+            if json_match:
+                idx = int(json_match.group(1))
+                print(f"[LLM] Índice extraído via regex JSON: {idx}")
+            else:
+                # Se não achou padrão JSON, tentar parse direto
+                cleaned_content = content
+                # Se a resposta contém apenas um número, envolver em JSON
+                if re.match(r"^-?\d+$", content.strip()):
+                    cleaned_content = f'{{"index": {content.strip()}}}'
+                
+                data = json.loads(cleaned_content)
+                val = data.get("index")
+                if isinstance(val, int):
+                    idx = val
+                    print(f"[LLM] Índice extraído via JSON parse: {idx}")
+        except Exception as e:
+            print(f"[LLM] Erro ao fazer parse do JSON: {e}")
+            # fallback: buscar qualquer número na resposta
+            number_match = re.search(r"-?\d+", content)
+            if number_match:
+                try:
+                    idx = int(number_match.group(0))
+                    print(f"[LLM] Índice extraído via regex numérica: {idx}")
+                except Exception:
+                    idx = -1
+        
+        # Validar faixa
+        if idx is None or not isinstance(idx, int):
+            print(f"[LLM] Índice inválido: {idx}")
+            idx = -1
+        if idx < 0 or idx >= len(candidatos):
+            print(f"[LLM] Índice fora da faixa: {idx} (válido: 0-{len(candidatos)-1})")
+            return -1
+        
+        print(f"[LLM] Índice final selecionado: {idx}")
+        return idx
+    except Exception as e:
+        print(f"[LLM] Erro na chamada da API: {e}")
+        return -1
 
 def construir_filtro(filtros: dict = None):
     """Constrói filtros do Weaviate v4 (apenas estruturais, texto é tratado pela busca híbrida)."""
@@ -217,10 +329,6 @@ def buscar_hibrido_ponderado(client: weaviate.WeaviateClient, modelos: dict, que
         dist = getattr(o.metadata, 'distance', None)
         score_semantico = max(0.0, 1.0 - dist) if isinstance(dist, (float, int)) else 0.0
 
-        # Gate semântico (recomendado): descartar candidatos com score semântico < 0.75
-        if score_semantico < 0.75:
-            continue
-
         # Score textual
         score_textual = calcular_relevancia_textual(p, expanded_query)
 
@@ -245,9 +353,7 @@ def buscar_hibrido_ponderado(client: weaviate.WeaviateClient, modelos: dict, que
         if score_textual > 0.75:
             score_hibrido += 0.03
         score_hibrido = max(0.0, min(1.0, score_hibrido))
-        if score_hibrido < 0.25:
-            continue
-
+    
         # Usar nova coluna categoria (com fallback para modelo)
         categoria_p = p.get('categoria', '') or p.get('modelo', '')
         chave_produto = (p.get('nome'), categoria_p)
@@ -272,6 +378,33 @@ def buscar_hibrido_ponderado(client: weaviate.WeaviateClient, modelos: dict, que
     lista_final = list(resultados_finais.values())
     lista_final.sort(key=lambda x: x['score'], reverse=True)
     lista_final = lista_final[:limite]
+    
+    # 3.1 Refinamento final via LLM: escolher o índice do melhor candidato (ou -1)
+    idx_escolhido = -1
+    try:
+        idx_escolhido = _llm_escolher_indice(query, filtros, lista_final)
+    except Exception as e:
+        print(f"[LLM] Erro ao executar refinamento: {e}")
+        idx_escolhido = -1
+    
+    # Manter apenas o item escolhido pela LLM (ou usar fallback)
+    if isinstance(idx_escolhido, int) and 0 <= idx_escolhido < len(lista_final):
+        escolhido = lista_final[idx_escolhido]
+        escolhido["llm_match"] = True
+        escolhido["llm_index"] = idx_escolhido
+        print(f"🎯 Índice escolhido pela LLM: {idx_escolhido} - {escolhido.get('nome', 'N/A')}")
+        lista_final = [escolhido]
+    elif lista_final:
+        # Fallback: usar o melhor por score quando LLM retorna -1
+        escolhido = lista_final[0]
+        escolhido["llm_match"] = False
+        escolhido["llm_index"] = -1
+        print(f"🎯 Índice escolhido pela LLM: -1 (sem candidato adequado ou falha). Usando top-1 por score como fallback.")
+        lista_final = [escolhido]
+    else:
+        print("🎯 Nenhum candidato disponível após refinamento LLM")
+        lista_final = []
+    
     
     # 4. Exibir resultados
     print(f"\n📊 Encontrados {len(lista_final)} produtos relevantes:")

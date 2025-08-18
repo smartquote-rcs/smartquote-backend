@@ -57,11 +57,12 @@ export class BuscaLocalController {
         return res.status(500).json({ success: false, message: 'Falha na busca local', error: result.error });
       }
 
-      const payload = result.result || {};
-      const faltantes = Array.isArray(payload.faltantes) ? payload.faltantes : [];
+  const payload = result.result || {};
+  const faltantes = Array.isArray(payload.faltantes) ? payload.faltantes : [];
+  const resumoLocal = payload?.resultado_resumo || {};
   const cotacoesInfo = payload.cotacoes || null;
 
-      let produtosWeb: any[] = [];
+  let produtosWeb: any[] = [];
       if (faltantes.length > 0) {
         const fornecedores = await FornecedorService.getFornecedoresAtivos();
         const sites = fornecedores.map(f => f.url).filter(Boolean);
@@ -77,10 +78,12 @@ export class BuscaLocalController {
         });
       }
 
-      // Garantir uma cotação principal: usar a que o Python criou, ou criar agora
+  // Garantir uma cotação principal: usar a que o Python criou, ou criar agora
       let itensInseridos = 0;
       let cotacaoPrincipalId: number | null = cotacoesInfo?.principal_id ?? null;
-      if (!cotacaoPrincipalId && (produtosWeb.length > 0 || faltantes.length > 0)) {
+  // Novo critério: se houver resultados locais (mesmo sem faltantes/produtosWeb), também criaremos cotação
+  const temResultadosLocais = Object.values(resumoLocal).some((arr: any) => Array.isArray(arr) && arr.length > 0);
+  if (!cotacaoPrincipalId && (produtosWeb.length > 0 || faltantes.length > 0 || temResultadosLocais)) {
         // Criar prompt e cotação principal - usar dados do Python se disponível
         const dadosExtraidos = payload?.dados_extraidos || {
           solucao_principal: solicitacao,
@@ -116,7 +119,8 @@ export class BuscaLocalController {
           }
         }
       }
-      if (cotacaoPrincipalId && produtosWeb.length > 0) {
+  // Inserir itens web, se houver
+  if (cotacaoPrincipalId && produtosWeb.length > 0) {
         for (const p of produtosWeb) {
           try {
             const idItem = await CotacoesItensService.insertWebItem(Number(cotacaoPrincipalId), p);
@@ -126,21 +130,40 @@ export class BuscaLocalController {
           }
         }
         // Recalcular orçamento geral na tabela de cotações
-        try {
-          const { data: itens, error } = await supabase
-            .from('cotacoes_itens')
-            .select('item_preco, quantidade')
-            .eq('cotacao_id', Number(cotacaoPrincipalId));
-          if (!error && Array.isArray(itens)) {
-            let total = 0;
-            for (const it of itens) {
-              const preco = parseFloat(String(it.item_preco ?? 0));
-              const qtd = parseInt(String(it.quantidade ?? 1));
-              if (!isNaN(preco) && !isNaN(qtd)) total += preco * qtd;
-            }
-            await supabase.from('cotacoes').update({ orcamento_geral: total }).eq('id', Number(cotacaoPrincipalId));
+        await this.recalcularOrcamento(Number(cotacaoPrincipalId));
+      }
+
+      // Inserir pelo menos 1 item local por query (top-1), quando não houver itens web e houver resultados locais
+  // Evitar duplicação: só inserir locais pelo Node se o Python NÃO tiver criado cotação
+  if (!cotacaoPrincipalId && temResultadosLocais) {
+        for (const [qid, arr] of Object.entries(resumoLocal)) {
+          const lista = Array.isArray(arr) ? arr as any[] : [];
+          if (!lista.length) continue;
+          const top = lista[0];
+          // payload do Python inclui produto_id para locais
+          const produtoIdLocal = top?.produto_id;
+          if (!produtoIdLocal) continue;
+          try {
+            // inserir item local com snapshot básico
+            await supabase
+              .from('cotacoes_itens')
+              .insert({
+                cotacao_id: Number(cotacaoPrincipalId),
+                origem: 'local',
+                produto_id: produtoIdLocal,
+                item_nome: top?.nome || null,
+                item_descricao: top?.categoria || null,
+                item_preco: top?.preco ?? null,
+                item_moeda: 'AOA',
+                quantidade: 1,
+                payload: { query_id: qid, score: top?.score }
+              });
+            itensInseridos++;
+          } catch (e) {
+            console.error('Erro ao inserir item local na cotação:', e);
           }
-        } catch {}
+        }
+        await this.recalcularOrcamento(Number(cotacaoPrincipalId));
       }
 
       return res.status(200).json({
@@ -154,6 +177,26 @@ export class BuscaLocalController {
     } catch (error: any) {
       console.error('Erro no fluxo de busca híbrida:', error);
       return res.status(500).json({ success: false, message: 'Erro interno', error: error?.message || String(error) });
+    }
+  }
+
+  private async recalcularOrcamento(cotacaoId: number) {
+    try {
+      const { data: itens, error } = await supabase
+        .from('cotacoes_itens')
+        .select('item_preco, quantidade')
+        .eq('cotacao_id', cotacaoId);
+      if (!error && Array.isArray(itens)) {
+        let total = 0;
+        for (const it of itens) {
+          const preco = parseFloat(String(it.item_preco ?? 0));
+          const qtd = parseInt(String(it.quantidade ?? 1));
+          if (!isNaN(preco) && !isNaN(qtd)) total += preco * qtd;
+        }
+        await supabase.from('cotacoes').update({ orcamento_geral: total }).eq('id', cotacaoId);
+      }
+    } catch (e) {
+      console.error('Erro ao recalcular orçamento:', e);
     }
   }
 }

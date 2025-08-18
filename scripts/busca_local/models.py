@@ -46,7 +46,6 @@ class DecompositionResult(BaseModel):
     tags_semanticas: List[str] = Field(description="Lista de palavras-chave que descrevem a solução")
     tipo_de_solucao: str = Field(description="Tipo de solução: produto ou sistema")
     complexidade_estimada: str = Field(description="Nível de complexidade: simples, medio, complexo")
-    requisitos_do_produto: List[RequisitosDoProduto] = Field(description="Lista de requisitos que o produto deve apresentar já embutidos")
     itens_a_comprar: List[ComponenteParaAquisicao] = Field(description="Lista de componentes que precisam ser adquiridos")
     alternativas_viaveis: List[AlternativaViavel] = Field(description="Alternativas possíveis")
     orcamento_estimado_range: Dict[str, int] = Field(description="Range de orçamento estimado")

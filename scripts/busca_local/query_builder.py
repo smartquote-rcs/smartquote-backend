@@ -172,74 +172,17 @@ def _map_tipo_alternativa_para_categoria(tipo: Optional[str]) -> Optional[str]:
     # fallback: retorna próprio 'tipo' como categoria
     return t
 
-def gerar_queries_alternativas(brief: Dict[str, Any], start_index: int = 1) -> List[Dict[str, Any]]:
-    """
-    Gera Queries N+1..M para 'alternativas_viaveis':
-    - Consulta semântica: nome + vantagens + cenario_recomendado
-    - Categoria: mapeada a partir de 'tipo'
-    - Palavras-chave específicas: pode incluir 'vantagens' e (opcionalmente) termos derivados de 'limitacoes'
-    """
-    alternativas = brief.get("alternativas_viaveis", []) or []
-    queries: List[Dict[str, Any]] = []
-    offset = start_index
-    for i, alt in enumerate(alternativas, start=offset):
-        nome = str(alt.get("nome", "")).strip()
-        vantagens = _as_list_str(alt.get("vantagens"))
-        tipo = _map_tipo_alternativa_para_categoria(alt.get("tipo"))
-        limitacoes = _as_list_str(alt.get("limitacoes"))
-        query_sem = _semantica_join([nome] + vantagens)
-        # Por padrão, usamos 'vantagens' como palavras-chave positivas; 'limitações' podem ser contexto adicional.
-        palavras_chave = vantagens + limitacoes
-        palavras_chave = [p for p in palavras_chave if p]
-
-        queries.append({
-            "id": f"QALT-{i}",
-            "tipo": "alternativa",
-            "query": query_sem,
-            "filtros": {
-                "categoria": tipo,
-                "palavras_chave": palavras_chave or None
-            },
-            "peso_prioridade": 0.6,  # alternativas têm peso moderado por padrão
-            "fonte": {
-                "nome": nome,
-                "tipo": alt.get("tipo"),
-                "cenario_recomendado": alt.get("cenario_recomendado")
-            }
-        })
-    return queries
+# Note: geração de queries alternativas removida intencionalmente. O fluxo agora gera apenas queries para itens.
 
 def gerar_estrutura_de_queries(brief: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
     Orquestra a geração das queries estruturadas a partir do JSON (brief).
     Fluxo:
-      - Q0 (se tipo == 'produto')
-      - Q1..QN (itens_a_comprar)
-      - QALT-* (alternativas_viaveis)
+    - Q1..QN (itens_a_comprar)
+    - (apenas itens)
     """
     queries: List[Dict[str, Any]] = []
 
-    # 0: principal (produto)
-    q0 = gerar_query_principal(brief)
-    if q0:
-        queries.append(q0)
-
     q_itens = gerar_queries_itens(brief)
     queries.extend(q_itens)
-
-    # Definir quantidade de Q0 = quantidade do primeiro item
-    if q0 and q_itens:
-        try:
-            q0_quant = int(q_itens[0].get("quantidade", 1) or 1)
-            if q0_quant <= 0:
-                q0_quant = 1
-        except Exception:
-            q0_quant = 1
-        q0["quantidade"] = q0_quant  # <-- setar quantidade em Q0
-
-    # N+1..: alternativas viáveis
-    start_idx_alt = (len(q_itens) + 1) if q_itens else 1
-    q_alts = gerar_queries_alternativas(brief, start_index=start_idx_alt)
-    queries.extend(q_alts)
-
     return queries

@@ -42,18 +42,6 @@ def validate_and_fix_result(result: DecompositionResult) -> DecompositionResult:
             )
         ]
     
-    # Garante que existe pelo menos um requisito do produto
-    if not result.requisitos_do_produto:
-        result.requisitos_do_produto = [
-            RequisitosDoProduto(
-                nome="funcionalidade_basica",
-                natureza_componente="software",
-                nivel_de_exigencia=ComponentPriority.ALTA,
-                especificacoes_minimas={"tipo": "a_definir"},
-                justificativa="Funcionalidade básica necessária"
-            )
-        ]
-    
     # Garante que existe pelo menos uma alternativa viável
     if not result.alternativas_viaveis:
         result.alternativas_viaveis = [
@@ -95,15 +83,6 @@ def create_fallback_decomposition(main_request: str) -> DecompositionResult:
                 categoria="Hardware de Servidores e Storage",
                 especificacoes_minimas={"tipo": "a_definir"},
                 justificativa="Componente identificado por fallback"
-            )
-        ],
-        requisitos_do_produto=[
-            RequisitosDoProduto(
-                nome="funcionalidade_basica",
-                natureza_componente="software",
-                nivel_de_exigencia=ComponentPriority.ALTA,
-                especificacoes_minimas={"tipo": "a_definir"},
-                justificativa="Funcionalidade básica necessária"
             )
         ],
         alternativas_viaveis=[

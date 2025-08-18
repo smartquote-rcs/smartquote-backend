@@ -21,6 +21,8 @@ class WeaviateManager:
         self.model_pt = None
         self.model_multi = None
         self.MULTI_OK = False
+        # cache leve opcional de ids já indexados, para reduzir consultas repetidas
+        self._known_ids: set[int] = set()
         
     def connect(self):
         """Conecta ao Weaviate e carrega modelos"""
@@ -54,8 +56,9 @@ class WeaviateManager:
         from weaviate.classes.config import Configure, Property, DataType
         try:
             if self.client.collections.exists("Produtos"):
-                self.client.collections.delete("Produtos")
-                print("Schema 'Produtos' antigo removido.")
+                # Já existe: reutiliza a coleção existente para evitar 422
+                print("Schema 'Produtos' já existe. Reutilizando coleção existente.")
+                return
             else:
                 print("Criando novo schema...")
         except Exception as e:
@@ -128,22 +131,60 @@ class WeaviateManager:
         
         collection.data.insert(properties=dados_weaviate, vector=vectors)
         print("  ✔ Produto indexado")
-        
-    def get_models(self) -> Dict[str, Any]:
-        """Retorna dicionário com modelos carregados"""
-        return {
-            "vetor_portugues": self.model_pt,
-            "vetor_multilingue": self.model_multi if self.MULTI_OK else None,
-        }
-        
-    def close(self):
-        """Fecha conexão com Weaviate"""
-        if self.client:
-            self.client.close()
-        else:
-            # Inserir novo produto
-            collection.data.insert(properties=dados_weaviate, vector=vectors)
-            print("  ✔ Produto indexado")
+        try:
+            pid = int(dados_weaviate.get("produto_id"))
+            self._known_ids.add(pid)
+        except Exception:
+            pass
+
+    def produto_existe(self, produto_id: int) -> bool:
+        """Verifica se já existe um objeto com o produto_id dado no Weaviate."""
+        try:
+            if produto_id in self._known_ids:
+                return True
+            collection = self.client.collections.get("Produtos")
+            filtro = wvc.query.Filter.by_property("produto_id").equal(produto_id)
+            res = collection.query.fetch_objects(
+                limit=1,
+                filters=filtro,
+                return_properties=["produto_id"],
+            )
+            existe = bool(res and getattr(res, "objects", None))
+            if existe:
+                self._known_ids.add(int(produto_id))
+            return existe
+        except Exception as e:
+            print(f"⚠️ Falha ao verificar existência do produto {produto_id} no Weaviate: {e}")
+            # Em caso de erro na checagem, considerar que não existe para tentar indexar
+            return False
+
+    def sincronizar_com_supabase(self, produtos_supabase: list[dict]) -> dict:
+        """Sincroniza: garante que todos os produtos do Supabase estejam no Weaviate.
+        Retorna métricas: { 'novos': int, 'falhas': int }
+        """
+        if not produtos_supabase:
+            return {"novos": 0, "falhas": 0}
+        novos, falhas = 0, 0
+        for p in produtos_supabase:
+            try:
+                pid = int(p.get("id") or p.get("produto_id") or 0)
+            except Exception:
+                pid = 0
+            if not pid:
+                # sem id, não indexar
+                continue
+            if self.produto_existe(pid):
+                continue
+            try:
+                self.indexar_produto(p)
+                novos += 1
+            except Exception as e:
+                falhas += 1
+                nome = p.get('nome', 'sem nome')
+                print(f"❌ Erro ao indexar novo produto '{nome}' (id={pid}): {e}")
+        if novos:
+            print(f"🔄 Sincronização: {novos} novos produto(s) indexado(s) no Weaviate.")
+        return {"novos": novos, "falhas": falhas}
         
     def get_models(self) -> Dict[str, Any]:
         """Retorna dicionário com modelos carregados"""

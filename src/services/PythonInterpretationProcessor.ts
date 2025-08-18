@@ -42,8 +42,9 @@ class PersistentWorker {
   }
 
   private spawn() {
-  // Inicia em modo servidor persistente do pipeline de busca (sem criar cotação automaticamente)
-  this.proc = spawn('python', [this.scriptPath, '--server'], {
+  // Inicia em modo servidor persistente do pipeline de busca e cria cotações automaticamente
+  const args = [this.scriptPath, '--server', '--criar-cotacao'];
+  this.proc = spawn('python', args, {
       stdio: ['pipe', 'pipe', 'pipe'],
       cwd: process.cwd(),
   env: { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUTF8: '1' },

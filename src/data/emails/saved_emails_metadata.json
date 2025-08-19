@@ -476,12 +476,18 @@
     ]
   },
   {
+<<<<<<< HEAD
     "id": "198be08e468d4b3d",
     "savedAt": "2025-08-18T16:35:13.236Z",
+=======
+    "id": "198c2479260f1405",
+    "savedAt": "2025-08-19T12:24:08.668Z",
+>>>>>>> 22c2ea86f0c9c900e504a7a572284ffe5dc8428d
     "formats": [
       "json"
     ],
     "filePaths": [
+<<<<<<< HEAD
       "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\src\\data\\emails\\json\\2025-08-18T16-35-13-232Z_198be08e468d4b3d_ola.json"
     ]
   },
@@ -543,25 +549,41 @@
     ],
     "filePaths": [
       "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\src\\data\\emails\\json\\2025-08-19T12-01-38-585Z_198c234ab75e0e27_Ti.json"
+=======
+      "C:\\Users\\DELL 3450\\Desktop\\smartquote-backend\\src\\data\\emails\\json\\2025-08-19T12-24-08-659Z_198c2479260f1405_TI.json"
+>>>>>>> 22c2ea86f0c9c900e504a7a572284ffe5dc8428d
     ]
   },
   {
     "id": "198c23657d770cfe",
+<<<<<<< HEAD
     "savedAt": "2025-08-19T12:03:27.913Z",
+=======
+    "savedAt": "2025-08-19T12:24:08.873Z",
+>>>>>>> 22c2ea86f0c9c900e504a7a572284ffe5dc8428d
     "formats": [
       "json"
     ],
     "filePaths": [
+<<<<<<< HEAD
       "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\src\\data\\emails\\json\\2025-08-19T12-03-27-910Z_198c23657d770cfe_Re_Ti.json"
+=======
+      "C:\\Users\\DELL 3450\\Desktop\\smartquote-backend\\src\\data\\emails\\json\\2025-08-19T12-24-08-869Z_198c23657d770cfe_Re_Ti.json"
+>>>>>>> 22c2ea86f0c9c900e504a7a572284ffe5dc8428d
     ]
   },
   {
     "id": "198c241a4a7ae54d",
+<<<<<<< HEAD
     "savedAt": "2025-08-19T12:15:45.857Z",
+=======
+    "savedAt": "2025-08-19T12:24:09.034Z",
+>>>>>>> 22c2ea86f0c9c900e504a7a572284ffe5dc8428d
     "formats": [
       "json"
     ],
     "filePaths": [
+<<<<<<< HEAD
       "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\src\\data\\emails\\json\\2025-08-19T12-15-45-853Z_198c241a4a7ae54d_TI.json"
     ]
   },
@@ -573,15 +595,23 @@
     ],
     "filePaths": [
       "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\src\\data\\emails\\json\\2025-08-19T12-22-21-045Z_198c2479260f1405_TI.json"
+=======
+      "C:\\Users\\DELL 3450\\Desktop\\smartquote-backend\\src\\data\\emails\\json\\2025-08-19T12-24-09-033Z_198c241a4a7ae54d_TI.json"
+>>>>>>> 22c2ea86f0c9c900e504a7a572284ffe5dc8428d
     ]
   },
   {
     "id": "198c2492395d5d23",
+<<<<<<< HEAD
     "savedAt": "2025-08-19T12:23:57.509Z",
+=======
+    "savedAt": "2025-08-19T12:24:09.125Z",
+>>>>>>> 22c2ea86f0c9c900e504a7a572284ffe5dc8428d
     "formats": [
       "json"
     ],
     "filePaths": [
+<<<<<<< HEAD
       "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\src\\data\\emails\\json\\2025-08-19T12-23-57-504Z_198c2492395d5d23_TI.json"
     ]
   },
@@ -613,6 +643,9 @@
     ],
     "filePaths": [
       "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\src\\data\\emails\\json\\2025-08-19T13-30-19-915Z_198c285e37ac0a73_TI.json"
+=======
+      "C:\\Users\\DELL 3450\\Desktop\\smartquote-backend\\src\\data\\emails\\json\\2025-08-19T12-24-09-123Z_198c2492395d5d23_TI.json"
+>>>>>>> 22c2ea86f0c9c900e504a7a572284ffe5dc8428d
     ]
   }
 ]

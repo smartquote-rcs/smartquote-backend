@@ -27,7 +27,6 @@ class CotacoesController {
     }
 
     try {
-<<<<<<< HEAD
       const cotacao = await CotacoesService.create(parsed.data as unknown as Cotacao);
       
       // Criar notificação para nova cotação
@@ -38,9 +37,6 @@ class CotacoesController {
         // Não quebra o fluxo principal, apenas loga o erro
       }
 
-=======
-  const cotacao = await CotacoesService.create(parsed.data as unknown as Cotacao);
->>>>>>> 044ad9a8bb7d4510a9b7fb489d29ae909c1e01cf
       return res.status(201).json({
         message: 'Cotação cadastrada com sucesso.',
         data: cotacao,

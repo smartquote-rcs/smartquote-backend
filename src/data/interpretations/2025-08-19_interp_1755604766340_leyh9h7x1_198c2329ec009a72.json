@@ -1,0 +1,35 @@
+{
+  "id": "interp_1755604766340_leyh9h7x1",
+  "emailId": "198c2329ec009a72",
+  "tipo": "pedido",
+  "prioridade": "media",
+  "produtos": [
+    {
+      "nome": "computador",
+      "descricao": null,
+      "quantidade": 1,
+      "unidade": null,
+      "preco": null,
+      "moeda": null,
+      "codigo": null,
+      "categoria": "hardware"
+    }
+  ],
+  "cliente": {
+    "nome": "Dario Nzita",
+    "empresa": null,
+    "email": "darionzita90@gmail.com",
+    "telefone": null,
+    "website": null,
+    "localizacao": null
+  },
+  "resumo": "O email é um pedido de um computador enviado por Dario Nzita.",
+  "acoes_sugeridas": [
+    "Responder ao email de Dario Nzita",
+    "Solicitar mais detalhes sobre as especificações desejadas para o computador",
+    "Enviar uma cotação com opções de computadores"
+  ],
+  "confianca": 95,
+  "interpretedAt": "2025-08-19T11:59:26.340Z",
+  "rawGeminiResponse": "```json\n{\n  \"tipo\": \"pedido\",\n  \"prioridade\": \"media\",\n  \"produtos\": [\n    {\n      \"nome\": \"computador\",\n      \"descricao\": null,\n      \"quantidade\": 1,\n      \"unidade\": null,\n      \"preco\": null,\n      \"moeda\": null,\n      \"codigo\": null,\n      \"categoria\": \"hardware\"\n    }\n  ],\n  \"cliente\": {\n    \"nome\": \"Dario Nzita\",\n    \"empresa\": null,\n    \"email\": \"darionzita90@gmail.com\",\n    \"telefone\": null,\n    \"website\": null,\n    \"localizacao\": null\n  },\n  \"resumo\": \"O email é um pedido de um computador enviado por Dario Nzita.\",\n  \"acoes_sugeridas\": [\n    \"Responder ao email de Dario Nzita\",\n    \"Solicitar mais detalhes sobre as especificações desejadas para o computador\",\n    \"Enviar uma cotação com opções de computadores\"\n  ],\n  \"confianca\": 95\n}\n```"
+}

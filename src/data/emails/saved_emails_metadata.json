@@ -224,5 +224,205 @@
     "filePaths": [
       "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-08-16T13-53-39-122Z_198b1de2c3a44f60_Integrao_de_API_para_Monitoriz.json"
     ]
+  },
+  {
+    "id": "198c20462ca80ff3",
+    "savedAt": "2025-08-19T11:37:46.125Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-08-19T11-37-46-119Z_198c20462ca80ff3_TI.json"
+    ]
+  },
+  {
+    "id": "198c20388771ea0e",
+    "savedAt": "2025-08-19T11:37:46.160Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-08-19T11-37-46-158Z_198c20388771ea0e_pedido.json"
+    ]
+  },
+  {
+    "id": "198c1fe8f7c9d467",
+    "savedAt": "2025-08-19T11:37:46.187Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-08-19T11-37-46-176Z_198c1fe8f7c9d467_pedido.json"
+    ]
+  },
+  {
+    "id": "198c1fc35d349473",
+    "savedAt": "2025-08-19T11:37:46.217Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-08-19T11-37-46-212Z_198c1fc35d349473_pedido.json"
+    ]
+  },
+  {
+    "id": "198c1f8cfbec4210",
+    "savedAt": "2025-08-19T11:37:59.176Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-08-19T11-37-59-175Z_198c1f8cfbec4210_pedido.json"
+    ]
+  },
+  {
+    "id": "198becd676acf5f2",
+    "savedAt": "2025-08-19T11:37:59.271Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-08-19T11-37-59-264Z_198becd676acf5f2_How_is_your_first_week_with_Bo.json"
+    ]
+  },
+  {
+    "id": "198be10903e600b5",
+    "savedAt": "2025-08-19T11:37:59.294Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-08-19T11-37-59-290Z_198be10903e600b5_TI.json"
+    ]
+  },
+  {
+    "id": "198be08e468d4b3d",
+    "savedAt": "2025-08-19T11:37:59.323Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-08-19T11-37-59-313Z_198be08e468d4b3d_ola.json"
+    ]
+  },
+  {
+    "id": "198c224e93713272",
+    "savedAt": "2025-08-19T11:44:22.998Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-08-19T11-44-22-994Z_198c224e93713272_Fwd_TI.json"
+    ]
+  },
+  {
+    "id": "198c22ef2f516454",
+    "savedAt": "2025-08-19T11:55:23.653Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-08-19T11-55-23-646Z_198c22ef2f516454_Fwd_TI.json"
+    ]
+  },
+  {
+    "id": "198c2329ec009a72",
+    "savedAt": "2025-08-19T11:59:23.667Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-08-19T11-59-23-664Z_198c2329ec009a72_Fwd_TI.json"
+    ]
+  },
+  {
+    "id": "198c234ab75e0e27",
+    "savedAt": "2025-08-19T12:01:33.729Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-08-19T12-01-33-723Z_198c234ab75e0e27_Ti.json"
+    ]
+  },
+  {
+    "id": "198c23657d770cfe",
+    "savedAt": "2025-08-19T12:03:23.784Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-08-19T12-03-23-775Z_198c23657d770cfe_Re_Ti.json"
+    ]
+  },
+  {
+    "id": "198c241a4a7ae54d",
+    "savedAt": "2025-08-19T12:18:55.542Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-08-19T12-18-55-535Z_198c241a4a7ae54d_TI.json"
+    ]
+  },
+  {
+    "id": "198c2479260f1405",
+    "savedAt": "2025-08-19T12:22:17.968Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-08-19T12-22-17-963Z_198c2479260f1405_TI.json"
+    ]
+  },
+  {
+    "id": "198c2492395d5d23",
+    "savedAt": "2025-08-19T12:23:57.634Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-08-19T12-23-57-616Z_198c2492395d5d23_TI.json"
+    ]
+  },
+  {
+    "id": "198c257622229b89",
+    "savedAt": "2025-08-19T12:39:28.745Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-08-19T12-39-28-704Z_198c257622229b89_TI.json"
+    ]
+  },
+  {
+    "id": "198c25bd83d08a32",
+    "savedAt": "2025-08-19T12:44:23.346Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-08-19T12-44-23-338Z_198c25bd83d08a32_Re_TI.json"
+    ]
+  },
+  {
+    "id": "198c285e37ac0a73",
+    "savedAt": "2025-08-19T13:58:24.940Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-08-19T13-58-24-699Z_198c285e37ac0a73_TI.json"
+    ]
+  },
+  {
+    "id": "198c2747988985b9",
+    "savedAt": "2025-08-19T13:58:26.537Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-08-19T13-58-26-428Z_198c2747988985b9_TI.json"
+    ]
   }
 ]

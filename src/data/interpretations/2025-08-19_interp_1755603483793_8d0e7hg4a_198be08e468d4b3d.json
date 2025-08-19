@@ -1,0 +1,35 @@
+{
+  "id": "interp_1755603483793_8d0e7hg4a",
+  "emailId": "198be08e468d4b3d",
+  "tipo": "pedido",
+  "prioridade": "media",
+  "produtos": [
+    {
+      "nome": "peixe",
+      "descricao": "peixe",
+      "quantidade": 1,
+      "unidade": "unidade",
+      "preco": 700,
+      "moeda": "kz",
+      "codigo": null,
+      "categoria": "alimentos"
+    }
+  ],
+  "cliente": {
+    "nome": "Dario Nzita",
+    "empresa": null,
+    "email": "darionzita90@gmail.com",
+    "telefone": null,
+    "website": null,
+    "localizacao": null
+  },
+  "resumo": "O cliente Dario Nzita solicitou peixe no valor de 700kz.",
+  "acoes_sugeridas": [
+    "Confirmar a disponibilidade do peixe.",
+    "Entrar em contato com o cliente para confirmar o pedido e detalhes de entrega/retirada.",
+    "Verificar o preço do peixe e confirmar se 700kz é o valor correto."
+  ],
+  "confianca": 95,
+  "interpretedAt": "2025-08-19T11:38:03.793Z",
+  "rawGeminiResponse": "```json\n{\n  \"tipo\": \"pedido\",\n  \"prioridade\": \"media\",\n  \"produtos\": [\n    {\n      \"nome\": \"peixe\",\n      \"descricao\": \"peixe\",\n      \"quantidade\": 1,\n      \"unidade\": \"unidade\",\n      \"preco\": 700,\n      \"moeda\": \"kz\",\n      \"codigo\": null,\n      \"categoria\": \"alimentos\"\n    }\n  ],\n  \"cliente\": {\n    \"nome\": \"Dario Nzita\",\n    \"empresa\": null,\n    \"email\": \"darionzita90@gmail.com\",\n    \"telefone\": null,\n    \"website\": null,\n    \"localizacao\": null\n  },\n  \"resumo\": \"O cliente Dario Nzita solicitou peixe no valor de 700kz.\",\n  \"acoes_sugeridas\": [\n    \"Confirmar a disponibilidade do peixe.\",\n    \"Entrar em contato com o cliente para confirmar o pedido e detalhes de entrega/retirada.\",\n    \"Verificar o preço do peixe e confirmar se 700kz é o valor correto.\"\n  ],\n  \"confianca\": 95\n}\n```"
+}

@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import CotacoesService from '../services/CotacoesService';
 import { cotacaoSchema } from '../schemas/CotacaoSchema';
 import { Cotacao } from '../models/Cotacao';
+import CotacaoNotificationService from '../services/CotacaoNotificationService';
 
 class CotacoesController {
   async create(req: Request, res: Response): Promise<Response> {
@@ -14,6 +15,15 @@ class CotacoesController {
 
     try {
       const cotacao = await CotacoesService.create(parsed.data as unknown as Cotacao);
+      
+      // Criar notificação para nova cotação
+      try {
+        await CotacaoNotificationService.processarNotificacaoCotacao(cotacao, 'criada');
+      } catch (notifError) {
+        console.error('Erro ao criar notificação de cotação criada:', notifError);
+        // Não quebra o fluxo principal, apenas loga o erro
+      }
+
       return res.status(201).json({
         message: 'Cotação cadastrada com sucesso.',
         data: cotacao,
@@ -51,7 +61,28 @@ class CotacoesController {
   async delete(req: Request, res: Response): Promise<Response> {
     try {
       const { id } = req.params;
+      
+      // Buscar cotação antes de deletar para notificações
+      let cotacaoParaDeletar;
+      try {
+        cotacaoParaDeletar = await CotacoesService.getById(Number(id));
+      } catch (error) {
+        // Se não encontrou a cotação, continua com a deleção
+        console.warn('Cotação não encontrada para notificação de deleção:', id);
+      }
+      
       await CotacoesService.delete(Number(id));
+      
+      // Criar notificação de deleção se conseguiu buscar a cotação
+      if (cotacaoParaDeletar) {
+        try {
+          await CotacaoNotificationService.processarNotificacaoCotacao(cotacaoParaDeletar, 'deletada');
+        } catch (notifError) {
+          console.error('Erro ao criar notificação de cotação deletada:', notifError);
+          // Não quebra o fluxo principal, apenas loga o erro
+        }
+      }
+      
       return res.status(200).json({ message: 'Cotação deletada com sucesso.' });
     } catch (err: any) {
       return res.status(500).json({ error: err.message });
@@ -63,7 +94,25 @@ class CotacoesController {
       const { id } = req.params;
       const updates = req.body;
 
+      // Buscar cotação antes de atualizar para comparação
+      let cotacaoAnterior;
+      try {
+        cotacaoAnterior = await CotacoesService.getById(Number(id));
+      } catch (error) {
+        console.warn('Cotação não encontrada para comparação de mudanças:', id);
+      }
+
       const cotacaoAtualizada = await CotacoesService.updatePartial(Number(id), updates);
+
+      // Processar notificações baseadas em mudanças
+      if (cotacaoAnterior && cotacaoAtualizada) {
+        try {
+          await CotacaoNotificationService.analisarENotificarMudancas(cotacaoAnterior, cotacaoAtualizada);
+        } catch (notifError) {
+          console.error('Erro ao processar notificações de mudanças na cotação:', notifError);
+          // Não quebra o fluxo principal, apenas loga o erro
+        }
+      }
 
       return res.status(200).json({
         message: 'Cotação atualizada com sucesso.',

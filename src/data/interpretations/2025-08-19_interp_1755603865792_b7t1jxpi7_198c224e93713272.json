@@ -1,0 +1,35 @@
+{
+  "id": "interp_1755603865792_b7t1jxpi7",
+  "emailId": "198c224e93713272",
+  "tipo": "pedido",
+  "prioridade": "media",
+  "produtos": [
+    {
+      "nome": "computador",
+      "descricao": "Não especificada",
+      "quantidade": 1,
+      "unidade": "unidade",
+      "preco": null,
+      "moeda": null,
+      "codigo": null,
+      "categoria": "hardware"
+    }
+  ],
+  "cliente": {
+    "nome": "Dario Nzita",
+    "empresa": null,
+    "email": "darionzita90@gmail.com",
+    "telefone": null,
+    "website": null,
+    "localizacao": null
+  },
+  "resumo": "O email é um pedido de um computador enviado por Dario Nzita.",
+  "acoes_sugeridas": [
+    "Responder ao email solicitando mais detalhes sobre as especificações desejadas para o computador.",
+    "Enviar um orçamento com diferentes opções de computadores que atendam às necessidades do cliente.",
+    "Confirmar a disponibilidade dos modelos de computador cotados."
+  ],
+  "confianca": 95,
+  "interpretedAt": "2025-08-19T11:44:25.792Z",
+  "rawGeminiResponse": "```json\n{\n  \"tipo\": \"pedido\",\n  \"prioridade\": \"media\",\n  \"produtos\": [\n    {\n      \"nome\": \"computador\",\n      \"descricao\": \"Não especificada\",\n      \"quantidade\": 1,\n      \"unidade\": \"unidade\",\n      \"preco\": null,\n      \"moeda\": null,\n      \"codigo\": null,\n      \"categoria\": \"hardware\"\n    }\n  ],\n  \"cliente\": {\n    \"nome\": \"Dario Nzita\",\n    \"empresa\": null,\n    \"email\": \"darionzita90@gmail.com\",\n    \"telefone\": null,\n    \"website\": null,\n    \"localizacao\": null\n  },\n  \"resumo\": \"O email é um pedido de um computador enviado por Dario Nzita.\",\n  \"acoes_sugeridas\": [\n    \"Responder ao email solicitando mais detalhes sobre as especificações desejadas para o computador.\",\n    \"Enviar um orçamento com diferentes opções de computadores que atendam às necessidades do cliente.\",\n    \"Confirmar a disponibilidade dos modelos de computador cotados.\"\n  ],\n  \"confianca\": 95\n}\n```"
+}

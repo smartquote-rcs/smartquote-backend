@@ -1,0 +1,36 @@
+{
+  "id": "interp_1755603483824_7j9b9dgqr",
+  "emailId": "198be10903e600b5",
+  "tipo": "pedido",
+  "prioridade": "media",
+  "produtos": [
+    {
+      "nome": "PC Portátil",
+      "descricao": "para escritório",
+      "quantidade": 1,
+      "unidade": "unidade",
+      "preco": null,
+      "moeda": null,
+      "codigo": null,
+      "categoria": "informática"
+    }
+  ],
+  "cliente": {
+    "nome": "Dario Nzita",
+    "empresa": null,
+    "email": "darionzita90@gmail.com",
+    "telefone": null,
+    "website": null,
+    "localizacao": null
+  },
+  "resumo": "O email é um pedido de um PC portátil para uso em escritório.",
+  "acoes_sugeridas": [
+    "Responder ao cliente Dario Nzita confirmando o recebimento do pedido.",
+    "Solicitar mais informações sobre as especificações desejadas para o PC portátil (ex: orçamento, requisitos de hardware, software utilizado).",
+    "Apresentar opções de PCs portáteis que atendam às necessidades do cliente.",
+    "Enviar orçamento detalhado."
+  ],
+  "confianca": 95,
+  "interpretedAt": "2025-08-19T11:38:03.824Z",
+  "rawGeminiResponse": "```json\n{\n  \"tipo\": \"pedido\",\n  \"prioridade\": \"media\",\n  \"produtos\": [\n    {\n      \"nome\": \"PC Portátil\",\n      \"descricao\": \"para escritório\",\n      \"quantidade\": 1,\n      \"unidade\": \"unidade\",\n      \"preco\": null,\n      \"moeda\": null,\n      \"codigo\": null,\n      \"categoria\": \"informática\"\n    }\n  ],\n  \"cliente\": {\n    \"nome\": \"Dario Nzita\",\n    \"empresa\": null,\n    \"email\": \"darionzita90@gmail.com\",\n    \"telefone\": null,\n    \"website\": null,\n    \"localizacao\": null\n  },\n  \"resumo\": \"O email é um pedido de um PC portátil para uso em escritório.\",\n  \"acoes_sugeridas\": [\n    \"Responder ao cliente Dario Nzita confirmando o recebimento do pedido.\",\n    \"Solicitar mais informações sobre as especificações desejadas para o PC portátil (ex: orçamento, requisitos de hardware, software utilizado).\",\n    \"Apresentar opções de PCs portáteis que atendam às necessidades do cliente.\",\n    \"Enviar orçamento detalhado.\"\n  ],\n  \"confianca\": 95\n}\n```"
+}

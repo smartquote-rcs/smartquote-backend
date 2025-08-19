@@ -1,0 +1,35 @@
+{
+  "id": "interp_1755603469399_buhfkr5mo",
+  "emailId": "198c1fc35d349473",
+  "tipo": "pedido",
+  "prioridade": "media",
+  "produtos": [
+    {
+      "nome": "galinha",
+      "descricao": null,
+      "quantidade": null,
+      "unidade": null,
+      "preco": null,
+      "moeda": null,
+      "codigo": null,
+      "categoria": "aves"
+    }
+  ],
+  "cliente": {
+    "nome": "Dario Nzita",
+    "empresa": null,
+    "email": "darionzita90@gmail.com",
+    "telefone": null,
+    "website": null,
+    "localizacao": null
+  },
+  "resumo": "O email é um pedido simples de compra de galinha enviado por Dario Nzita.",
+  "acoes_sugeridas": [
+    "Responder ao email confirmando o recebimento do pedido.",
+    "Solicitar informações adicionais sobre a quantidade desejada e outros detalhes do pedido (tipo de galinha, tamanho, etc.).",
+    "Informar o preço e as condições de pagamento."
+  ],
+  "confianca": 95,
+  "interpretedAt": "2025-08-19T11:37:49.399Z",
+  "rawGeminiResponse": "```json\n{\n  \"tipo\": \"pedido\",\n  \"prioridade\": \"media\",\n  \"produtos\": [\n    {\n      \"nome\": \"galinha\",\n      \"descricao\": null,\n      \"quantidade\": null,\n      \"unidade\": null,\n      \"preco\": null,\n      \"moeda\": null,\n      \"codigo\": null,\n      \"categoria\": \"aves\"\n    }\n  ],\n  \"cliente\": {\n    \"nome\": \"Dario Nzita\",\n    \"empresa\": null,\n    \"email\": \"darionzita90@gmail.com\",\n    \"telefone\": null,\n    \"website\": null,\n    \"localizacao\": null\n  },\n  \"resumo\": \"O email é um pedido simples de compra de galinha enviado por Dario Nzita.\",\n  \"acoes_sugeridas\": [\n    \"Responder ao email confirmando o recebimento do pedido.\",\n    \"Solicitar informações adicionais sobre a quantidade desejada e outros detalhes do pedido (tipo de galinha, tamanho, etc.).\",\n    \"Informar o preço e as condições de pagamento.\"\n  ],\n  \"confianca\": 95\n}\n```"
+}

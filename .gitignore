@@ -5,5 +5,5 @@ src/credentials.json
 .env.local
 .env.production
 src/tData.json
-src/cData.json
-dist/
+src/cData.json 
+.vercel

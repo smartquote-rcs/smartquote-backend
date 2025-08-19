@@ -125,10 +125,10 @@ export class CotacaoNotificationService {
     // Verificar se houve mudança no status (se disponível)
     if (cotacaoAntiga.status !== cotacaoNova.status) {
       switch (cotacaoNova.status) {
-        case 'aceite':
+        case 'completa':
           await this.processarNotificacaoCotacao(cotacaoNova, 'aprovada');
           break;
-        case 'recusado':
+        case 'incompleta': // Assuming 'incompleta' could imply a rejection or non-approval
           await this.processarNotificacaoCotacao(cotacaoNova, 'rejeitada');
           break;
       }

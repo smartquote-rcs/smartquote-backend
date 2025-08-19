@@ -50,6 +50,7 @@ declare class GeminiInterpretationService {
      * Constrói o prompt para o Gemini AI
      */
     private buildPrompt;
+    private buildContext;
     /**
      * Parse da resposta do Gemini AI
      */

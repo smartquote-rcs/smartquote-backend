@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const CotacoesService_1 = __importDefault(require("../services/CotacoesService"));
 const CotacaoSchema_1 = require("../schemas/CotacaoSchema");
+const CotacaoNotificationService_1 = __importDefault(require("../services/CotacaoNotificationService"));
 class CotacoesController {
     async create(req, res) {
         // compat: aceitar camelCase e converter
@@ -34,6 +35,14 @@ class CotacoesController {
         }
         try {
             const cotacao = await CotacoesService_1.default.create(parsed.data);
+            // Criar notificação para nova cotação
+            try {
+                await CotacaoNotificationService_1.default.processarNotificacaoCotacao(cotacao, 'criada');
+            }
+            catch (notifError) {
+                console.error('Erro ao criar notificação de cotação criada:', notifError);
+                // Não quebra o fluxo principal, apenas loga o erro
+            }
             return res.status(201).json({
                 message: 'Cotação cadastrada com sucesso.',
                 data: cotacao,
@@ -71,7 +80,26 @@ class CotacoesController {
     async delete(req, res) {
         try {
             const { id } = req.params;
+            // Buscar cotação antes de deletar para notificações
+            let cotacaoParaDeletar;
+            try {
+                cotacaoParaDeletar = await CotacoesService_1.default.getById(Number(id));
+            }
+            catch (error) {
+                // Se não encontrou a cotação, continua com a deleção
+                console.warn('Cotação não encontrada para notificação de deleção:', id);
+            }
             await CotacoesService_1.default.delete(Number(id));
+            // Criar notificação de deleção se conseguiu buscar a cotação
+            if (cotacaoParaDeletar) {
+                try {
+                    await CotacaoNotificationService_1.default.processarNotificacaoCotacao(cotacaoParaDeletar, 'deletada');
+                }
+                catch (notifError) {
+                    console.error('Erro ao criar notificação de cotação deletada:', notifError);
+                    // Não quebra o fluxo principal, apenas loga o erro
+                }
+            }
             return res.status(200).json({ message: 'Cotação deletada com sucesso.' });
         }
         catch (err) {
@@ -99,7 +127,25 @@ class CotacoesController {
             if (updates.status && ['pendente', 'aceite', 'recusado'].includes(updates.status)) {
                 updates.status = updates.status === 'aceite' ? 'completa' : 'incompleta';
             }
+            // Buscar cotação antes de atualizar para comparação
+            let cotacaoAnterior;
+            try {
+                cotacaoAnterior = await CotacoesService_1.default.getById(Number(id));
+            }
+            catch (error) {
+                console.warn('Cotação não encontrada para comparação de mudanças:', id);
+            }
             const cotacaoAtualizada = await CotacoesService_1.default.updatePartial(Number(id), updates);
+            // Processar notificações baseadas em mudanças
+            if (cotacaoAnterior && cotacaoAtualizada) {
+                try {
+                    await CotacaoNotificationService_1.default.analisarENotificarMudancas(cotacaoAnterior, cotacaoAtualizada);
+                }
+                catch (notifError) {
+                    console.error('Erro ao processar notificações de mudanças na cotação:', notifError);
+                    // Não quebra o fluxo principal, apenas loga o erro
+                }
+            }
             return res.status(200).json({
                 message: 'Cotação atualizada com sucesso.',
                 data: cotacaoAtualizada,

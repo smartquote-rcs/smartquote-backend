@@ -119,7 +119,7 @@ class FornecedorService {
 
       // Retorna configurações padrão se não encontrar na BD
       return {
-        numResultadosPorSite: 3,
+        numResultadosPorSite: 1,
         precoMinimo: null,
         precoMaximo: null,
         sitesAtivos: true,

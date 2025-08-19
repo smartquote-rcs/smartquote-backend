@@ -1,0 +1,18 @@
+{
+  "id": "interp_1755383029885_fe6qcik59",
+  "emailId": "198b4fb3b3dfe5fa",
+  "tipo": "pedido",
+  "prioridade": "media",
+  "solicitacao": "Solicito informações sobre modelos básicos, preços e tempo de instalação para 3 unidades de quiosques de self-service para check-out rápido em minha loja em Luanda.",
+  "cliente": {
+    "nome": "Dario Nzita",
+    "empresa": null,
+    "email": "darionzita90@gmail.com",
+    "telefone": null,
+    "website": null,
+    "localizacao": "Luanda"
+  },
+  "confianca": 95,
+  "interpretedAt": "2025-08-16T22:23:49.885Z",
+  "rawGeminiResponse": "```json\n{\n  \"tipo\": \"pedido\",\n  \"prioridade\": \"media\",\n  \"solicitacao\": \"Solicito informações sobre modelos básicos, preços e tempo de instalação para 3 unidades de quiosques de self-service para check-out rápido em minha loja em Luanda.\",\n  \"cliente\": {\n    \"nome\": \"Dario Nzita\",\n    \"empresa\": null,\n    \"email\": \"darionzita90@gmail.com\",\n    \"telefone\": null,\n    \"website\": null,\n    \"localizacao\": \"Luanda\"\n  },\n  \"confianca\": 95\n}\n```"
+}

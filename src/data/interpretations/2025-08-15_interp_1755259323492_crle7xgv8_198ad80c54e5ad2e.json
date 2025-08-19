@@ -1,0 +1,37 @@
+{
+  "id": "interp_1755259323492_crle7xgv8",
+  "emailId": "198ad80c54e5ad2e",
+  "tipo": "cotacao",
+  "prioridade": "media",
+  "produtos": [
+    {
+      "nome": "Cloud Storage",
+      "descricao": "Cloud storage com encriptação AES-256 para backups automáticos",
+      "quantidade": 1,
+      "unidade": "TB",
+      "preco": null,
+      "moeda": null,
+      "codigo": null,
+      "categoria": "Armazenamento em Nuvem"
+    }
+  ],
+  "cliente": {
+    "nome": "Miguel",
+    "empresa": null,
+    "email": "darionzita90@gmail.com",
+    "telefone": null,
+    "website": null,
+    "localizacao": null
+  },
+  "resumo": "Cliente solicita cotação de cloud storage com encriptação AES-256 para backups automáticos de 1TB, com integração com Google Drive e informação do preço mensal.",
+  "acoes_sugeridas": [
+    "Responder ao email agradecendo o contato.",
+    "Apresentar opções de planos de cloud storage que atendam aos requisitos de segurança (AES-256) e capacidade (1TB).",
+    "Informar sobre a compatibilidade/integração com o Google Drive.",
+    "Enviar tabela de preços mensais dos planos sugeridos.",
+    "Solicitar informações adicionais sobre o uso pretendido para refinar a oferta."
+  ],
+  "confianca": 95,
+  "interpretedAt": "2025-08-15T12:02:03.492Z",
+  "rawGeminiResponse": "```json\n{\n  \"tipo\": \"cotacao\",\n  \"prioridade\": \"media\",\n  \"produtos\": [\n    {\n      \"nome\": \"Cloud Storage\",\n      \"descricao\": \"Cloud storage com encriptação AES-256 para backups automáticos\",\n      \"quantidade\": 1,\n      \"unidade\": \"TB\",\n      \"preco\": null,\n      \"moeda\": null,\n      \"codigo\": null,\n      \"categoria\": \"Armazenamento em Nuvem\"\n    }\n  ],\n  \"cliente\": {\n    \"nome\": \"Miguel\",\n    \"empresa\": null,\n    \"email\": \"darionzita90@gmail.com\",\n    \"telefone\": null,\n    \"website\": null,\n    \"localizacao\": null\n  },\n  \"resumo\": \"Cliente solicita cotação de cloud storage com encriptação AES-256 para backups automáticos de 1TB, com integração com Google Drive e informação do preço mensal.\",\n  \"acoes_sugeridas\": [\n    \"Responder ao email agradecendo o contato.\",\n    \"Apresentar opções de planos de cloud storage que atendam aos requisitos de segurança (AES-256) e capacidade (1TB).\",\n    \"Informar sobre a compatibilidade/integração com o Google Drive.\",\n    \"Enviar tabela de preços mensais dos planos sugeridos.\",\n    \"Solicitar informações adicionais sobre o uso pretendido para refinar a oferta.\"\n  ],\n  \"confianca\": 95\n}\n```"
+}

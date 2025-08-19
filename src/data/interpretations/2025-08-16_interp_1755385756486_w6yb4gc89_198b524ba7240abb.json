@@ -1,0 +1,18 @@
+{
+  "id": "interp_1755385756486_w6yb4gc89",
+  "emailId": "198b524ba7240abb",
+  "tipo": "pedido",
+  "prioridade": "media",
+  "solicitacao": "Solicito informações sobre a integração de API para monitorização de fraudes.",
+  "cliente": {
+    "nome": "Dario Nzita",
+    "empresa": "",
+    "email": "darionzita90@gmail.com",
+    "telefone": "",
+    "website": "",
+    "localizacao": ""
+  },
+  "confianca": 95,
+  "interpretedAt": "2025-08-16T23:09:16.486Z",
+  "rawGeminiResponse": "```json\n{\n  \"tipo\": \"pedido\",\n  \"prioridade\": \"media\",\n  \"solicitacao\": \"Solicito informações sobre a integração de API para monitorização de fraudes.\",\n  \"cliente\": {\n    \"nome\": \"Dario Nzita\",\n    \"empresa\": \"\",\n    \"email\": \"darionzita90@gmail.com\",\n    \"telefone\": \"\",\n    \"website\": \"\",\n    \"localizacao\": \"\"\n  },\n  \"confianca\": 95\n}\n```"
+}

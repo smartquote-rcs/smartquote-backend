@@ -1,0 +1,18 @@
+{
+  "id": "interp_1755606248864_wc7lhgoo5",
+  "emailId": "198c23657d770cfe",
+  "tipo": "pedido",
+  "prioridade": "media",
+  "solicitacao": "Preciso de um computador e duas impressoras de boa qualidade.",
+  "cliente": {
+    "nome": "Dario Nzita",
+    "empresa": "",
+    "email": "darionzita90@gmail.com",
+    "telefone": "",
+    "website": "",
+    "localizacao": ""
+  },
+  "confianca": 95,
+  "interpretedAt": "2025-08-19T12:24:08.864Z",
+  "rawGeminiResponse": "```json\n{\n  \"tipo\": \"pedido\",\n  \"prioridade\": \"media\",\n  \"solicitacao\": \"Preciso de um computador e duas impressoras de boa qualidade.\",\n  \"cliente\": {\n    \"nome\": \"Dario Nzita\",\n    \"empresa\": \"\",\n    \"email\": \"darionzita90@gmail.com\",\n    \"telefone\": \"\",\n    \"website\": \"\",\n    \"localizacao\": \"\"\n  },\n  \"confianca\": 95\n}\n```"
+}

@@ -134,7 +134,7 @@ class EmailMonitorWorker {
             from: email.from,
             subject: email.subject,
             date: email.date,
-            content: email.content.substring(0, 200) + '...'
+            content: email.content
           });
           
           console.log(`📤 [DEBUG] Mensagem EMAIL_DETECTED enviada!`);

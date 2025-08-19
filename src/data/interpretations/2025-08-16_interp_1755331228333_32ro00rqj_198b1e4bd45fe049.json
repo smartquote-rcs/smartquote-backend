@@ -1,0 +1,18 @@
+{
+  "id": "interp_1755331228333_32ro00rqj",
+  "emailId": "198b1e4bd45fe049",
+  "tipo": "pedido",
+  "prioridade": "media",
+  "solicitacao": "Gostaria de saber se vocês oferecem soluções blockchain integradas ao Machine Learning para rastrear fraudes, além da API AML, especificamente para criptomoedas em Angola.",
+  "cliente": {
+    "nome": "Dario Nzita",
+    "empresa": "Crypto Invest",
+    "email": "darionzita90@gmail.com",
+    "telefone": "",
+    "website": "",
+    "localizacao": "Angola"
+  },
+  "confianca": 95,
+  "interpretedAt": "2025-08-16T08:00:28.333Z",
+  "rawGeminiResponse": "```json\n{\n  \"tipo\": \"pedido\",\n  \"prioridade\": \"media\",\n  \"solicitacao\": \"Gostaria de saber se vocês oferecem soluções blockchain integradas ao Machine Learning para rastrear fraudes, além da API AML, especificamente para criptomoedas em Angola.\",\n  \"cliente\": {\n    \"nome\": \"Dario Nzita\",\n    \"empresa\": \"Crypto Invest\",\n    \"email\": \"darionzita90@gmail.com\",\n    \"telefone\": \"\",\n    \"website\": \"\",\n    \"localizacao\": \"Angola\"\n  },\n  \"confianca\": 95\n}\n```"
+}

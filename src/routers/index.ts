@@ -11,6 +11,7 @@ import emailRouter from "./email.routes";
 import geminiRouter from "./gemini.routes";
 import notificationsRouter from "./notifications.routes";
 import { ProdutosService } from '../services/ProdutoService';
+import buscaLocalRouter from './buscaLocal.routes';
 
 const routers = Router();
 const produtosService = new ProdutosService();
@@ -29,6 +30,7 @@ routers.use('/cotacoes',authMiddleware, cotacoesRoutes);
 routers.use('/busca-automatica', buscaRouter);
 routers.use('/email', emailRouter);
 routers.use('/gemini', geminiRouter);
+routers.use('/busca-local', buscaLocalRouter);
 routers.use('/notifications', authMiddleware, notificationsRouter);
 
 
@@ -57,7 +59,9 @@ routers.get('/products/:id', async (req, res) => {
 // POST /api/products
 routers.post('/products', async (req, res) => {
     try {
-        const novo = await produtosService.create(req.body);
+    const body = { ...req.body } as any;
+    if (body.fornecedorId && !body.fornecedor_id) body.fornecedor_id = body.fornecedorId;
+    const novo = await produtosService.create(body);
         res.status(201).json({ data: novo });
     } catch (err) {
         const errorMsg = err instanceof Error ? err.message : 'Erro desconhecido';
@@ -67,7 +71,9 @@ routers.post('/products', async (req, res) => {
 // PATCH /api/products/:id
 routers.patch('/products/:id', async (req, res) => {
     try {
-        const atualizado = await produtosService.updatePartial(Number(req.params.id), req.body);
+    const updates = { ...req.body } as any;
+    if (updates.fornecedorId && !updates.fornecedor_id) updates.fornecedor_id = updates.fornecedorId;
+    const atualizado = await produtosService.updatePartial(Number(req.params.id), updates);
         res.status(200).json({ data: atualizado });
     } catch (err) {
         const errorMsg = err instanceof Error ? err.message : 'Erro desconhecido';

@@ -1,0 +1,18 @@
+{
+  "id": "interp_1755533502593_5thrt3pah",
+  "emailId": "198bdf350eebc0f7",
+  "tipo": "pedido",
+  "prioridade": "media",
+  "solicitacao": "Gostaria de solicitar um computador portátil 15.6\" I5-1235u Fhd Uslim com 16GB de RAM, 512GB SSD, Windows 11 Home e na cor prata.",
+  "cliente": {
+    "nome": "Dario Nzita",
+    "empresa": "",
+    "email": "darionzita90@gmail.com",
+    "telefone": "",
+    "website": "",
+    "localizacao": ""
+  },
+  "confianca": 95,
+  "interpretedAt": "2025-08-18T16:11:42.593Z",
+  "rawGeminiResponse": "```json\n{\n  \"tipo\": \"pedido\",\n  \"prioridade\": \"media\",\n  \"solicitacao\": \"Gostaria de solicitar um computador portátil 15.6\\\" I5-1235u Fhd Uslim com 16GB de RAM, 512GB SSD, Windows 11 Home e na cor prata.\",\n  \"cliente\": {\n    \"nome\": \"Dario Nzita\",\n    \"empresa\": \"\",\n    \"email\": \"darionzita90@gmail.com\",\n    \"telefone\": \"\",\n    \"website\": \"\",\n    \"localizacao\": \"\"\n  },\n  \"confianca\": 95\n}\n```"
+}

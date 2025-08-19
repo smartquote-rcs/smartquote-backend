@@ -48,6 +48,7 @@ def executar_estrutura_de_queries(
             print(f"➡️ Executando {q['id']} [{q['tipo']}] | Query: {q['query']}", file=sys.stderr)
             print(f"Filtros: {q.get('filtros')}", file=sys.stderr)
         todos: List[Dict[str, Any]] = []
+        # Buscar em todos os espaços e juntar resultados
         for espaco in espacos:
             r = buscar_hibrido_ponderado(
                 weaviate_manager.client,
@@ -61,7 +62,6 @@ def executar_estrutura_de_queries(
         # Agregar por produto mantendo melhor score
         agregados: Dict[Tuple[str, str], Dict[str, Any]] = {}
         for item in todos:
-            # Usar nova coluna categoria (com fallback para modelo)
             categoria = item.get("categoria", "") or item.get("modelo", "")
             chave = (item["nome"], categoria)
             atual = agregados.get(chave)
@@ -69,6 +69,25 @@ def executar_estrutura_de_queries(
                 agregados[chave] = item
         lista = list(agregados.values())
         lista.sort(key=lambda x: x["score"], reverse=True)
+
+        # Refinamento LLM no resultado final mesclado
+        from busca_local.search_engine import _llm_escolher_indice
+        idx_escolhido = -1
+        try:
+            idx_escolhido = _llm_escolher_indice(q["query"], q.get("filtros") or None, lista)
+        except Exception as e:
+            print(f"[LLM] Erro ao executar refinamento: {e}")
+            idx_escolhido = -1
+        if isinstance(idx_escolhido, int) and 0 <= idx_escolhido < len(lista):
+            escolhido = lista[idx_escolhido]
+            escolhido["llm_match"] = True
+            escolhido["llm_index"] = idx_escolhido
+            print(f"🎯 Índice escolhido pela LLM: {idx_escolhido} - {escolhido.get('nome', 'N/A')}")
+            lista = [escolhido]
+        else:
+            print("🎯 Nenhum candidato disponível após refinamento LLM")
+            lista = []
+
         resultados_por_query[q["id"]] = lista
 
         # Apresentação resumida por query
@@ -203,7 +222,7 @@ def processar_interpretacao(
             palavras_str = " ".join([str(p).strip() for p in palavras if str(p).strip()])
         else:
             palavras_str = str(palavras).strip()
-        base = " ".join([s for s in [nome, categoria, palavras_str] if s])
+        base = " ".join([s for s in [nome] if s])
         # fallback para query original se base ficar vazia
         query_sugerida = base if base else (meta.get("query") or nome or categoria)
         query_sugerida = (query_sugerida or "").strip()

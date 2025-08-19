@@ -75,20 +75,36 @@ class GeminiInterpretationService {
   /**
    * Interpreta o conteúdo de um email usando Gemini AI
    */
-  async interpretEmail(emailData: EmailData): Promise<EmailInterpretation> {
+async interpretEmail(emailData: EmailData): Promise<EmailInterpretation> {
+  const maxRetries = 5;
+  let delay = 1000; // 1s inicial
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      console.log(`🧠 [GEMINI] Interpretando email: ${emailData.id}`);
-      
-      const prompt = this.buildPrompt(emailData);
-      const result = await this.model.generateContent(prompt);
+      console.log(`🧠 [GEMINI] Interpretando email: ${emailData.id} (tentativa ${attempt}/${maxRetries})`);
+
+      const prompt = this.buildPrompt();
+      const context = this.buildContext(emailData);
+
+      const result = await this.model.generateContent({
+        contents: [
+          { role: "user", parts: [{ text: context }, { text: prompt }] }
+        ],
+        generationConfig: {
+          temperature: 0.2,   // saída mais determinística
+          topP: 0.9,
+          maxOutputTokens: 2050
+        }
+      });
+
       const response = await result.response;
       const text = response.text();
 
       console.log(`🧠 [GEMINI] Resposta recebida para email ${emailData.id}`);
-      
+
       // Parse da resposta JSON do Gemini
       const interpretation = this.parseGeminiResponse(text, emailData);
-      
+
       // Salvar interpretação apenas se for classificado como "pedido"
       if (interpretation.tipo === 'pedido') {
         await this.saveInterpretation(interpretation);
@@ -96,48 +112,56 @@ class GeminiInterpretationService {
       } else {
         console.log(`📄 [GEMINI] Interpretação não salva - tipo: ${interpretation.tipo}`);
       }
-      
+
       console.log(`✅ [GEMINI] Email ${emailData.id} interpretado com sucesso`);
-      
       return interpretation;
 
     } catch (error: any) {
-      console.error(`❌ [GEMINI] Erro ao interpretar email ${emailData.id}:`, error.message);
-      
-      // Retornar interpretação básica em caso de erro
+      console.error(`❌ [GEMINI] Erro na tentativa ${attempt} para email ${emailData.id}:`, error.message);
+
+      // Se for erro 503 (sobrecarga), tenta de novo com backoff
+      if (error.message.includes("503") && attempt < maxRetries) {
+        console.warn(`⚠️ [GEMINI] Modelo sobrecarregado. Retentando em ${delay}ms...`);
+        await new Promise(res => setTimeout(res, delay));
+        delay *= 2; // aumenta o tempo (backoff exponencial)
+        continue;
+      }
+
+      // Se for erro diferente OU acabou as tentativas → retorna fallback
       return this.createFallbackInterpretation(emailData, error.message);
     }
   }
 
+  // Se sair do loop sem sucesso, retorna fallback genérico
+  return this.createFallbackInterpretation(emailData, "Máximo de tentativas excedido.");
+}
+
   /**
    * Constrói o prompt para o Gemini AI
    */
-  private buildPrompt(emailData: EmailData): string {
-    return `
-Você é um assistente especializado em análise de emails comerciais. Analise o email abaixo e extraia informações estruturadas.
-
-Seu objetivo é retornar EXCLUSIVAMENTE um json válido e completo, compatível com o schema abaixo. Não adicione comentários nem formatação Markdown.
+ private buildPrompt(): string {
+  return `
+Você é um assistente especializado em análise de emails comerciais. Sua tarefa é retornar EXCLUSIVAMENTE um JSON válido e completo, compatível com o schema definido abaixo. Não adicione comentários, explicações ou formatação Markdown.
 
 ---
 
 CONTEXTO DA EMPRESA:
-Oferecemos soluções em: IT Hardware, Automação de Postos, Software, Cloud, Cibersegurança, Realidade Virtual (VR), Internet das Coisas (IoT), Hospitais Inteligentes, Quiosques Self-Service, Business Intelligence (BI), KYC-AML, CCTV, Controle de Acesso.
+Oferecemos soluções em IT Hardware, Automação de Postos, Software, Cloud, Cibersegurança, Realidade Virtual (VR), Internet das Coisas (IoT), Hospitais Inteligentes, Quiosques Self-Service, Business Intelligence (BI), KYC-AML, CCTV e Controle de Acesso.
 
-        ---
-DADOS DO EMAIL:
-- De: ${emailData.from}
-- Assunto: ${emailData.subject}
-- Data: ${emailData.date}
-- Conteúdo: ${emailData.content}
+---
 
 INSTRUÇÕES:
-1. Identifique o tipo de email: caso seja um pedido de serviço ou produtos relacionados aos nossos serviços, mesmo que seja implícito, classifique como "pedido", caso contrário, "outro".
-2. Determine a prioridade (baixa, media, alta, urgente)
-3. A solicitação que foi feita, só reformule em uma frase clara e objetiva sem omitir informações, escreva na primeira pessoa.
-4. Identifique dados do cliente/remetente
-5. Avalie sua confiança na análise (0-100%)
+1. Classifique o email:
+  - "pedido": somente se o email solicitar (explícita ou implicitamente) serviços ou produtos claramente relacionados ao CONTEXTO DA EMPRESA listado acima.
+  - "outro": em qualquer outro caso, mesmo que seja um pedido de produtos fora do contexto (ex.: comida, roupas, viagens etc.).
+2. Defina a prioridade: baixa, média, alta ou urgente.
+3. A solicitação que foi feita, escreva na primeira pessoa.
+4. Extraia os dados disponíveis do cliente/remetente (nome, empresa, email, telefone, website, localização).
+5. Atribua um nível de confiança (0–100%).
 
-RESPOSTA EM JSON:
+---
+
+RESPOSTA (JSON):
 {
   "tipo": "string",
   "prioridade": "string", 
@@ -152,10 +176,20 @@ RESPOSTA EM JSON:
   },
   "confianca": number
 }
-
-Responda APENAS com o JSON válido, sem texto adicional.
 `;
-  }
+}
+
+private buildContext(emailData: EmailData): string {
+  return `
+DADOS DO EMAIL:
+- De: ${emailData.from}
+- Assunto: ${emailData.subject}
+- Data: ${emailData.date}
+- Conteúdo: ${emailData.content}
+
+---
+`;
+}
 
   /**
    * Parse da resposta do Gemini AI

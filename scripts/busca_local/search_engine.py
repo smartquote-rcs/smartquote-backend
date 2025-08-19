@@ -56,6 +56,7 @@ def _llm_escolher_indice(query: str, filtros: dict | None, candidatos: List[Dict
         "2. Atendimento às especificações técnicas\n"
         "3. Relevância geral da consulta\n"
         "4. Disponibilidade em estoque\n"
+        "5. Análise mais lógico-racional\n"
         "NÃO adicione explicações, comentários ou texto extra. APENAS o JSON."
     )
     filtros_str = "{}" if not filtros else json.dumps(filtros, ensure_ascii=False)
@@ -80,7 +81,7 @@ def _llm_escolher_indice(query: str, filtros: dict | None, candidatos: List[Dict
         )
         
         content = (resp.choices[0].message.content or "").strip()
-        print(f"[LLM] Resposta bruta: '{content}'")
+        print(f"[LLM] Resposta bruta: '{content}'", file=sys.stderr)
         
         # Tentar extrair JSON {"index": X}
         idx = -1
@@ -89,7 +90,7 @@ def _llm_escolher_indice(query: str, filtros: dict | None, candidatos: List[Dict
             json_match = re.search(r'\{\s*"index"\s*:\s*(-?\d+)\s*\}', content)
             if json_match:
                 idx = int(json_match.group(1))
-                print(f"[LLM] Índice extraído via regex JSON: {idx}")
+                print(f"[LLM] Índice extraído via regex JSON: {idx}", file=sys.stderr)
             else:
                 # Se não achou padrão JSON, tentar parse direto
                 cleaned_content = content
@@ -101,30 +102,30 @@ def _llm_escolher_indice(query: str, filtros: dict | None, candidatos: List[Dict
                 val = data.get("index")
                 if isinstance(val, int):
                     idx = val
-                    print(f"[LLM] Índice extraído via JSON parse: {idx}")
+                    print(f"[LLM] Índice extraído via JSON parse: {idx}", file=sys.stderr)
         except Exception as e:
-            print(f"[LLM] Erro ao fazer parse do JSON: {e}")
+            print(f"[LLM] Erro ao fazer parse do JSON: {e}", file=sys.stderr)
             # fallback: buscar qualquer número na resposta
             number_match = re.search(r"-?\d+", content)
             if number_match:
                 try:
                     idx = int(number_match.group(0))
-                    print(f"[LLM] Índice extraído via regex numérica: {idx}")
+                    print(f"[LLM] Índice extraído via regex numérica: {idx}", file=sys.stderr)
                 except Exception:
                     idx = -1
         
         # Validar faixa
         if idx is None or not isinstance(idx, int):
-            print(f"[LLM] Índice inválido: {idx}")
+            print(f"[LLM] Índice inválido: {idx}", file=sys.stderr)
             idx = -1
         if idx < 0 or idx >= len(candidatos):
-            print(f"[LLM] Índice fora da faixa: {idx} (válido: 0-{len(candidatos)-1})")
+            print(f"[LLM] Índice fora da faixa: {idx} (válido: 0-{len(candidatos)-1})", file=sys.stderr)
             return -1
         
-        print(f"[LLM] Índice final selecionado: {idx}")
+        print(f"[LLM] Índice final selecionado: {idx}", file=sys.stderr)
         return idx
     except Exception as e:
-        print(f"[LLM] Erro na chamada da API: {e}")
+        print(f"[LLM] Erro na chamada da API: {e}", file=sys.stderr)
         return -1
 
 def construir_filtro(filtros: dict = None):
@@ -378,34 +379,7 @@ def buscar_hibrido_ponderado(client: weaviate.WeaviateClient, modelos: dict, que
     lista_final = list(resultados_finais.values())
     lista_final.sort(key=lambda x: x['score'], reverse=True)
     lista_final = lista_final[:limite]
-    
-    # 3.1 Refinamento final via LLM: escolher o índice do melhor candidato (ou -1)
-    idx_escolhido = -1
-    try:
-        idx_escolhido = _llm_escolher_indice(query, filtros, lista_final)
-    except Exception as e:
-        print(f"[LLM] Erro ao executar refinamento: {e}")
-        idx_escolhido = -1
-    
-    # Manter apenas o item escolhido pela LLM (ou usar fallback)
-    if isinstance(idx_escolhido, int) and 0 <= idx_escolhido < len(lista_final):
-        escolhido = lista_final[idx_escolhido]
-        escolhido["llm_match"] = True
-        escolhido["llm_index"] = idx_escolhido
-        print(f"🎯 Índice escolhido pela LLM: {idx_escolhido} - {escolhido.get('nome', 'N/A')}")
-        lista_final = [escolhido]
-    elif lista_final:
-        # Fallback: usar o melhor por score quando LLM retorna -1
-        escolhido = lista_final[0]
-        escolhido["llm_match"] = False
-        escolhido["llm_index"] = -1
-        print(f"🎯 Índice escolhido pela LLM: -1 (sem candidato adequado ou falha). Usando top-1 por score como fallback.")
-        lista_final = [escolhido]
-    else:
-        print("🎯 Nenhum candidato disponível após refinamento LLM")
-        lista_final = []
-    
-    
+
     # 4. Exibir resultados
     print(f"\n📊 Encontrados {len(lista_final)} produtos relevantes:")
     for i, r in enumerate(lista_final, 1):

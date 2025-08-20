@@ -96,15 +96,15 @@ export class BuscaLocalController {
             quantidade: f.quantidade || 1
           }))
         };
-        const promptId = await PromptsService.create({
+        const prompt = await PromptsService.create({
           texto_original: solicitacao,
           dados_extraidos: dadosExtraidos,
           origem: { tipo: 'servico', fonte: 'api' },
           status: 'analizado'
         });
-        if (promptId) {
+        if (prompt.id) {
           const nova: Cotacao = {
-            prompt_id: promptId,
+            prompt_id: prompt.id,
             status: 'incompleta',
             aprovacao: false,
             faltantes: faltantes?.length ? faltantes : [],

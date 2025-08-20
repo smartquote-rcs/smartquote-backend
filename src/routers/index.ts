@@ -36,7 +36,6 @@ routers.use('/busca-local', buscaLocalRouter);
 routers.use('/notifications', authMiddleware, notificationsRouter);
 routers.use('/prompts', promptsRouter);
 
-
 // Rotas públicas RESTful para products (compatível com frontend)
 // GET /api/products
 routers.get('/products', async (req, res) => {

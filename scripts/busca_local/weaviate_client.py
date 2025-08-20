@@ -10,7 +10,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
-from busca_local.config import WEAVIATE_HOST, WEAVIATE_PORT, WEAVIATE_GRPC_PORT, MODELO_PT, MODELO_MULTI
+from busca_local.config import WEAVIATE_HOST, WEAVIATE_PORT, API_KEY_WEAVIATE, MODELO_PT, MODELO_MULTI
 
 warnings.filterwarnings("ignore", category=UserWarning, module="google.protobuf")
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -28,10 +28,9 @@ class WeaviateManager:
         """Conecta ao Weaviate e carrega modelos"""
         print("A conectar ao Weaviate...")
         try:
-            self.client = weaviate.connect_to_local(
-                host=WEAVIATE_HOST,
-                port=WEAVIATE_PORT,
-                grpc_port=WEAVIATE_GRPC_PORT,
+            self.client = weaviate.connect_to_weaviate_cloud(
+                cluster_url="ylwtqkqjsfstdhecszyr5a.c0.us-west3.gcp.weaviate.cloud",  # URL do cluster no WCS
+                auth_credentials=wvc.init.Auth.api_key(API_KEY_WEAVIATE),
                 additional_config=wvc.init.AdditionalConfig(
                     timeout=wvc.init.Timeout(init=60, query=60, insert=180)
                 )
@@ -84,58 +83,97 @@ class WeaviateManager:
         print("Schema 'Produtos' criado com dois vetores nomeados.")
         
     def indexar_produto(self, dados_produto: dict):
-        """Gera embeddings (pt + multi) e indexa o produto do Supabase."""
-        # Mapear campos do Supabase para o texto de embedding
+        """
+        Indexa ou atualiza produto no Weaviate conforme o fluxo inteligente:
+        - Se não existe, insere com embeddings.
+        - Se existe, compara campos importantes.
+          - Se texto mudou, atualiza tudo e recalcula embeddings.
+          - Se só mudou preço/estoque, atualiza apenas esses campos.
+        """
+        import uuid
+        produto_id = int(dados_produto.get('id') or dados_produto.get('produto_id') or 0)
+        if not produto_id:
+            print("Produto sem id, ignorado.")
+            return
+        uuid_produto = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"produto-{produto_id}"))
+        collection = self.client.collections.get("Produtos")
+        filtro = wvc.query.Filter.by_property("produto_id").equal(produto_id)
+        res = collection.query.fetch_objects(
+            limit=1,
+            filters=filtro,
+            return_properties=["produto_id", "nome", "descricao", "categoria", "tags", "preco", "estoque"],
+        )
+        objeto_existente = res.objects[0] if res and getattr(res, "objects", None) else None
         nome = dados_produto.get('nome', '')
         descricao = dados_produto.get('descricao', '')
-        # Usar nova coluna categoria (com fallback para modelo)
         categoria = dados_produto.get('categoria', '') or dados_produto.get('modelo', '')
         tags_raw = dados_produto.get('tags', '')
-        
-        # Processar tags: converter para array se for string, ou manter como está se já for array
         if isinstance(tags_raw, str):
             tags_array = [tag.strip() for tag in tags_raw.split(',') if tag.strip()] if tags_raw else []
-            tags_texto = tags_raw
         elif isinstance(tags_raw, list):
             tags_array = tags_raw
-            tags_texto = ', '.join(str(tag) for tag in tags_raw)
         else:
-            # Caso seja None ou outro tipo
             tags_array = []
-            tags_texto = ''
-        
-        texto_para_embedding = f"Nome: {nome}. Categoria: {categoria}. Tags: {tags_texto}. Descrição: {descricao}"
-        
-        print(f"\nIndexando: {nome}")
-        emb_pt = self.model_pt.encode(texto_para_embedding)
-        print(f"  Vetor PT dim: {len(emb_pt)}")
-        emb_multi = self.model_multi.encode(texto_para_embedding) if self.MULTI_OK else None
-        if emb_multi is not None:
-            print(f"  Vetor MULTI dim: {len(emb_multi)}")
-        
-        collection = self.client.collections.get("Produtos")
-        vectors = {"vetor_portugues": emb_pt}
-        if emb_multi is not None:
-            vectors["vetor_multilingue"] = emb_multi
-        
-        # Preparar dados para inserção no Weaviate
-        dados_weaviate = {
-            "produto_id": int(dados_produto.get('id', 0)),
-            "nome": nome,
-            "descricao": descricao,
-            "preco": float(dados_produto.get('preco', 0)) if dados_produto.get('preco') else 0.0,
-            "categoria": categoria,
-            "tags": tags_array,  # Enviar como array
-            "estoque": int(dados_produto.get('estoque', 0)) if dados_produto.get('estoque') else 0
-        }
-        
-        collection.data.insert(properties=dados_weaviate, vector=vectors)
-        print("  ✔ Produto indexado")
-        try:
-            pid = int(dados_weaviate.get("produto_id"))
-            self._known_ids.add(pid)
-        except Exception:
-            pass
+        preco = float(dados_produto.get('preco', 0)) if dados_produto.get('preco') else 0.0
+        estoque = int(dados_produto.get('estoque', 0)) if dados_produto.get('estoque') else 0
+        if not objeto_existente:
+            texto_para_embedding = f"Nome: {nome}. Categoria: {categoria}. Tags: {', '.join(tags_array)}. Descrição: {descricao}"
+            emb_pt = self.model_pt.encode(texto_para_embedding)
+            emb_multi = self.model_multi.encode(texto_para_embedding) if self.MULTI_OK else None
+            vectors = {"vetor_portugues": emb_pt}
+            if emb_multi is not None:
+                vectors["vetor_multilingue"] = emb_multi
+            dados_weaviate = {
+                "produto_id": produto_id,
+                "nome": nome,
+                "descricao": descricao,
+                "preco": preco,
+                "categoria": categoria,
+                "tags": tags_array,
+                "estoque": estoque
+            }
+            collection.data.insert(uuid=uuid_produto, properties=dados_weaviate, vector=vectors)
+            print(f"✔ Produto novo indexado: {nome} (id={produto_id})")
+            self._known_ids.add(produto_id)
+            return
+        atual = objeto_existente.properties
+        mudou_texto = (
+            atual.get("nome", "") != nome or
+            atual.get("descricao", "") != descricao or
+            atual.get("categoria", "") != categoria or
+            atual.get("tags", []) != tags_array
+        )
+        mudou_numerico = (
+            atual.get("preco", 0.0) != preco or
+            atual.get("estoque", 0) != estoque
+        )
+        if mudou_texto:
+            texto_para_embedding = f"Nome: {nome}. Categoria: {categoria}. Tags: {', '.join(tags_array)}. Descrição: {descricao}"
+            emb_pt = self.model_pt.encode(texto_para_embedding)
+            emb_multi = self.model_multi.encode(texto_para_embedding) if self.MULTI_OK else None
+            vectors = {"vetor_portugues": emb_pt}
+            if emb_multi is not None:
+                vectors["vetor_multilingue"] = emb_multi
+            dados_weaviate = {
+                "produto_id": produto_id,
+                "nome": nome,
+                "descricao": descricao,
+                "preco": preco,
+                "categoria": categoria,
+                "tags": tags_array,
+                "estoque": estoque
+            }
+            collection.data.update(uuid=uuid_produto, properties=dados_weaviate, vector=vectors)
+            print(f"✏️ Produto atualizado (texto mudou): {nome} (id={produto_id})")
+        elif mudou_numerico:
+            dados_update = {
+                "preco": preco,
+                "estoque": estoque
+            }
+            collection.data.update(uuid=uuid_produto, properties=dados_update)
+            print(f"✏️ Produto atualizado (só preço/estoque): {nome} (id={produto_id})")
+        else:
+            print(f"⏩ Produto já está atualizado: {nome} (id={produto_id})")
 
     def produto_existe(self, produto_id: int) -> bool:
         """Verifica se já existe um objeto com o produto_id dado no Weaviate."""

@@ -328,15 +328,15 @@ DADOS DO EMAIL:
                       quantidade: f.quantidade || 1
                     }))
                   };
-                  const promptId = await PromptsService.create({
+                  const prompt = await PromptsService.create({
                     texto_original: interpretation.solicitacao,
                     dados_extraidos: dadosExtraidos,
                     origem: { tipo: 'servico', fonte: 'email' },
                     status: 'analizado',
                   });
-                  if (promptId) {
+                  if (prompt.id) {
                     const nova: Cotacao = {
-                      prompt_id: promptId,
+                      prompt_id: prompt.id,
                       status: 'incompleta',
                       faltantes: faltantes?.length ? faltantes : [],
                       orcamento_geral: 0,

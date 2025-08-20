@@ -289,7 +289,6 @@ DADOS DO EMAIL:
                 const numPorSite = cfg?.numResultadosPorSite ?? 5;
 
                 const busca = new BuscaAutomatica();
-                console.log(`🔍 [BUSCA-WEB] Iniciando busca por itens faltantes: ${faltantes.length} itens`);
                 const promessas = faltantes.map((f: any) => {
                   console.log(`🔍 [BUSCA-WEB] Iniciando busca com fetch para: ${f.query_sugerida || interpretation.solicitacao}`);
                   fetch('http://localhost:2000/api/busca-automatica/', {

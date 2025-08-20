@@ -9,7 +9,6 @@ class CotacoesController {
   // compat: aceitar camelCase e converter
     const body = { ...req.body } as any;
   if (body.promptId && !body.prompt_id) body.prompt_id = body.promptId;
-  if (body.produtoId && !body.produto_id) body.produto_id = body.produtoId;
   if (body.aprovadoPor && !body.aprovado_por) body.aprovado_por = body.aprovadoPor;
     if (body.orcamentoGeral && !body.orcamento_geral) body.orcamento_geral = body.orcamentoGeral;
     if (body.dataAprovacao && !body.data_aprovacao) body.data_aprovacao = body.dataAprovacao;
@@ -107,7 +106,6 @@ class CotacoesController {
       const { id } = req.params;
       const updates = { ...req.body } as any;
   if (updates.promptId && !updates.prompt_id) updates.prompt_id = updates.promptId;
-  if (updates.produtoId && !updates.produto_id) updates.produto_id = updates.produtoId;
   if (updates.aprovadoPor && !updates.aprovado_por) updates.aprovado_por = updates.aprovadoPor;
       if (updates.orcamentoGeral && !updates.orcamento_geral) updates.orcamento_geral = updates.orcamentoGeral;
       if (updates.dataAprovacao && !updates.data_aprovacao) updates.data_aprovacao = updates.dataAprovacao;

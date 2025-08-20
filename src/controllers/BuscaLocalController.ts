@@ -110,6 +110,7 @@ export class BuscaLocalController {
             aprovacao: false,
             faltantes: faltantes?.length ? faltantes : [],
             orcamento_geral: 0
+            // produto_id removido para evitar erro de relação
           };
           try {
             const criada = await CotacoesService.create(nova);

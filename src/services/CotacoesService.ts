@@ -8,8 +8,7 @@ class CotacoesService {
       .insert(CotacaoData)
       .select(`
         *,
-        prompt:prompts(id, texto_original),
-        produto:produtos(id, nome)
+        prompt:prompts(id, texto_original)
       `)
       .single();
 
@@ -25,8 +24,7 @@ class CotacoesService {
       .from('cotacoes')
       .select(`
         *,
-        prompt:prompts(id, texto_original),
-        produto:produtos(id, nome)
+        prompt:prompts(id, texto_original)
       `)
       .order('cadastrado_em', { ascending: false });
 
@@ -42,8 +40,7 @@ class CotacoesService {
       .from('cotacoes')
       .select(`
         *,
-        prompt:prompts(id, texto_original),
-        produto:produtos(id, nome)
+        prompt:prompts(id, texto_original)
       `)
       .eq('id', id)
       .single();
@@ -74,8 +71,7 @@ class CotacoesService {
       .eq('id', id)
       .select(`
         *,
-        prompt:prompts(id, texto_original),
-        produto:produtos(id, nome)
+        prompt:prompts(id, texto_original)
       `)
       .single();
 

@@ -1,0 +1,18 @@
+{
+  "id": "interp_1755628931820_9830avu11",
+  "emailId": "198c3a37754943b1",
+  "tipo": "pedido",
+  "prioridade": "média",
+  "solicitacao": "Quero um computador.",
+  "cliente": {
+    "nome": "Dario Nzita",
+    "empresa": "",
+    "email": "darionzita90@gmail.com",
+    "telefone": "",
+    "website": "",
+    "localizacao": ""
+  },
+  "confianca": 90,
+  "interpretedAt": "2025-08-19T18:42:11.820Z",
+  "rawGeminiResponse": "```json\n{\n  \"tipo\": \"pedido\",\n  \"prioridade\": \"média\",\n  \"solicitacao\": \"Quero um computador.\",\n  \"cliente\": {\n    \"nome\": \"Dario Nzita\",\n    \"empresa\": \"\",\n    \"email\": \"darionzita90@gmail.com\",\n    \"telefone\": \"\",\n    \"website\": \"\",\n    \"localizacao\": \"\"\n  },\n  \"confianca\": 90\n}\n```"
+}

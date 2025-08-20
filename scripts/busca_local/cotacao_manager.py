@@ -1,4 +1,5 @@
 from typing import Dict, Any, List, Optional
+import requests
 
 class CotacaoManager:
     def __init__(self, supabase_manager):
@@ -64,75 +65,60 @@ class CotacaoManager:
         observacoes: Optional[str] = None,
         condicoes: Optional[Dict[str, Any]] = None,
         faltantes: Optional[List[Dict[str, Any]]] = None,
-        produto_id: Optional[int] = None,
         aprovacao: Optional[bool] = None,
         motivo: Optional[str] = None,
         aprovado_por: Optional[int] = None,
         prazo_validade: Optional[str] = None
     ) -> Optional[int]:
         """
-        Cria uma cotação mínima. Não exige produto_id e suporta salvar ids de queries faltantes.
+        Cria uma cotação mínima via API REST. Não exige produto_id e suporta salvar ids de queries faltantes.
         """
-        if not self._is_available():
-            print("⚠️ Supabase indisponível: não foi possível criar cotação.")
-            return None
+        
 
+        # Monta o payload conforme antes, sem produto_id
         payload: Dict[str, Any] = {"prompt_id": prompt_id}
-        # Status automático: completa se não houver faltantes; incompleta caso contrário
         if status is None:
             status = "incompleta" if (faltantes and len(faltantes) > 0) else "completa"
         payload["status"] = status
-        # Aprovação padrão false se não informada
         payload["aprovacao"] = bool(aprovacao) if aprovacao is not None else False
-
-        # Campos opcionais apenas se fornecidos
         if observacoes:
             payload["observacoes"] = observacoes
         if condicoes is not None:
             payload["condicoes"] = condicoes
         if faltantes is not None:
             payload["faltantes"] = faltantes
-        if produto_id is not None:
-            payload["produto_id"] = produto_id
         if motivo is not None:
             payload["motivo"] = motivo
         if aprovado_por is not None:
             payload["aprovado_por"] = aprovado_por
         if prazo_validade is not None:
             payload["prazo_validade"] = prazo_validade
-        # Iniciar orçamento geral com zero
         payload.setdefault("orcamento_geral", 0)
+        # Remover produto_id se existir por erro legado
+        if "produto_id" in payload:
+            del payload["produto_id"]
+
+        # URL da API (ajuste conforme necessário)
+        api_url = "http://localhost:2000/api/cotacoes"
 
         try:
-            resp = self.supabase.supabase.table("cotacoes").insert(payload).execute()
-            data = getattr(resp, "data", None) or []
-            if isinstance(data, list) and data and isinstance(data[0], dict) and "id" in data[0]:
-                cotacao_id = data[0]["id"]
-                print(f"🧾 Cotação criada: id={cotacao_id}")
-                return cotacao_id
-
-            # Fallback: buscar última cotação por prompt_id
-            try:
-                q = (
-                    self.supabase.supabase.table("cotacoes")
-                    .select("id")
-                    .eq("prompt_id", prompt_id)
-                    .order("id", desc=True)
-                    .limit(1)
-                    .execute()
-                )
-                qd = getattr(q, "data", None) or []
-                if qd:
-                    cotacao_id = qd[0].get("id")
-                    if cotacao_id is not None:
-                        print(f"🧾 Cotação criada (fallback): id={cotacao_id}")
-                        return cotacao_id
-            except Exception as ie:
-                print(f"⚠️ Fallback de busca de cotação falhou: {ie}")
-
-            print(f"⚠️ Falha ao obter id da cotação criada. Resposta: {resp}")
+            response = requests.post(api_url, json=payload)
+            if response.status_code == 201:
+                resp_json = response.json()
+                cotacao_data = resp_json.get("data")
+                cotacao_id = None
+                if isinstance(cotacao_data, dict):
+                    cotacao_id = cotacao_data.get("id")
+                elif isinstance(cotacao_data, list) and cotacao_data:
+                    cotacao_id = cotacao_data[0].get("id")
+                if cotacao_id is not None:
+                    print(f"🧾 Cotação criada via API: id={cotacao_id}")
+                    return cotacao_id
+                print(f"⚠️ Cotação criada mas id não encontrado. Resposta: {resp_json}")
+            else:
+                print(f"❌ Erro ao criar cotação via API: {response.status_code} - {response.text}")
         except Exception as e:
-            print(f"❌ Erro ao criar cotação: {e}")
+            print(f"❌ Erro ao chamar API de cotação: {e}")
         return None
 
     def _build_item_snapshot_from_result(self, resultado: Dict[str, Any]) -> Dict[str, Any]:

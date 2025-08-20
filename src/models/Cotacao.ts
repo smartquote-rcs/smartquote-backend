@@ -2,7 +2,6 @@ export interface Cotacao {
   id?: number;
   // chaves de relação
   prompt_id: number;
-  produto_id?: number; // opcional no schema real
 
   // campos de aprovação agora opcionais
   aprovacao?: boolean;

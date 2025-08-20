@@ -3,7 +3,6 @@ import { z } from 'zod';
 export const cotacaoSchema = z.object({
   // relações
   prompt_id: z.number().int().positive(),
-  produto_id: z.number().int().positive(),
 
   // campos opcionais (após migração)
   aprovacao: z.boolean().optional(),

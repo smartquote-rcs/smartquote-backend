@@ -390,7 +390,7 @@ def buscar_hibrido_ponderado(client: weaviate.WeaviateClient, modelos: dict, que
         flt_pct = int(r.get('score_filtro', 0.0) * 100)
         final_pct = int(r['score'] * 100)
         categoria_display = r.get('categoria', '') or r.get('modelo', '')
-        print(f"{i:2d}. {r['nome']} | {categoria_display}{preco_info}")
+        print(f"{i:2d}. {r['nome']}")
         print(f"    📈 Score: {final_pct}% (Sem: {sem_pct}% + Txt: {txt_pct}% + PC: {pc_pct}% + Flt: {flt_pct}%)")
     
     return lista_final

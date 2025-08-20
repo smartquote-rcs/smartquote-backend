@@ -72,7 +72,6 @@ def create_fallback_decomposition(main_request: str) -> DecompositionResult:
     """Decomposição de fallback quando a API falha"""
     return DecompositionResult(
         solucao_principal="Solução tecnológica não especificada",
-        tags_semanticas=["tecnologia", "solucao"],
         tipo_de_solucao="produto",
         complexidade_estimada="medio",
         itens_a_comprar=[

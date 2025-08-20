@@ -88,7 +88,6 @@ export class BuscaLocalController {
         const dadosExtraidos = payload?.dados_extraidos || {
           solucao_principal: solicitacao,
           tipo_de_solucao: 'sistema',
-          tags_semanticas: [],
           itens_a_comprar: faltantes.map((f: any) => ({
             nome: f.nome || 'Item não especificado',
             natureza_componente: 'software',

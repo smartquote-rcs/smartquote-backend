@@ -316,7 +316,6 @@ graph TD
 {
   "solucao_principal": "API KYC-AML para verificação bancária",
   "tipo_de_solucao": "produto",
-  "tags_semanticas": ["KYC", "AML", "verificação"],
   "itens_a_comprar": [
     {
       "nome": "API KYC-AML",

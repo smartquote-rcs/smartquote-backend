@@ -33,6 +33,7 @@ SUPABASE_KEY = (
     or os.environ.get("SUPABASE_KEY")
     or os.environ.get("SUPABASE_ANON_KEY")
 )
+API_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:2000")
 SUPABASE_TABLE = "produtos"
 
 if not SUPABASE_URL or not SUPABASE_KEY:

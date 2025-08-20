@@ -43,7 +43,6 @@ class EstrategiaBusca(str, Enum):
 class DecompositionResult(BaseModel):
     """Resultado da decomposição em componentes"""
     solucao_principal: str = Field(description="Solução principal identificada")
-    tags_semanticas: List[str] = Field(description="Lista de palavras-chave que descrevem a solução")
     tipo_de_solucao: str = Field(description="Tipo de solução: produto ou sistema")
     complexidade_estimada: str = Field(description="Nível de complexidade: simples, medio, complexo")
     itens_a_comprar: List[ComponenteParaAquisicao] = Field(description="Lista de componentes que precisam ser adquiridos")

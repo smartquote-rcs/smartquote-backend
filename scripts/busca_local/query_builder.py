@@ -65,50 +65,6 @@ def _semantica_join(partes: List[str]) -> str:
     partes_limpa = [p.strip() for p in partes if p and str(p).strip()]
     return " | ".join(partes_limpa)
 
-def gerar_query_principal(brief: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """
-    Gera a Query 0 (apenas se tipo_de_solucao == 'produto'):
-    - Consulta semântica: solucao_principal + tags_semanticas
-    - Categoria: deixar vazio (geral)
-    - Palavras-chave específicas: requisitos críticos/altos (nome + especificações + variações)
-    """
-    tipo = str(brief.get("tipo_de_solucao", "")).lower()
-    if tipo != "produto":
-        return None
-
-    solucao_principal = str(brief.get("solucao_principal", "")).strip()
-    tags_sem = _as_list_str(brief.get("tags_semanticas"))
-    requisitos = brief.get("requisitos_do_produto", []) or []
-
-    # Categoria vazia
-    categoria = None
-
-    # Somente requisitos com nivel_de_exigencia crítica/alta
-    termos_requisitos: List[str] = []
-    for r in requisitos:
-        nivel = str(r.get("nivel_de_exigencia", "")).lower()
-        if nivel in {"critica", "alta"}:
-            termo = _termo_por_requisito(r)
-            if termo:
-                termos_requisitos.append(termo)
-
-    query_sem = _semantica_join([solucao_principal] + tags_sem)
-
-    return {
-        "id": "Q0",
-        "tipo": "principal",
-        "query": query_sem,
-        "filtros": {
-            "categoria": categoria if categoria else None,
-            "palavras_chave": termos_requisitos or None
-        },
-        "peso_prioridade": 1.0,
-        "fonte": {
-            "solucao_principal": solucao_principal,
-            "tags_semanticas": tags_sem
-        }
-    }
-
 def gerar_queries_itens(brief: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
     Gera Queries 1..N para cada item de 'itens_a_comprar':

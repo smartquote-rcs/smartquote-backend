@@ -1,32 +1,72 @@
 import supabase from '../infra/supabase/connect';
-
-interface PromptInsert {
-  texto_original: string;
-  dados_extraidos: any;
-  origem: any;
-  status?: 'recebido' | 'pendente' | 'analizado' | 'enviado';
-}
+import { Prompt } from '../models/Prompt';
 
 class PromptsService {
-  async create(prompt: PromptInsert): Promise<number | null> {
-    const payload = {
-      texto_original: prompt.texto_original,
-      dados_extraidos: prompt.dados_extraidos ?? {},
-      origem: prompt.origem ?? { tipo: 'servico', fonte: 'api' },
-      status: prompt.status ?? 'analizado',
-    };
-
+  async create(promptData: Omit<Prompt, 'id'>): Promise<Prompt> {
     const { data, error } = await supabase
       .from('prompts')
-      .insert(payload)
-      .select('id')
+      .insert(promptData)
+      .select('*')
       .single();
 
     if (error) {
-      console.error('Erro ao criar prompt:', error);
-      return null;
+      throw new Error(`Failed to create prompt: ${error.message}`);
     }
-    return data?.id ?? null;
+
+    return data as Prompt;
+  }
+
+  async getAll(): Promise<Prompt[]> {
+    const { data, error } = await supabase
+      .from('prompts')
+      .select('*')
+      .order('cadastrado_em', { ascending: false });
+
+    if (error) {
+      throw new Error(`Failed to list prompts: ${error.message}`);
+    }
+
+    return data as Prompt[];
+  }
+
+  async getById(id: number): Promise<Prompt | null> {
+    const { data, error } = await supabase
+      .from('prompts')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to get prompt by ID: ${error.message}`);
+    }
+
+    return data as Prompt;
+  }
+
+  async update(id: number, promptData: Partial<Prompt>): Promise<Prompt> {
+    const { data, error } = await supabase
+      .from('prompts')
+      .update(promptData)
+      .eq('id', id)
+      .select('*')
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to update prompt: ${error.message}`);
+    }
+
+    return data as Prompt;
+  }
+
+  async delete(id: number): Promise<void> {
+    const { error } = await supabase
+      .from('prompts')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      throw new Error(`Failed to delete prompt: ${error.message}`);
+    }
   }
 }
 

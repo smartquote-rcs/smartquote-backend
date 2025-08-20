@@ -291,7 +291,8 @@ DADOS DO EMAIL:
                 const busca = new BuscaAutomatica();
                 const promessas = faltantes.map((f: any) => {
                   console.log(`🔍 [BUSCA-WEB] Iniciando busca com fetch para: ${f.query_sugerida || interpretation.solicitacao}`);
-                  fetch('http://localhost:2000/api/busca-automatica/', {
+                  //usar API_BASE_URL
+                  fetch(`${process.env.API_BASE_URL}/api/busca-automatica/`, {
                     method: 'POST',
                     headers: {
                       'Content-Type': 'application/json'
@@ -319,7 +320,6 @@ DADOS DO EMAIL:
                   const dadosExtraidos = payload?.dados_extraidos || {
                     solucao_principal: interpretation.solicitacao,
                     tipo_de_solucao: 'sistema',
-                    tags_semanticas: [],
                     itens_a_comprar: faltantes.map((f: any) => ({
                       nome: f.nome || 'Item não especificado',
                       natureza_componente: 'software',

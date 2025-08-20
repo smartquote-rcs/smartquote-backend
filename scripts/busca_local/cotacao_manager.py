@@ -1,4 +1,5 @@
 from typing import Dict, Any, List, Optional
+from busca_local.config import API_BASE_URL
 import requests
 
 class CotacaoManager:
@@ -18,11 +19,8 @@ class CotacaoManager:
         status: Optional[str] = "analizado"
     ) -> Optional[int]:
         """
-        Cria um registro em 'prompts' e retorna o id.
+        Cria um registro em 'prompts' via API REST e retorna o id.
         """
-        if not self._is_available():
-            print("⚠️ Supabase indisponível: não foi possível criar prompt.")
-            return None
         body: Dict[str, Any] = {
             "texto_original": texto_original or "",
             "dados_extraidos": dados_extraidos or {},
@@ -30,31 +28,32 @@ class CotacaoManager:
         }
         if status:
             body["status"] = status
-        # 1) tentativa direta
+
+        # URL da API (ajuste conforme necessário)
+        api_url = f"{API_BASE_URL}/api/prompts"
+
         try:
-            resp = self.supabase.supabase.table("prompts").insert(body).execute()
-            data = getattr(resp, "data", None) or []
-            if isinstance(data, list) and data and isinstance(data[0], dict) and "id" in data[0]:
-                pid = data[0]["id"]
-                print(f"📝 Prompt criado: id={pid}")
-                return pid
+            response = requests.post(api_url, json=body)
+            if response.status_code == 201:
+                resp_json = response.json()
+                # Tenta extrair o id do campo 'data', senão pega diretamente do objeto
+                prompt_id = None
+                if "data" in resp_json:
+                    prompt_data = resp_json["data"]
+                    if isinstance(prompt_data, dict):
+                        prompt_id = prompt_data.get("id")
+                    elif isinstance(prompt_data, list) and prompt_data:
+                        prompt_id = prompt_data[0].get("id")
+                elif "id" in resp_json:
+                    prompt_id = resp_json["id"]
+                if prompt_id is not None:
+                    print(f"📝 Prompt criado via API: id={prompt_id}")
+                    return prompt_id
+                print(f"⚠️ Prompt criado mas id não encontrado. Resposta: {resp_json}")
+            else:
+                print(f"❌ Erro ao criar prompt via API: {response.status_code} - {response.text}")
         except Exception as e:
-            print(f"⚠️ Insert direto em prompts falhou: {e}")
-        # 2) fallback: gerar próximo id simples
-        try:
-            q = self.supabase.supabase.table("prompts").select("id").order("id", desc=True).limit(1).execute()
-            rows = getattr(q, "data", None) or []
-            next_id = (rows[0]["id"] + 1) if rows else 1
-            body2 = dict(body)
-            body2["id"] = next_id
-            resp2 = self.supabase.supabase.table("prompts").insert(body2).execute()
-            data2 = getattr(resp2, "data", None) or []
-            if isinstance(data2, list) and data2:
-                print(f"📝 Prompt criado (fallback): id={data2[0].get('id', next_id)}")
-                return data2[0].get("id", next_id)
-            print(f"⚠️ Falha ao obter id do prompt criado. Resposta: {resp2}")
-        except Exception as ie:
-            print(f"❌ Fallback ao criar prompt falhou: {ie}")
+            print(f"❌ Erro ao chamar API de prompt: {e}")
         return None
 
     def insert_cotacao(
@@ -74,8 +73,6 @@ class CotacaoManager:
         Cria uma cotação mínima via API REST. Não exige produto_id e suporta salvar ids de queries faltantes.
         """
         
-
-        # Monta o payload conforme antes, sem produto_id
         payload: Dict[str, Any] = {"prompt_id": prompt_id}
         if status is None:
             status = "incompleta" if (faltantes and len(faltantes) > 0) else "completa"
@@ -94,12 +91,9 @@ class CotacaoManager:
         if prazo_validade is not None:
             payload["prazo_validade"] = prazo_validade
         payload.setdefault("orcamento_geral", 0)
-        # Remover produto_id se existir por erro legado
-        if "produto_id" in payload:
-            del payload["produto_id"]
 
         # URL da API (ajuste conforme necessário)
-        api_url = "http://localhost:2000/api/cotacoes"
+        api_url = f"{API_BASE_URL}/api/cotacoes"
 
         try:
             response = requests.post(api_url, json=payload)

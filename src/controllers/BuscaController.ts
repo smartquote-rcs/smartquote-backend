@@ -235,7 +235,7 @@ class BuscaController {
         success: true,
         message: `Busca iniciada em background. Use o job ID para acompanhar o progresso.`,
         jobId: jobId,
-        statusUrl: `/api/busca/job/${jobId}`,
+        statusUrl: `/api/busca-automatica/job/${jobId}`,
         parametros: {
           termo: produto,
           numResultados: numResultados,

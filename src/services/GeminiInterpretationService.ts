@@ -5,7 +5,6 @@
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { pythonProcessor } from './PythonInterpretationProcessor';
-import { BuscaAutomatica } from './BuscaAtomatica';
 import FornecedorService from './FornecedorService';
 import CotacoesItensService from './CotacoesItensService';
 import supabase from '../infra/supabase/connect';
@@ -286,33 +285,92 @@ DADOS DO EMAIL:
                 const sites = fornecedores.map((f: any) => f.url).filter(Boolean);
         if (!sites.length) return;
                 const cfg = await FornecedorService.getConfiguracoesSistema();
-                const numPorSite = cfg?.numResultadosPorSite ?? 5;
+                const jobStatusUrls: string[] = [];
 
-                const busca = new BuscaAutomatica();
-                const promessas = faltantes.map((f: any) => {
-                  console.log(`🔍 [BUSCA-WEB] Iniciando busca com fetch para: ${f.query_sugerida || interpretation.solicitacao}`);
-                  //usar API_BASE_URL
-                  fetch(`${process.env.API_BASE_URL}/api/busca-automatica/`, {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                      produto: f.query_sugerida || interpretation.solicitacao
-                    })
-                  }).then(response => response.json()).then(data => {
-                    console.log('📄 [BUSCA-AUTOMATICA] Resultados da busca:', data);
-                  });
-                  return busca.buscarProdutosMultiplosSites(f.query_sugerida || interpretation.solicitacao, sites, numPorSite);
-                });
-                const resultados = await Promise.all(promessas);
+                // Disparar todos os jobs em paralelo e coletar statusUrl/jobId
+                // Tipos auxiliares para respostas das APIs de busca
+                type BackgroundBuscaResponse = {
+                  jobId?: string;
+                  statusUrl?: string;
+                  [key: string]: any;
+                };
 
-                // Combinar todos os produtos
-                const produtosWeb = resultados.reduce((acc: any[], arr) => {
-                  const produtos = (new BuscaAutomatica()).combinarResultados(arr);
-                  acc.push(...produtos);
-                  return acc;
-                }, [] as any[]);
+                type JobResultado = {
+                  produtos?: any[];
+                };
+
+                type JobStatusPayload = {
+                  status?: 'pendente' | 'executando' | 'concluido' | 'erro';
+                  resultado?: JobResultado;
+                  erro?: string;
+                };
+
+                type JobStatusResponse = {
+                  job?: JobStatusPayload;
+                  [key: string]: any;
+                };
+
+                await Promise.all(
+                  faltantes.map(async (f: any) => {
+                    const termo = f.query_sugerida || interpretation.solicitacao;
+                    console.log(`🔍 [BUSCA-WEB] Iniciando busca em background para: ${termo}`);
+                    try {
+                      const resp = await fetch(`${process.env.API_BASE_URL}/api/busca-automatica/background`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ produto: termo })
+                      });
+                      const data = (await resp.json()) as BackgroundBuscaResponse;
+                      if (data && data.statusUrl) {
+                        // Guardar a URL de status retornada, ex.: /api/busca-automatica/job/${jobId}
+                        jobStatusUrls.push(`${process.env.API_BASE_URL}${data.statusUrl}`);
+                        console.log(`🧭 [BUSCA-WEB] Job criado: ${data.jobId} (${data.statusUrl})`);
+                      } else if (data && data.jobId) {
+                        jobStatusUrls.push(`${process.env.API_BASE_URL}/api/busca-automatica/job/${data.jobId}`);
+                        console.log(`🧭 [BUSCA-WEB] Job criado (fallback URL): ${data.jobId}`);
+                      } else {
+                        console.warn('⚠️ [BUSCA-WEB] Resposta inesperada ao criar job:', data);
+                      }
+                    } catch (e: any) {
+                      console.error('❌ [BUSCA-WEB] Erro ao iniciar job:', e?.message || e);
+                    }
+                  })
+                );
+
+                // Função helper para aguardar
+                const sleep = (ms: number) => new Promise(res => setTimeout(res, ms));
+
+                // Monitorar todos os jobs até conclusão e coletar resultados
+                const MAX_WAIT_MS = 5 * 60 * 1000; // 5 minutos
+                const POLL_INTERVAL_MS = 2000; // 2s
+
+                async function aguardarJob(url: string) {
+                  const inicio = Date.now();
+                  // Tenta até concluir ou atingir timeout
+                  while (Date.now() - inicio < MAX_WAIT_MS) {
+                    try {
+                      const r = await fetch(url, { method: 'GET' });
+                      const j = (await r.json()) as JobStatusResponse;
+                      const job = j?.job;
+                      const status = job?.status;
+                      if (status === 'concluido') {
+                        return job?.resultado?.produtos || [];
+                      }
+                      if (status === 'erro') {
+                        console.warn(`⚠️ [BUSCA-WEB] Job falhou (${url}):`, job?.erro);
+                        return [];
+                      }
+                    } catch (e: any) {
+                      console.error('❌ [BUSCA-WEB] Erro ao consultar job:', url, e?.message || e);
+                    }
+                    await sleep(POLL_INTERVAL_MS);
+                  }
+                  console.warn(`⏱️ [BUSCA-WEB] Timeout aguardando job: ${url}`);
+                  return [];
+                }
+
+                const produtosPorJob = await Promise.all(jobStatusUrls.map(aguardarJob));
+                const produtosWeb = produtosPorJob.flat();
 
                 // Se não há cotação principal ainda, criar uma para receber itens/faltantes
                 if (!cotacaoPrincipalId && (produtosWeb.length > 0 || faltantes.length > 0)) {

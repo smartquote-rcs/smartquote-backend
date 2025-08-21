@@ -61,18 +61,16 @@ class SolutionDecomposer:
         - **tags**: lista de tags relacionadas a este item (ou deixe vazia)
         - **alternativas**: lista de alternativas equivalentes (ou vazia)
         - **quantidade**: número inteiro indicando quantos itens são necessários
+        - **orcamento_estimado**: valor inteiro (Kwanzas) indicando o orçamento unitario máximo para este item (se não especificado: 0)
+        - **preferencias_usuario**: lista de preferências expressas pelo cliente de forma implícita ou explícita sobre o item (ex: ["preferência por soluções open-source", "manutenção local"])
+        - **rigor**: quão estritamente o usuário especificou seu pedido (medida do nível de exigência, 0–5).
         5. **alternativas_viaveis**: Lista de outras soluções viáveis (nunca vazia) com:
         - **nome**, **tipo**, 
         - **vantagens**: lista de pontos positivos
         - **limitacoes**: lista de desvantagens ou restrições
         - **cenario_recomendado**: str onde essa alternativa seria preferível
-        - **economia_estimada**: valor aproximado de economia (número decimal)
-        6. **orcamento_estimado_range**: objeto com os campos:
-        - **minimo**: valor inteiro (Kwanzas)
-        - **maximo**: valor inteiro (Kwanzas)
-        7. **prazo_implementacao_dias**: número inteiro com a estimativa de dias
-        8. **preferencias_usuario**: lista de preferências expressas pelo cliente (ex: ["preferência por soluções open-source", "manutenção local"])
-
+        6. **prazo_implementacao_dias**: número inteiro com a estimativa de dias (se não especificado: 0)
+       
         ---
 
         ATENÇÃO:
@@ -116,10 +114,6 @@ class SolutionDecomposer:
                 print(f"🔧 Tipo de Solução: {resposta_validada.tipo_de_solucao}")
                 print(f"📦 Itens a Comprar: {len(resposta_validada.itens_a_comprar)} itens")
                 print(f"🔄 Alternativas Viáveis: {len(resposta_validada.alternativas_viaveis)} alternativas")
-                if resposta_validada.orcamento_estimado_range:
-                    orcamento_min = resposta_validada.orcamento_estimado_range.get('minimo', 'N/A')
-                    orcamento_max = resposta_validada.orcamento_estimado_range.get('maximo', 'N/A')
-                    print(f"💰 Orçamento Estimado: {orcamento_min} - {orcamento_max} Kz")
                 print("-" * 60 + "\n")
                 
                 return resposta_validada
@@ -172,7 +166,10 @@ class SolutionDecomposer:
                 "especificacoes_minimas": comp.especificacoes_minimas,
                 "justificativa": comp.justificativa,
                 "tags": comp.tags or [],
-                "quantidade": getattr(comp, "quantidade", 1) or 1
+                "quantidade": getattr(comp, "quantidade", 1) or 1,
+                "orcamento_estimado": getattr(comp, "orcamento_estimado", 0) or 0,
+                "preferencias_usuario": comp.preferencias_usuario or [],
+                "rigor": getattr(comp, "rigor", 0) or 0,
             })
         
         # Mapear alternativas viáveis
@@ -191,8 +188,6 @@ class SolutionDecomposer:
             "tipo_de_solucao": result.tipo_de_solucao,
             "itens_a_comprar": itens,
             "alternativas_viaveis": alternativas,
-            "preferencias_usuario": result.preferencias_usuario,
-            "orcamento_estimado_range": result.orcamento_estimado_range,
             "prazo_implementacao_dias": result.prazo_implementacao_dias,
         }
         

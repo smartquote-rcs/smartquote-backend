@@ -81,6 +81,10 @@ def gerar_queries_itens(brief: Dict[str, Any]) -> List[Dict[str, Any]]:
         justificativa = str(item.get("justificativa", "")).strip()
         categoria = str(item.get("categoria", "")).strip() or None
         prioridade = str(item.get("prioridade", "")).lower()
+        alternativas = _as_list_str(item.get("alternativas"))
+        quantidade = int(item.get("quantidade", 1) or 1)
+        orcamento_estimado = float(item.get("orcamento_estimado", 0) or 0)
+        preferencia = str(item.get("preferencia", "")).strip().lower()
         peso = _prioridade_para_peso(prioridade)
 
         if prioridade not in {"critica", "alta"}:
@@ -88,7 +92,16 @@ def gerar_queries_itens(brief: Dict[str, Any]) -> List[Dict[str, Any]]:
             continue
         termos_especificos = _flatten_specs_to_terms(item.get("especificacoes_minimas"))
 
-        query_sem = _semantica_join([nome] + tags + [justificativa])
+        query_sem = _semantica_join([nome] + tags + [justificativa] + ["ou"] + alternativas)
+        #custo beneficio para uma filtragem mais profunda contendo quantidade: x, orcamento_estimado: y, preferencia: z
+        #só entra o campo de for diferente de 0
+        custo_beneficio = {}
+        if quantidade > 0:
+            custo_beneficio["quantidade"] = quantidade
+        if orcamento_estimado > 0:
+            custo_beneficio["orcamento_maximo_estimado"] = orcamento_estimado
+        if preferencia:
+            custo_beneficio["preferencia"] = preferencia
 
         # quantidade do item (min 1)
         try:
@@ -106,6 +119,7 @@ def gerar_queries_itens(brief: Dict[str, Any]) -> List[Dict[str, Any]]:
                 "categoria": categoria,
                 "palavras_chave": termos_especificos or None
             },
+            "custo_beneficio": custo_beneficio,  # <-- incluir
             "peso_prioridade": peso,
             "quantidade": quantidade,  # <-- incluir
             "fonte": {

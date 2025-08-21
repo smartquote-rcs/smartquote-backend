@@ -7,6 +7,9 @@ import { jobManager } from '../services/JobManager';
 
 interface BuscaRequest {
   produto: string;
+  quantidade?: number; // Quantidade opcional para busca
+  custo_beneficio?: any; // Custo-benefício opcional para busca
+  refinamento?: boolean; // Nova flag para indicar se deve fazer refinamento LLM
 }
 
 class BuscaController {
@@ -206,7 +209,7 @@ class BuscaController {
     }
 
     try {
-      const { produto } = parsed.data;
+      const { produto, quantidade, custo_beneficio, refinamento } = parsed.data;
 
       // Buscar fornecedores ativos para validar que existem sites para buscar
       const sitesFromDB = await FornecedorService.getFornecedoresAtivos();
@@ -227,7 +230,10 @@ class BuscaController {
         produto,
         numResultados,
         sitesFromDB.map(f => f.id),
-        1 // TODO: usar ID do usuário autenticado
+        1, // TODO: usar ID do usuário autenticado
+        quantidade || 1, // Usar quantidade se fornecida, senão padrão 1
+        custo_beneficio,
+        refinamento
       );
 
       // Responder imediatamente com o job ID
@@ -239,7 +245,8 @@ class BuscaController {
         parametros: {
           termo: produto,
           numResultados: numResultados,
-          fornecedores: sitesFromDB.length
+          fornecedores: sitesFromDB.length,
+          refinamento: refinamento
         }
       });
 

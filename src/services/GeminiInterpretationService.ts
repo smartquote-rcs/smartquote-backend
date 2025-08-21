@@ -318,7 +318,12 @@ DADOS DO EMAIL:
                       const resp = await fetch(`${process.env.API_BASE_URL}/api/busca-automatica/background`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ produto: termo })
+                        body: JSON.stringify({ 
+                          produto: termo,
+                          quantidade: f.quantidade,
+                          custo_beneficio: f.custo_beneficio,
+                          refinamento: true // Ativar refinamento LLM no job
+                        })
                       });
                       const data = (await resp.json()) as BackgroundBuscaResponse;
                       if (data && data.statusUrl) {
@@ -354,11 +359,12 @@ DADOS DO EMAIL:
                       const job = j?.job;
                       const status = job?.status;
                       if (status === 'concluido') {
-                        return job?.resultado?.produtos || [];
+                        // Retornar o resultado completo do job, não apenas os produtos
+                        return job?.resultado || { produtos: [] };
                       }
                       if (status === 'erro') {
                         console.warn(`⚠️ [BUSCA-WEB] Job falhou (${url}):`, job?.erro);
-                        return [];
+                        return { produtos: [] };
                       }
                     } catch (e: any) {
                       console.error('❌ [BUSCA-WEB] Erro ao consultar job:', url, e?.message || e);
@@ -366,11 +372,16 @@ DADOS DO EMAIL:
                     await sleep(POLL_INTERVAL_MS);
                   }
                   console.warn(`⏱️ [BUSCA-WEB] Timeout aguardando job: ${url}`);
-                  return [];
+                  return { produtos: [] };
                 }
 
-                const produtosPorJob = await Promise.all(jobStatusUrls.map(aguardarJob));
-                const produtosWeb = produtosPorJob.flat();
+                const resultadosPorJob = await Promise.all(jobStatusUrls.map(aguardarJob));
+                
+                // Extrair produtos e resultados completos dos jobs
+                const produtosWeb = resultadosPorJob.flatMap((r: any) => r.produtos || []);
+                const resultadosCompletos = resultadosPorJob.filter((r: any) => r && typeof r === 'object' && r.produtos);
+
+                console.log(`🧠 [LLM-FILTER] ${produtosWeb.length} produtos selecionados pelos jobs`);
 
                 // Se não há cotação principal ainda, criar uma para receber itens/faltantes
                 if (!cotacaoPrincipalId && (produtosWeb.length > 0 || faltantes.length > 0)) {
@@ -411,12 +422,13 @@ DADOS DO EMAIL:
                 // Inserir itens web na cotação principal
                 let inseridos = 0;
                 if (cotacaoPrincipalId) {
-                  for (const p of produtosWeb) {
+                  // Usar o novo método que aproveita IDs dos produtos já salvos
+                  for (const resultadoJob of resultadosCompletos) {
                     try {
-                      const idItem = await CotacoesItensService.insertWebItem(Number(cotacaoPrincipalId), p);
-                      if (idItem) inseridos++;
+                      const inseridosJob = await CotacoesItensService.insertJobResultItems(Number(cotacaoPrincipalId), resultadoJob);
+                      inseridos += inseridosJob;
                     } catch (e) {
-                      console.error('❌ [COTACAO-ITEM] Erro ao inserir item web:', (e as any)?.message || e);
+                      console.error('❌ [COTACAO-ITEM] Erro ao inserir itens do job:', (e as any)?.message || e);
                     }
                   }
                 }

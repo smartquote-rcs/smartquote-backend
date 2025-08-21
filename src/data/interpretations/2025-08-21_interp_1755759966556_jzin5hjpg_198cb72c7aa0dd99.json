@@ -1,0 +1,18 @@
+{
+  "id": "interp_1755759966556_jzin5hjpg",
+  "emailId": "198cb72c7aa0dd99",
+  "tipo": "pedido",
+  "prioridade": "média",
+  "solicitacao": "Quero uma impressora e 5 macbooks.",
+  "cliente": {
+    "nome": "Dario Nzita",
+    "empresa": "",
+    "email": "darionzita90@gmail.com",
+    "telefone": "",
+    "website": "",
+    "localizacao": ""
+  },
+  "confianca": 90,
+  "interpretedAt": "2025-08-21T07:06:06.556Z",
+  "rawGeminiResponse": "```json\n{\n  \"tipo\": \"pedido\",\n  \"prioridade\": \"média\",\n  \"solicitacao\": \"Quero uma impressora e 5 macbooks.\",\n  \"cliente\": {\n    \"nome\": \"Dario Nzita\",\n    \"empresa\": \"\",\n    \"email\": \"darionzita90@gmail.com\",\n    \"telefone\": \"\",\n    \"website\": \"\",\n    \"localizacao\": \"\"\n  },\n  \"confianca\": 90\n}\n```"
+}

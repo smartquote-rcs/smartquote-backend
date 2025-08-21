@@ -5,6 +5,7 @@
 import { BuscaAutomatica } from '../services/BuscaAtomatica';
 import FornecedorService from '../services/FornecedorService';
 import { ProdutosService } from '../services/ProdutoService';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 interface JobMessage {
   id: string;
@@ -12,6 +13,9 @@ interface JobMessage {
   numResultados: number;
   fornecedores: number[];
   usuarioId?: number;
+  quantidade?: number; // Quantidade opcional para busca
+  custo_beneficio?: any; // Custo-benefício opcional para busca
+  refinamento?: boolean; // Nova flag para indicar se deve fazer refinamento LLM
 }
 
 interface ProgressMessage {
@@ -26,13 +30,13 @@ interface ProgressMessage {
 interface ResultMessage {
   status: 'sucesso' | 'erro';
   produtos?: any[];
+  erro?: string;
   salvamento?: {
     salvos: number;
     erros: number;
     detalhes: any[];
   };
   tempoExecucao?: number;
-  erro?: string;
 }
 
 // Função auxiliar para enviar mensagens via stdout (apenas JSON)
@@ -47,6 +51,119 @@ function log(message: string) {
   const isDev = process.env.NODE_ENV !== 'production';
   if (isDev) {
     console.error(`[WORKER] ${message}`);
+  }
+}
+
+// Função para filtrar produtos usando LLM
+async function filtrarProdutosComLLM(produtos: any[], termoBusca: string, quantidade?: number, custo_beneficio?: any): Promise<any[]> {
+  if (!produtos || produtos.length === 0) {
+    return [];
+  }
+
+  try {
+    log(`🧠 [LLM-FILTER] Iniciando filtro LLM (Groq) para ${produtos.length} produtos`);
+
+    // Usar a lib groq (deve estar instalada via npm install groq-sdk)
+    // @ts-ignore
+    const { Groq } = require('groq-sdk');
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) {
+      log('❌ [LLM-FILTER] GROQ_API_KEY não encontrada');
+      return produtos.slice(0, 1); // Fallback: primeiro produto
+    }
+
+    // Compactar candidatos para o prompt
+    const candidatos = produtos.map((p, index) => ({
+      index,
+      nome: p.name || p.nome || '',
+      categoria: p.categoria || p.modelo || '',
+      tags: p.tags || [],
+      descricao: (p.description || p.descricao || '').substring(0, 400),
+      preco: p.price || p.preco || null,
+      estoque: p.estoque || null,
+      url: p.product_url || p.url || ''
+    }));
+
+    const promptSistema =
+      "Você é um assistente especializado em análise de produtos. Sua tarefa é analisar candidatos e escolher o melhor.\n" +
+      "IMPORTANTE: Responda APENAS com um número JSON válido no formato exato: {\"index\": N}\n" +
+      "Onde N é o índice (0, 1, 2...) do melhor candidato ou -1 se nenhum for adequado.\n" +
+      "Critérios de avaliação:\n" +
+      "1. Correspondência com a busca original\n" +
+      "2. Relevância técnica e funcional\n" +
+      "3. Qualidade da descrição e especificações\n" +
+      "4. Disponibilidade (se informada)\n" +
+      "5. Melhor custo-benefício\n" +
+      "NÃO adicione explicações, comentários ou texto extra. APENAS o JSON.";
+
+    const userMsg =
+      `TERMO DE BUSCA: ${termoBusca}\n` +
+      `QUANTIDADE: ${quantidade || 1}\n` +
+      `CUSTO-BENEFÍCIO: ${JSON.stringify(custo_beneficio || {})}\n` +
+      `CANDIDATOS: ${JSON.stringify(candidatos)}\n` +
+      "Escolha o melhor índice ou -1.";
+
+    const client = new Groq({ apiKey });
+    const resp = await client.chat.completions.create({
+      model: "llama-3.1-8b-instant",
+      messages: [
+        { role: "system", content: promptSistema },
+        { role: "user", content: userMsg }
+      ],
+      temperature: 0,
+      max_tokens: 50,
+      stream: false
+    });
+
+    const content = (resp.choices[0].message.content || '').trim();
+    log(`🧠 [LLM-FILTER] Resposta bruta: ${content}`);
+
+    // Tentar extrair JSON {"index": X}
+    let idx = -1;
+    try {
+      const jsonMatch = content.match(/\{\s*"index"\s*:\s*(-?\d+)\s*\}/);
+      if (jsonMatch) {
+        idx = parseInt(jsonMatch[1], 10);
+        log(`🧠 [LLM-FILTER] Índice extraído via regex JSON: ${idx}`);
+      } else {
+        // Se não achou padrão JSON, tentar parse direto
+        let cleanedContent = content;
+        if (/^-?\d+$/.test(content)) {
+          cleanedContent = `{"index": ${content}}`;
+        }
+        const data = JSON.parse(cleanedContent);
+        const val = data.index;
+        if (typeof val === 'number') {
+          idx = val;
+          log(`🧠 [LLM-FILTER] Índice extraído via JSON parse: ${idx}`);
+        }
+      }
+    } catch (e) {
+      log(`🧠 [LLM-FILTER] Erro ao fazer parse do JSON: ${e}`);
+      // fallback: buscar qualquer número na resposta
+      const numberMatch = content.match(/-?\d+/);
+      if (numberMatch) {
+        try {
+          idx = parseInt(numberMatch[0], 10);
+          log(`🧠 [LLM-FILTER] Índice extraído via regex numérica: ${idx}`);
+        } catch {
+          idx = -1;
+        }
+      }
+    }
+
+    // Validar faixa
+    if (typeof idx !== 'number' || idx < 0 || idx >= produtos.length) {
+      log(`🧠 [LLM-FILTER] Índice inválido: ${idx}`);
+      return produtos.slice(0, 1); // Fallback: primeiro produto
+    }
+
+    const produtoSelecionado = produtos[idx];
+    log(`🧠 [LLM-FILTER] Produto selecionado: ${produtoSelecionado.name || produtoSelecionado.nome}`);
+    return [produtoSelecionado];
+  } catch (error) {
+    log(`❌ [LLM-FILTER] Erro no filtro LLM (Groq): ${error}`);
+    return produtos.slice(0, 1);
   }
 }
 
@@ -68,9 +185,9 @@ process.stdin.on('data', async (data: string) => {
 
 // Função principal que processa o job
 async function processarJob(message: JobMessage) {
-  const { id, termo, numResultados, fornecedores, usuarioId } = message;
-  
-  log(`Worker iniciado para job ${id} - busca: "${termo}"`);
+  const { id, termo, numResultados, fornecedores, usuarioId, quantidade, custo_beneficio, refinamento } = message;
+
+  log(`Worker iniciado para job ${id} - busca: "${termo}"${refinamento ? ' (com refinamento LLM)' : ''}`);
   
   const inicioTempo = Date.now();
   
@@ -131,27 +248,28 @@ async function processarJob(message: JobMessage) {
     const { precoMinimo, precoMaximo } = configuracoes;
     
     if (precoMinimo !== null || precoMaximo !== null) {
-      todosProdutos = buscaService.filtrarPorPreco(
-        todosProdutos,
-        precoMinimo || undefined,
-        precoMaximo || undefined
-      );
-      
+      todosProdutos = buscaService.filtrarPorPreco(todosProdutos, precoMinimo, precoMaximo);
+      log(`Produtos após filtro de preço: ${todosProdutos.length}`);
+    }
+
+    // 4. Aplicar refinamento LLM se solicitado
+    if (refinamento && todosProdutos.length > 0) {
       enviarMensagem({
         progresso: {
           etapa: 'busca',
-          produtos: todosProdutos.length,
-          detalhes: `${todosProdutos.length} produtos após filtro de preço`
+          detalhes: 'Aplicando refinamento LLM...'
         }
       });
+
+      todosProdutos = await filtrarProdutosComLLM(todosProdutos, termo, quantidade, custo_beneficio);
+      log(`Produtos após refinamento LLM: ${todosProdutos.length}`);
     }
 
-    // 4. Salvar produtos na base de dados
+    // 5. Salvar produtos na base de dados (se houver produtos)
     if (todosProdutos.length > 0) {
       enviarMensagem({
         progresso: {
           etapa: 'salvamento',
-          produtos: todosProdutos.length,
           detalhes: 'Salvando produtos na base de dados...'
         }
       });
@@ -195,7 +313,7 @@ async function processarJob(message: JobMessage) {
       const totalSalvos = resultadosSalvamento.reduce((acc, r) => acc + r.salvos, 0);
       const totalErros = resultadosSalvamento.reduce((acc, r) => acc + r.erros, 0);
       
-      // 5. Enviar resultado final
+      // 6. Enviar resultado final
       const tempoTotal = Date.now() - inicioTempo;
       
       enviarMensagem({

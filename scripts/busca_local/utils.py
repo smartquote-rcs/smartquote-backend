@@ -1,7 +1,7 @@
 from typing import Dict, List, Any
 from .models import (
-    DecompositionResult, ComponenteParaAquisicao, RequisitosDoProduto, 
-    AlternativaViavel, ComponentPriority, EstrategiaBusca
+    DecompositionResult, ComponenteParaAquisicao,
+    AlternativaViavel, ComponentPriority
 )
 
 def build_filters(specs: Dict[str, Any]) -> List[Dict]:
@@ -20,14 +20,6 @@ def build_filters(specs: Dict[str, Any]) -> List[Dict]:
 
 def validate_and_fix_result(result: DecompositionResult) -> DecompositionResult:
     """Valida e corrige o resultado para garantir consistência"""
-    # Garante que o orçamento tem as chaves corretas
-    if isinstance(result.orcamento_estimado_range, dict):
-        if 'minimo' not in result.orcamento_estimado_range:
-            result.orcamento_estimado_range['minimo'] = 100000
-        if 'maximo' not in result.orcamento_estimado_range:
-            result.orcamento_estimado_range['maximo'] = 1000000
-    else:
-        result.orcamento_estimado_range = {"minimo": 100000, "maximo": 1000000}
     
     # Garante que existe pelo menos um componente
     if not result.itens_a_comprar:
@@ -51,14 +43,10 @@ def validate_and_fix_result(result: DecompositionResult) -> DecompositionResult:
                 vantagens=["Disponibilidade garantida", "Menor risco"],
                 limitacoes=["Especificações a definir"],
                 cenario_recomendado="Quando solução principal não estiver disponível",
-                economia_estimada=0.0
             )
         ]
     
-    # Garante que existe pelo menos uma recomendação
-    if not result.preferencias_usuario:
-        result.preferencias_usuario = ["Definir especificações mais detalhadas"]
-    
+  
     # Garante que campos obrigatórios têm valores válidos
     if not hasattr(result, 'tipo_de_solucao') or not result.tipo_de_solucao:
         result.tipo_de_solucao = "produto"
@@ -90,12 +78,7 @@ def create_fallback_decomposition(main_request: str) -> DecompositionResult:
                 tipo="substituto",
                 vantagens=["Menor custo"],
                 limitacoes=["Especificações a definir"],
-                cenario_recomendado="Quando solução principal não disponível",
-                economia_estimada=0.0
+                cenario_recomendado="Quando solução principal não disponível"
             )
         ],
-        orcamento_estimado_range={"minimo": 100000, "maximo": 1000000},
-        prazo_implementacao_dias=30,
-        preferencias_usuario=["Definir especificações mais detalhadas"],
-        estrategia_busca=EstrategiaBusca.GLOBAL
     )

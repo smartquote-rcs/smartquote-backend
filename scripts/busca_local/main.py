@@ -16,7 +16,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from busca_local.config import LIMITE_PADRAO_RESULTADOS, LIMITE_MAXIMO_RESULTADOS, GROQ_API_KEY
 from busca_local.weaviate_client import WeaviateManager
 from busca_local.supabase_client import SupabaseManager
-from busca_local.search_engine import buscar_hibrido_ponderado
+from busca_local.search_engine import buscar_hibrido_ponderado, _llm_escolher_indice
 from busca_local.query_builder import gerar_estrutura_de_queries
 from busca_local.cotacao_manager import CotacaoManager
 
@@ -70,11 +70,9 @@ def executar_estrutura_de_queries(
         lista = list(agregados.values())
         lista.sort(key=lambda x: x["score"], reverse=True)
 
-        # Refinamento LLM no resultado final mesclado
-        from busca_local.search_engine import _llm_escolher_indice
         idx_escolhido = -1
         try:
-            idx_escolhido = _llm_escolher_indice(q["query"], q.get("filtros") or None, lista)
+            idx_escolhido = _llm_escolher_indice(q["query"], q.get("filtros") or None, q.get("custo_beneficio") or None, lista)
         except Exception as e:
             print(f"[LLM] Erro ao executar refinamento: {e}")
             idx_escolhido = -1
@@ -206,6 +204,7 @@ def processar_interpretacao(
             "tipo": qm.get("tipo"),
             "nome": nome_amigavel,
             "query": qm.get("query"),
+            "custo_beneficio": filtros.get("custo_beneficio"),
             "categoria": filtros.get("categoria"),
             "palavras_chave": filtros.get("palavras_chave"),
             "quantidade": qm.get("quantidade"),
@@ -218,6 +217,7 @@ def processar_interpretacao(
         nome = (meta.get("nome") or "").strip()
         categoria = (meta.get("categoria") or "").strip()
         palavras = meta.get("palavras_chave") or []
+        custo_beneficio = meta.get("custo_beneficio") or {} 
         if isinstance(palavras, list):
             palavras_str = " ".join([str(p).strip() for p in palavras if str(p).strip()])
         else:
@@ -231,6 +231,7 @@ def processar_interpretacao(
             "tipo": meta.get("tipo"),
             "nome": nome or None,
             "categoria": categoria or None,
+            "custo_beneficio": custo_beneficio,
             "palavras_chave": palavras or None,
             "quantidade": meta.get("quantidade") or 1,
             "query_sugerida": query_sugerida or None,

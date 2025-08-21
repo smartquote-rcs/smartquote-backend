@@ -108,7 +108,6 @@ O SmartQuote é um sistema híbrido que combina busca local (em base de dados pr
     "tipo_de_solucao": "produto",
     "itens_a_comprar": [...],
     "alternativas_viaveis": [...],
-    "orcamento_estimado_range": {...}
   }
   ```
 
@@ -327,10 +326,6 @@ graph TD
     }
   ],
   "alternativas_viaveis": [...],
-  "orcamento_estimado_range": {
-    "minimo": 5000000,
-    "maximo": 10000000
-  },
   "prazo_implementacao_dias": 30
 }
 ```

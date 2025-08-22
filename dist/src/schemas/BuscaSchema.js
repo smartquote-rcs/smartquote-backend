@@ -7,6 +7,10 @@ exports.buscaSchema = zod_1.z.object({
         .min(1, "O campo produto é obrigatório")
         .min(2, "O produto deve ter pelo menos 2 caracteres")
         .max(100, "O produto deve ter no máximo 100 caracteres")
-        .transform(val => val.trim())
+        .transform(val => val.trim()),
+    quantidade: zod_1.z.number().optional().default(1),
+    custo_beneficio: zod_1.z.any().optional(),
+    rigor: zod_1.z.number().int().min(0).max(5).optional().default(0),
+    refinamento: zod_1.z.boolean().optional().default(false)
 });
 //# sourceMappingURL=BuscaSchema.js.map

@@ -16,7 +16,8 @@ class CotacaoManager:
         dados_extraidos: Dict[str, Any],
         *,
         origem: Optional[Dict[str, Any]] = None,
-        status: Optional[str] = "analizado"
+        status: Optional[str] = "analizado",
+        dados_bruto: Dict[str, Any]
     ) -> Optional[int]:
         """
         Cria um registro em 'prompts' via API REST e retorna o id.
@@ -25,9 +26,12 @@ class CotacaoManager:
             "texto_original": texto_original or "",
             "dados_extraidos": dados_extraidos or {},
             "origem": origem or {"tipo": "interativo", "fonte": "nlp_parser"},
+            "dados_bruto": dados_bruto or {}
         }
         if status:
             body["status"] = status
+        if dados_bruto:
+            body["dados_bruto"] = dados_bruto
 
         # URL da API (ajuste conforme necessário)
         api_url = f"{API_BASE_URL}/api/prompts"

@@ -54,6 +54,7 @@ class GeminiInterpretationService {
                 console.log(`🧠 [GEMINI] Resposta recebida para email ${emailData.id}`);
                 // Parse da resposta JSON do Gemini
                 const interpretation = this.parseGeminiResponse(text, emailData);
+                interpretation.dados_bruto = emailData;
                 // Salvar interpretação apenas se for classificado como "pedido"
                 if (interpretation.tipo === 'pedido') {
                     await this.saveInterpretation(interpretation);
@@ -226,7 +227,13 @@ DADOS DO EMAIL:
                                     const resp = await fetch(`${process.env.API_BASE_URL}/api/busca-automatica/background`, {
                                         method: 'POST',
                                         headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ produto: termo })
+                                        body: JSON.stringify({
+                                            produto: termo,
+                                            quantidade: f.quantidade,
+                                            custo_beneficio: f.custo_beneficio,
+                                            vigor: f.vigor,
+                                            refinamento: true // Ativar refinamento LLM no job
+                                        })
                                     });
                                     const data = (await resp.json());
                                     if (data && data.statusUrl) {
@@ -249,7 +256,7 @@ DADOS DO EMAIL:
                             // Função helper para aguardar
                             const sleep = (ms) => new Promise(res => setTimeout(res, ms));
                             // Monitorar todos os jobs até conclusão e coletar resultados
-                            const MAX_WAIT_MS = 5 * 60 * 1000; // 5 minutos
+                            const MAX_WAIT_MS = 30 * 60 * 1000; // 30 minutos
                             const POLL_INTERVAL_MS = 2000; // 2s
                             async function aguardarJob(url) {
                                 const inicio = Date.now();
@@ -261,11 +268,15 @@ DADOS DO EMAIL:
                                         const job = j?.job;
                                         const status = job?.status;
                                         if (status === 'concluido') {
-                                            return job?.resultado?.produtos || [];
+                                            if (job?.resultado) {
+                                                job.resultado.quantidade = job.parametros?.quantidade;
+                                            }
+                                            // Retornar o resultado completo do job, não apenas os produtos
+                                            return job?.resultado || { produtos: [] };
                                         }
                                         if (status === 'erro') {
                                             console.warn(`⚠️ [BUSCA-WEB] Job falhou (${url}):`, job?.erro);
-                                            return [];
+                                            return { produtos: [] };
                                         }
                                     }
                                     catch (e) {
@@ -274,10 +285,13 @@ DADOS DO EMAIL:
                                     await sleep(POLL_INTERVAL_MS);
                                 }
                                 console.warn(`⏱️ [BUSCA-WEB] Timeout aguardando job: ${url}`);
-                                return [];
+                                return { produtos: [] };
                             }
-                            const produtosPorJob = await Promise.all(jobStatusUrls.map(aguardarJob));
-                            const produtosWeb = produtosPorJob.flat();
+                            const resultadosPorJob = await Promise.all(jobStatusUrls.map(aguardarJob));
+                            // Extrair produtos e resultados completos dos jobs
+                            const produtosWeb = resultadosPorJob.flatMap((r) => r.produtos || []);
+                            const resultadosCompletos = resultadosPorJob.filter((r) => r && typeof r === 'object' && r.produtos);
+                            console.log(`🧠 [LLM-FILTER] ${produtosWeb.length} produtos selecionados pelos jobs`);
                             // Se não há cotação principal ainda, criar uma para receber itens/faltantes
                             if (!cotacaoPrincipalId && (produtosWeb.length > 0 || faltantes.length > 0)) {
                                 // Usar dados extraídos do Python se disponível, senão criar estrutura mínima
@@ -295,6 +309,7 @@ DADOS DO EMAIL:
                                 const prompt = await PromptsService_1.default.create({
                                     texto_original: interpretation.solicitacao,
                                     dados_extraidos: dadosExtraidos,
+                                    dados_bruto: interpretation.dados_bruto || {},
                                     origem: { tipo: 'servico', fonte: 'email' },
                                     status: 'analizado',
                                 });
@@ -317,14 +332,14 @@ DADOS DO EMAIL:
                             // Inserir itens web na cotação principal
                             let inseridos = 0;
                             if (cotacaoPrincipalId) {
-                                for (const p of produtosWeb) {
+                                // Usar o novo método que aproveita IDs dos produtos já salvos
+                                for (const resultadoJob of resultadosCompletos) {
                                     try {
-                                        const idItem = await CotacoesItensService_1.default.insertWebItem(Number(cotacaoPrincipalId), p);
-                                        if (idItem)
-                                            inseridos++;
+                                        const inseridosJob = await CotacoesItensService_1.default.insertJobResultItems(Number(cotacaoPrincipalId), resultadoJob);
+                                        inseridos += inseridosJob;
                                     }
                                     catch (e) {
-                                        console.error('❌ [COTACAO-ITEM] Erro ao inserir item web:', e?.message || e);
+                                        console.error('❌ [COTACAO-ITEM] Erro ao inserir itens do job:', e?.message || e);
                                     }
                                 }
                             }

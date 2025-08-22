@@ -72,7 +72,7 @@ def executar_estrutura_de_queries(
 
         idx_escolhido = -1
         try:
-            idx_escolhido = _llm_escolher_indice(q["query"], q.get("filtros") or None, q.get("custo_beneficio") or None, lista)
+            idx_escolhido = _llm_escolher_indice(q["query"], q.get("filtros") or None, q.get("custo_beneficio") or None, q.get("rigor") or None, lista)
         except Exception as e:
             print(f"[LLM] Erro ao executar refinamento: {e}")
             idx_escolhido = -1
@@ -246,6 +246,7 @@ def processar_interpretacao(
         "prioridade": interpretation.get("prioridade"),
         "confianca": interpretation.get("confianca"),
         "dados_extraidos": brief,  # Incluir o JSON estruturado do LLM
+        "dados_bruto": interpretation.get("dados_bruto"),
         "faltantes": tarefas_web,
         "resultado_resumo": _resumo_resultados(resultados, limite_resultados),
     }
@@ -258,6 +259,7 @@ def processar_interpretacao(
         prompt_id = cotacao_manager.insert_prompt(
             texto_original=solicitacao,
             dados_extraidos=brief,
+            dados_bruto=interpretation.get("dados_bruto"),
             origem={"tipo": "servico", "fonte": "stdin"},
             status="analizado",
         )
@@ -408,6 +410,16 @@ def main():
         produtos = supabase_manager.get_produtos()
         if produtos:
             print(f"🔄 Indexando {len(produtos)} produtos do Supabase...", file=sys.stderr)
+            # Limpeza de órfãos em Weaviate antes de reindexar
+            try:
+                valid_ids = {int(p.get("id") or p.get("produto_id")) for p in produtos if (p.get("id") or p.get("produto_id"))}
+            except Exception:
+                valid_ids = set()
+            try:
+                if valid_ids:
+                    weaviate_manager.remover_orfaos(valid_ids)
+            except Exception as e:
+                print(f"⚠️ Falha na limpeza de órfãos no Weaviate: {e}", file=sys.stderr)
             produtos_indexados = 0
             for produto in produtos:
                 try:

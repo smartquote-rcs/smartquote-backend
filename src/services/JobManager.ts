@@ -19,6 +19,7 @@ interface JobStatus {
     usuarioId?: number;
     quantidade?: number; // Nova propriedade para quantidade
     custo_beneficio?: any; // Nova propriedade para custo-benefício
+    rigor?: number; // Novo parâmetro para rigor
     refinamento?: boolean; // Nova flag para indicar se deve fazer refinamento LLM
   };
   progresso?: {
@@ -53,6 +54,7 @@ class JobManager {
     usuarioId?: number,
     quantidade?: number,
     custo_beneficio?: any,
+    rigor?: number, // Novo parâmetro para rigor
     refinamento?: boolean
   ): string {
     const jobId = uuidv4();
@@ -68,6 +70,7 @@ class JobManager {
         usuarioId,
         quantidade: quantidade || 1,
         custo_beneficio: custo_beneficio || {},
+        rigor: rigor || 0,
         refinamento
       }
     };
@@ -153,6 +156,7 @@ class JobManager {
       usuarioId: job.parametros.usuarioId,
       quantidade: job.parametros.quantidade,
       custo_beneficio: job.parametros.custo_beneficio,
+      rigor: job.parametros.rigor,
       refinamento: job.parametros.refinamento
     };
     
@@ -185,7 +189,8 @@ class JobManager {
       // Filtrar logs normais do worker que não são erros
       if (stderrData.includes('[WORKER]') || 
           stderrData.includes('[dotenv@') ||
-          stderrData.includes('tip:')) {
+          stderrData.includes('tip:') ||
+          stderrData.includes('DeprecationWarning: The `punycode` module is deprecated')) {
         // Estes são logs normais, não erros
         console.log(`🔧 Worker log [${jobId}]: ${stderrData.trim()}`);
       } else {
@@ -225,6 +230,7 @@ class JobManager {
       // Job concluído com sucesso
       job.status = 'concluido';
       job.concluidoEm = new Date();
+      job.parametros.quantidade = message.quantidade;
       job.resultado = {
         produtos: message.produtos,
         salvamento: message.salvamento,

@@ -175,6 +175,71 @@ class WeaviateManager:
         else:
             print(f"⏩ Produto já está atualizado: {nome} (id={produto_id})")
 
+    def remover_orfaos(self, valid_produto_ids: set[int]) -> dict:
+        """Remove objetos em Weaviate cujo produto_id não existe na base relacional.
+        Retorna métricas: { 'removidos': int, 'falhas': int, 'total_encontrados': int }
+        """
+        import sys
+        removidos, falhas, total = 0, 0, 0
+        try:
+            collection = self.client.collections.get("Produtos")
+        except Exception as e:
+            print(f"⚠️ Falha ao obter coleção 'Produtos' para limpeza: {e}")
+            return {"removidos": 0, "falhas": 1, "total_encontrados": 0}
+
+        # Paginação usando cursor 'after'
+        after: str | None = None
+        while True:
+            try:
+                res = collection.query.fetch_objects(
+                    limit=100,
+                    after=after,
+                    return_properties=["produto_id"],
+                )
+            except Exception as e:
+                print(f"⚠️ Erro ao paginar objetos na limpeza: {e}", file=sys.stderr)
+                break
+
+            objetos = getattr(res, "objects", None) or []
+            if not objetos:
+                break
+
+            for obj in objetos:
+                total += 1
+                try:
+                    pid = obj.properties.get("produto_id") if hasattr(obj, "properties") else None
+                    uuid_obj = getattr(obj, "uuid", None) or getattr(obj, "id", None)
+                    if pid is None or int(pid) not in valid_produto_ids:
+                        if uuid_obj is None:
+                            # Fallback para reconstruir UUID determinístico se possível
+                            import uuid as _uuid
+                            try:
+                                if pid is not None:
+                                    uuid_obj = str(_uuid.uuid5(_uuid.NAMESPACE_DNS, f"produto-{int(pid)}"))
+                            except Exception:
+                                uuid_obj = None
+                        try:
+                            if uuid_obj is not None:
+                                collection.data.delete_by_id(uuid=uuid_obj)
+                                removidos += 1
+                            else:
+                                falhas += 1
+                        except Exception as e:
+                            falhas += 1
+                            print(f"❌ Falha ao remover objeto órfão (produto_id={pid}): {e}", file=sys.stderr)
+                except Exception as e:
+                    falhas += 1
+                    print(f"⚠️ Erro ao avaliar objeto na limpeza: {e}", file=sys.stderr)
+
+            # Próxima página
+            after = getattr(res, "next_page_cursor", None)
+            if not after:
+                break
+
+        if removidos:
+            print(f"🧹 Limpeza Weaviate: removidos {removidos} objeto(s) órfão(s).", file=sys.stderr)
+        return {"removidos": removidos, "falhas": falhas, "total_encontrados": total}
+
     def produto_existe(self, produto_id: int) -> bool:
         """Verifica se já existe um objeto com o produto_id dado no Weaviate."""
         try:
@@ -197,12 +262,30 @@ class WeaviateManager:
             return False
 
     def sincronizar_com_supabase(self, produtos_supabase: list[dict]) -> dict:
-        """Sincroniza: garante que todos os produtos do Supabase estejam no Weaviate.
-        Retorna métricas: { 'novos': int, 'falhas': int }
+        """Sincroniza: garante que Weaviate reflita o Supabase em tempo de execução.
+        Ações:
+        - Remove objetos cujo produto_id não existe na lista fornecida
+        - Indexa produtos que ainda não existem
+        Retorna métricas: { 'novos': int, 'removidos': int, 'falhas': int }
         """
         if not produtos_supabase:
-            return {"novos": 0, "falhas": 0}
-        novos, falhas = 0, 0
+            # Segurança: não remover tudo quando a lista vier vazia
+            return {"novos": 0, "removidos": 0, "falhas": 0}
+        novos, falhas, removidos = 0, 0, 0
+
+        # Purga de órfãos baseada nos IDs atuais do Supabase
+        try:
+            valid_ids = {int(p.get("id") or p.get("produto_id") or 0) for p in produtos_supabase if (p.get("id") or p.get("produto_id"))}
+        except Exception:
+            valid_ids = set()
+        try:
+            if valid_ids:
+                res_cleanup = self.remover_orfaos(valid_ids)
+                removidos = int(res_cleanup.get("removidos", 0))
+        except Exception as e:
+            print(f"⚠️ Falha ao remover órfãos durante sincronização: {e}")
+
+        # Indexar o que faltar
         for p in produtos_supabase:
             try:
                 pid = int(p.get("id") or p.get("produto_id") or 0)
@@ -220,9 +303,9 @@ class WeaviateManager:
                 falhas += 1
                 nome = p.get('nome', 'sem nome')
                 print(f"❌ Erro ao indexar novo produto '{nome}' (id={pid}): {e}")
-        if novos:
-            print(f"🔄 Sincronização: {novos} novos produto(s) indexado(s) no Weaviate.")
-        return {"novos": novos, "falhas": falhas}
+        if novos or removidos:
+            print(f"🔄 Sincronização: {novos} novo(s) indexado(s), {removidos} removido(s).")
+        return {"novos": novos, "removidos": removidos, "falhas": falhas}
         
     def get_models(self) -> Dict[str, Any]:
         """Retorna dicionário com modelos carregados"""

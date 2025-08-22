@@ -12,6 +12,7 @@ export interface EmailInterpretation {
     confianca: number;
     interpretedAt: string;
     rawGeminiResponse?: string;
+    dados_bruto?: any;
 }
 export interface ProductInfo {
     nome: string;

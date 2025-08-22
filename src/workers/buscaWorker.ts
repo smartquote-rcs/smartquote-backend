@@ -6,6 +6,7 @@ import { BuscaAutomatica } from '../services/BuscaAtomatica';
 import FornecedorService from '../services/FornecedorService';
 import { ProdutosService } from '../services/ProdutoService';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { Product } from '../types/BuscaTypes';
 
 interface JobMessage {
   id: string;
@@ -15,6 +16,7 @@ interface JobMessage {
   usuarioId?: number;
   quantidade?: number; // Quantidade opcional para busca
   custo_beneficio?: any; // Custo-benefício opcional para busca
+  rigor?: number; // Novo parâmetro para rigor
   refinamento?: boolean; // Nova flag para indicar se deve fazer refinamento LLM
 }
 
@@ -30,6 +32,7 @@ interface ProgressMessage {
 interface ResultMessage {
   status: 'sucesso' | 'erro';
   produtos?: any[];
+  quantidade?: number; // Quantidade de produtos requerido
   erro?: string;
   salvamento?: {
     salvos: number;
@@ -47,15 +50,20 @@ function enviarMensagem(message: ProgressMessage | ResultMessage) {
 
 // Função auxiliar para logs (via stderr para não interferir)
 function log(message: string) {
-  // Em produção, reduzir verbosidade dos logs
-  const isDev = process.env.NODE_ENV !== 'production';
-  if (isDev) {
+  // Sempre exibir logs do LLM e logs importantes
+  if (message.includes('[LLM-FILTER]') || message.includes('Worker') || message.includes('Job')) {
     console.error(`[WORKER] ${message}`);
+  } else {
+    // Em produção, reduzir verbosidade dos logs gerais
+    const isDev = process.env.NODE_ENV !== 'production';
+    if (isDev) {
+      console.error(`[WORKER] ${message}`);
+    }
   }
 }
 
 // Função para filtrar produtos usando LLM
-async function filtrarProdutosComLLM(produtos: any[], termoBusca: string, quantidade?: number, custo_beneficio?: any): Promise<any[]> {
+async function filtrarProdutosComLLM(produtos: any[], termoBusca: string, quantidade?: number, custo_beneficio?: any, rigor?: number): Promise<any[]> {
   if (!produtos || produtos.length === 0) {
     return [];
   }
@@ -63,17 +71,38 @@ async function filtrarProdutosComLLM(produtos: any[], termoBusca: string, quanti
   try {
     log(`🧠 [LLM-FILTER] Iniciando filtro LLM (Groq) para ${produtos.length} produtos`);
 
+    // Filtrar produtos inadequados antes de enviar para o LLM
+    const produtosValidos = produtos.filter(p => {
+      const temNome = p.name && p.name.trim().length > 0;
+      const temUrl = p.product_url && p.product_url.trim().length > 0;
+      const temDescricao = p.description && p.description.trim().length > 10;
+      
+      if (!temNome || !temUrl || !temDescricao) {
+        log(`🧠 [LLM-FILTER] Produto filtrado por dados incompletos: ${p.name || 'Sem nome'} (URL: ${!!p.product_url}, Desc: ${!!p.description})`);
+        return false;
+      }
+      return true;
+    });
+
+    if (produtosValidos.length === 0) {
+      log(`🧠 [LLM-FILTER] Nenhum produto válido encontrado após filtro`);
+      return [];
+    }
+
+    log(`🧠 [LLM-FILTER] ${produtosValidos.length} produtos válidos para análise LLM`);
+
     // Usar a lib groq (deve estar instalada via npm install groq-sdk)
     // @ts-ignore
     const { Groq } = require('groq-sdk');
     const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey) {
       log('❌ [LLM-FILTER] GROQ_API_KEY não encontrada');
-      return produtos.slice(0, 1); // Fallback: primeiro produto
+      log('🧠 [LLM-FILTER] Sem API key - nenhum produto será salvo');
+      return []; // Sem API key, não salvar nenhum produto
     }
 
     // Compactar candidatos para o prompt
-    const candidatos = produtos.map((p, index) => ({
+    const candidatos = produtosValidos.map((p, index) => ({
       index,
       nome: p.name || p.nome || '',
       categoria: p.categoria || p.modelo || '',
@@ -89,17 +118,31 @@ async function filtrarProdutosComLLM(produtos: any[], termoBusca: string, quanti
       "IMPORTANTE: Responda APENAS com um número JSON válido no formato exato: {\"index\": N}\n" +
       "Onde N é o índice (0, 1, 2...) do melhor candidato ou -1 se nenhum for adequado.\n" +
       "Critérios de avaliação:\n" +
-      "1. Correspondência com a busca original\n" +
-      "2. Relevância técnica e funcional\n" +
-      "3. Qualidade da descrição e especificações\n" +
-      "4. Disponibilidade (se informada)\n" +
-      "5. Melhor custo-benefício\n" +
+      "1. Correspondência EXATA com o termo de busca\n" +
+      "2. Produto deve ter URL válida e informações completas\n" +
+      "3. Relevância técnica e funcional\n" +
+      "4. Qualidade da descrição e especificações\n" +
+      "5. Disponibilidade (se informada)\n" +
+      "6. Melhor custo-benefício\n" +
+      "7. Rigor na busca: inteiro (0–5) indicando quão exatamente o usuário quer o item:\n" +
+      "   - 0 = genérico (\"um computador\")\n" +
+      "   - 1 = pouco específico\n" +
+      "   - 2 = algumas características\n" +
+      "   - 3 = moderadamente específico\n" +
+      "   - 4 = quase fechado\n" +
+      "   - 5 = rígido, modelo exato\n" +
+      "REGRAS IMPORTANTES:\n" +
+      "- NUNCA escolha produtos sem URL ou com informações vazias\n" +
+      "- Prefira produtos com descrições detalhadas\n" +
+      "- Se nenhum produto for adequado, retorne -1\n" +
+      "- Seja RIGOROSO na seleção - é melhor rejeitar do que aceitar produtos inadequados\n" +
       "NÃO adicione explicações, comentários ou texto extra. APENAS o JSON.";
 
     const userMsg =
       `TERMO DE BUSCA: ${termoBusca}\n` +
       `QUANTIDADE: ${quantidade || 1}\n` +
       `CUSTO-BENEFÍCIO: ${JSON.stringify(custo_beneficio || {})}\n` +
+      `RIGOR: ${rigor || 0}\n` +
       `CANDIDATOS: ${JSON.stringify(candidatos)}\n` +
       "Escolha o melhor índice ou -1.";
 
@@ -153,17 +196,23 @@ async function filtrarProdutosComLLM(produtos: any[], termoBusca: string, quanti
     }
 
     // Validar faixa
-    if (typeof idx !== 'number' || idx < 0 || idx >= produtos.length) {
+    if (typeof idx !== 'number' || idx < 0 || idx >= produtosValidos.length) {
+      if (idx === -1) {
+        log(`🧠 [LLM-FILTER] LLM rejeitou todos os produtos (índice: -1)`);
+        return []; // Nenhum produto selecionado pelo LLM
+      }
       log(`🧠 [LLM-FILTER] Índice inválido: ${idx}`);
-      return produtos.slice(0, 1); // Fallback: primeiro produto
+      return []; // Não fazer fallback, apenas retornar vazio
     }
 
-    const produtoSelecionado = produtos[idx];
+    const produtoSelecionado = produtosValidos[idx];
     log(`🧠 [LLM-FILTER] Produto selecionado: ${produtoSelecionado.name || produtoSelecionado.nome}`);
     return [produtoSelecionado];
   } catch (error) {
     log(`❌ [LLM-FILTER] Erro no filtro LLM (Groq): ${error}`);
-    return produtos.slice(0, 1);
+    // Em caso de erro, não salvar nenhum produto
+    log(`🧠 [LLM-FILTER] Erro no LLM - nenhum produto será salvo`);
+    return [];
   }
 }
 
@@ -185,7 +234,7 @@ process.stdin.on('data', async (data: string) => {
 
 // Função principal que processa o job
 async function processarJob(message: JobMessage) {
-  const { id, termo, numResultados, fornecedores, usuarioId, quantidade, custo_beneficio, refinamento } = message;
+  const { id, termo, numResultados, fornecedores, usuarioId, quantidade, custo_beneficio, rigor, refinamento } = message;
 
   log(`Worker iniciado para job ${id} - busca: "${termo}"${refinamento ? ' (com refinamento LLM)' : ''}`);
   
@@ -261,8 +310,13 @@ async function processarJob(message: JobMessage) {
         }
       });
 
-      todosProdutos = await filtrarProdutosComLLM(todosProdutos, termo, quantidade, custo_beneficio);
-      log(`Produtos após refinamento LLM: ${todosProdutos.length}`);
+      const produtosAntesLLM = todosProdutos.length;
+      todosProdutos = await filtrarProdutosComLLM(todosProdutos, termo, quantidade, custo_beneficio, rigor);
+      log(`Produtos após refinamento LLM: ${todosProdutos.length} de ${produtosAntesLLM}`);
+      
+      if (todosProdutos.length === 0) {
+        log(`🧠 [LLM-FILTER] Nenhum produto aprovado pelo LLM para salvamento`);
+      }
     }
 
     // 5. Salvar produtos na base de dados (se houver produtos)
@@ -277,36 +331,62 @@ async function processarJob(message: JobMessage) {
       const produtoService = new ProdutosService();
       const resultadosSalvamento: any[] = [];
       
-      for (let i = 0; i < resultados.length; i++) {
-        const resultado = resultados[i];
-        const fornecedor = fornecedoresFiltrados[i];
-        
-        if (!resultado || !fornecedor) continue;
-        
-        if (resultado.success && resultado.data && resultado.data.products.length > 0) {
-          try {
-            const salvamento = await produtoService.salvarProdutosDaBusca(
-              resultado.data.products,
-              fornecedor.id,
-              usuarioId || 1
+      // Usar os produtos filtrados pelo LLM (todosProdutos) em vez dos produtos originais
+      // Agrupar produtos por fornecedor para salvar corretamente
+      const produtosPorFornecedor = new Map<number, Product[]>();
+      
+      // Mapear produtos filtrados para seus fornecedores originais
+      for (const produtoFiltrado of todosProdutos) {
+        // Encontrar o fornecedor original deste produto
+        for (let i = 0; i < resultados.length; i++) {
+          const resultado = resultados[i];
+          const fornecedor = fornecedoresFiltrados[i];
+          
+          if (resultado?.success && resultado.data?.products) {
+            // Verificar se este produto filtrado veio deste fornecedor
+            const produtoOriginal = resultado.data.products.find(p => 
+              p.name === produtoFiltrado.name && 
+              p.product_url === produtoFiltrado.product_url
             );
             
-            resultadosSalvamento.push({
-              fornecedor: fornecedor.nome,
-              fornecedor_id: fornecedor.id,
-              ...salvamento
-            });
-            
-          } catch (error) {
-            log(`Erro ao salvar produtos do ${fornecedor.nome}: ${error}`);
-            resultadosSalvamento.push({
-              fornecedor: fornecedor.nome,
-              fornecedor_id: fornecedor.id,
-              salvos: 0,
-              erros: resultado.data?.products.length || 0,
-              detalhes: [{ erro: error instanceof Error ? error.message : 'Erro desconhecido' }]
-            });
+            if (produtoOriginal && fornecedor) {
+              if (!produtosPorFornecedor.has(fornecedor.id)) {
+                produtosPorFornecedor.set(fornecedor.id, []);
+              }
+              produtosPorFornecedor.get(fornecedor.id)!.push(produtoFiltrado);
+              break;
+            }
           }
+        }
+      }
+      
+      // Salvar produtos agrupados por fornecedor
+      for (const [fornecedorId, produtos] of produtosPorFornecedor) {
+        const fornecedor = fornecedoresFiltrados.find(f => f.id === fornecedorId);
+        if (!fornecedor) continue;
+        
+        try {
+          const salvamento = await produtoService.salvarProdutosDaBusca(
+            produtos,
+            fornecedorId,
+            usuarioId || 1
+          );
+          
+          resultadosSalvamento.push({
+            fornecedor: fornecedor.nome,
+            fornecedor_id: fornecedorId,
+            ...salvamento
+          });
+          
+        } catch (error) {
+          log(`Erro ao salvar produtos do ${fornecedor.nome}: ${error}`);
+          resultadosSalvamento.push({
+            fornecedor: fornecedor.nome,
+            fornecedor_id: fornecedorId,
+            salvos: 0,
+            erros: produtos.length,
+            detalhes: [{ erro: error instanceof Error ? error.message : 'Erro desconhecido' }]
+          });
         }
       }
       
@@ -319,6 +399,7 @@ async function processarJob(message: JobMessage) {
       enviarMensagem({
         status: 'sucesso',
         produtos: todosProdutos,
+        quantidade: quantidade,
         salvamento: {
           salvos: totalSalvos,
           erros: totalErros,

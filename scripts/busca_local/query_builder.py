@@ -85,6 +85,7 @@ def gerar_queries_itens(brief: Dict[str, Any]) -> List[Dict[str, Any]]:
         quantidade = int(item.get("quantidade", 1) or 1)
         orcamento_estimado = float(item.get("orcamento_estimado", 0) or 0)
         preferencia = str(item.get("preferencia", "")).strip().lower()
+        rigor = int(item.get("rigor", 0) or 0)
         peso = _prioridade_para_peso(prioridade)
 
         if prioridade not in {"critica", "alta"}:
@@ -121,6 +122,7 @@ def gerar_queries_itens(brief: Dict[str, Any]) -> List[Dict[str, Any]]:
             },
             "custo_beneficio": custo_beneficio,  # <-- incluir
             "peso_prioridade": peso,
+            "rigor": rigor,
             "quantidade": quantidade,  # <-- incluir
             "fonte": {
                 "nome": nome,

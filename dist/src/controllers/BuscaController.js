@@ -158,7 +158,7 @@ class BuscaController {
             });
         }
         try {
-            const { produto } = parsed.data;
+            const { produto, quantidade, custo_beneficio, rigor, refinamento } = parsed.data;
             // Buscar fornecedores ativos para validar que existem sites para buscar
             const sitesFromDB = await FornecedorService_1.default.getFornecedoresAtivos();
             if (sitesFromDB.length === 0) {
@@ -171,8 +171,10 @@ class BuscaController {
             const configuracoes = await FornecedorService_1.default.getConfiguracoesSistema();
             const numResultados = configuracoes.numResultadosPorSite;
             // Criar job em background
-            const jobId = JobManager_1.jobManager.criarJob(produto, numResultados, sitesFromDB.map(f => f.id), 1 // TODO: usar ID do usuário autenticado
-            );
+            const jobId = JobManager_1.jobManager.criarJob(produto, numResultados, sitesFromDB.map(f => f.id), 1, // TODO: usar ID do usuário autenticado
+            quantidade || 1, // Usar quantidade se fornecida, senão padrão 1
+            custo_beneficio, rigor || 0, // Usar rigor se fornecido, senão padrão 0
+            refinamento);
             // Responder imediatamente com o job ID
             return res.status(202).json({
                 success: true,
@@ -182,7 +184,8 @@ class BuscaController {
                 parametros: {
                     termo: produto,
                     numResultados: numResultados,
-                    fornecedores: sitesFromDB.length
+                    fornecedores: sitesFromDB.length,
+                    refinamento: refinamento
                 }
             });
         }

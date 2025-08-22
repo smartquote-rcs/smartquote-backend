@@ -16,7 +16,8 @@ class JobManager {
     /**
      * Cria um novo job de busca
      */
-    criarJob(termo, numResultados, fornecedores, usuarioId) {
+    criarJob(termo, numResultados, fornecedores, usuarioId, quantidade, custo_beneficio, rigor, // Novo parâmetro para rigor
+    refinamento) {
         const jobId = (0, uuid_1.v4)();
         const job = {
             id: jobId,
@@ -26,11 +27,15 @@ class JobManager {
                 termo,
                 numResultados,
                 fornecedores,
-                usuarioId
+                usuarioId,
+                quantidade: quantidade || 1,
+                custo_beneficio: custo_beneficio || {},
+                rigor: rigor || 0,
+                refinamento
             }
         };
         this.jobs.set(jobId, job);
-        console.log(`📝 Job criado: ${jobId} para busca "${termo}"`);
+        console.log(`📝 Job criado: ${jobId} para busca "${termo}"${refinamento ? ' (com refinamento LLM)' : ''}`);
         // Executar job imediatamente
         this.executarJob(jobId);
         return jobId;
@@ -95,7 +100,11 @@ class JobManager {
             termo: job.parametros.termo,
             numResultados: job.parametros.numResultados,
             fornecedores: job.parametros.fornecedores,
-            usuarioId: job.parametros.usuarioId
+            usuarioId: job.parametros.usuarioId,
+            quantidade: job.parametros.quantidade,
+            custo_beneficio: job.parametros.custo_beneficio,
+            rigor: job.parametros.rigor,
+            refinamento: job.parametros.refinamento
         };
         childProcess.stdin?.write(JSON.stringify(jobData) + '\n');
         // Escutar mensagens do processo filho via stdout
@@ -161,6 +170,7 @@ class JobManager {
             // Job concluído com sucesso
             job.status = 'concluido';
             job.concluidoEm = new Date();
+            job.parametros.quantidade = message.quantidade;
             job.resultado = {
                 produtos: message.produtos,
                 salvamento: message.salvamento,

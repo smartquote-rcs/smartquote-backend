@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { pythonProcessor } from '../services/PythonInterpretationProcessor';
 import { BuscaAutomatica } from '../services/BuscaAtomatica';
+import WebBuscaJobService from '../services/WebBuscaJobService';
 import FornecedorService from '../services/FornecedorService';
 import CotacoesItensService from '../services/CotacoesItensService';
 import supabase from '../infra/supabase/connect';
@@ -64,18 +65,16 @@ export class BuscaLocalController {
 
   let produtosWeb: any[] = [];
       if (faltantes.length > 0) {
-        const fornecedores = await FornecedorService.getFornecedoresAtivos();
-        const sites = fornecedores.map(f => f.url).filter(Boolean);
-        const cfg = await FornecedorService.getConfiguracoesSistema();
-        const numPorSite = cfg?.numResultadosPorSite ?? 5;
-
-        const busca = new BuscaAutomatica();
-        // para cada faltante, buscar em todos os sites
-        const promessas = faltantes.map((f: any) => busca.buscarProdutosMultiplosSites(f.query_sugerida || solicitacao, sites, numPorSite));
-        const resultados = await Promise.all(promessas);
-        resultados.forEach(arr => {
-          produtosWeb.push(...(new BuscaAutomatica()).combinarResultados(arr));
-        });
+        const svc = new WebBuscaJobService();
+        const statusUrls = await svc.createJobsForFaltantes(faltantes, solicitacao);
+        const { resultadosCompletos, produtosWeb: aprovados } = await svc.waitJobs(statusUrls);
+        produtosWeb = aprovados;
+        // Criar cotação e inserir usando os resultados completos (IDs dos produtos já salvos)
+        if (produtosWeb.length > 0) {
+          if (!cotacoesInfo?.principal_id) {
+            // criacao da cotacao já ocorre mais abaixo se necessário
+          }
+        }
       }
 
   // Garantir uma cotação principal: usar a que o Python criou, ou criar agora
@@ -99,6 +98,7 @@ export class BuscaLocalController {
         const prompt = await PromptsService.create({
           texto_original: solicitacao,
           dados_extraidos: dadosExtraidos,
+          dados_bruto: payload?.dados_bruto || {},
           origem: { tipo: 'servico', fonte: 'api' },
           status: 'analizado'
         });
@@ -121,16 +121,17 @@ export class BuscaLocalController {
       }
   // Inserir itens web, se houver
   if (cotacaoPrincipalId && produtosWeb.length > 0) {
-        for (const p of produtosWeb) {
-          try {
-            const idItem = await CotacoesItensService.insertWebItem(Number(cotacaoPrincipalId), p);
-            if (idItem) itensInseridos++;
-          } catch (e) {
-            console.error('Erro ao inserir item web na cotação:', e);
-          }
+        try {
+          const svc = new WebBuscaJobService();
+          // reutilizar o método que insere via estrutura de resultado dos jobs (espera payload com produtos já salvos)
+          // aqui, para compatibilidade, criamos um envoltório simples
+          const resultadosCompletosLike = [{ produtos: produtosWeb }];
+          const inseridos = await svc.insertJobResultsInCotacao(Number(cotacaoPrincipalId), resultadosCompletosLike as any);
+          itensInseridos += inseridos;
+          await svc.recalcOrcamento(Number(cotacaoPrincipalId));
+        } catch (e) {
+          console.error('Erro ao inserir itens web na cotação:', e);
         }
-        // Recalcular orçamento geral na tabela de cotações
-        await this.recalcularOrcamento(Number(cotacaoPrincipalId));
       }
 
       // Inserir pelo menos 1 item local por query (top-1), quando não houver itens web e houver resultados locais

@@ -46,7 +46,7 @@ class SolutionDecomposer:
         - Use "produto" para soluções em que, na aquisição, seja necessário apenas um único item ou pacote fechado, mesmo que incluam múltiplas partes internas.
         - Use "sistema" para soluções compostas por múltiplos elementos que precisam ser adquiridos separadamente, ou pedido de varios produtos.
         3. **complexidade_estimada**: Um dos seguintes valores: **"simples"**, **"medio"**, **"complexo"**.
-        4. **itens_a_comprar**: Lista de itens que devem ser adquiridos separadamente para compor a solução (primeiro item sendo o principal), cada um com:
+        4. **itens_a_comprar**: Lista de itens ("hardware", "software" ou "servico") que devem ser adquiridos separadamente para compor a solução (primeiro item sendo o principal), cada um com:
         - **nome**: pode ser geral como "Computador", "Impressora" ou específico como "Impressora HP LaserJet" dependendo da necessidade do cliente.
         - **natureza_componente**: "hardware", "software" ou "servico"
         - **prioridade**: "critica", "alta", "media" ou "baixa" (tudo especificado pelo usuário e partes imprescindíveis é "critica" ou "alta")
@@ -63,7 +63,13 @@ class SolutionDecomposer:
         - **quantidade**: número inteiro indicando quantos itens são necessários
         - **orcamento_estimado**: valor inteiro (Kwanzas) indicando o orçamento unitario máximo para este item (se não especificado: 0)
         - **preferencias_usuario**: lista de preferências expressas pelo cliente de forma implícita ou explícita sobre o item (ex: ["preferência por soluções open-source", "manutenção local"])
-        - **rigor**: quão estritamente o usuário especificou seu pedido (medida do nível de exigência, 0–5).
+        - **rigor**: inteiro (0–5) indicando quão exatamente o usuário quer o item:
+            - 0 = genérico ("um computador")
+            - 1 = pouco específico, com uma característica mínima
+            - 2 = algumas características, ainda aberto a variações
+            - 3 = moderadamente específico, margem de flexibilidade
+            - 4 = quase fechado, pequenas variações possíveis
+            - 5 = rígido, modelo exato exigido
         5. **alternativas_viaveis**: Lista de outras soluções viáveis (nunca vazia) com:
         - **nome**, **tipo**, 
         - **vantagens**: lista de pontos positivos

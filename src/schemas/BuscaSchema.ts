@@ -8,6 +8,7 @@ export const buscaSchema = z.object({
     .transform(val => val.trim()),
   quantidade: z.number().optional().default(1),
   custo_beneficio: z.any().optional(),
+  rigor: z.number().int().min(0).max(5).optional().default(0),
   refinamento: z.boolean().optional().default(false)
 });
 

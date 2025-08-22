@@ -24,7 +24,7 @@ class CotacoesItensService {
     }
   }
 
-  async insertWebItem(cotacaoId: number, produto: Product): Promise<number | null> {
+  async buildPrompt(cotacaoId: number, produto: Product): Promise<number | null> {
     const item_preco = this.parseNumero(produto.price);
     const provider = this.providerFromUrl(produto.product_url);
 
@@ -56,7 +56,7 @@ class CotacoesItensService {
   /**
    * Insere item na cotação usando ID do produto já salvo na base de dados
    */
-  async insertWebItemById(cotacaoId: number, produtoId: number, produto: Product): Promise<number | null> {
+  async insertWebItemById(cotacaoId: number, produtoId: number, produto: Product, quantidade: number): Promise<number | null> {
     const item_preco = this.parseNumero(produto.price);
     const provider = this.providerFromUrl(produto.product_url);
 
@@ -70,7 +70,7 @@ class CotacoesItensService {
       item_descricao: produto.description,
       item_preco: item_preco ?? undefined,
       item_moeda: 'AOA',
-      quantidade: 1,
+      quantidade: quantidade,
     };
 
     const { data, error } = await supabase
@@ -96,7 +96,7 @@ class CotacoesItensService {
     // Buscar o ID do produto salvo nos detalhes do salvamento do job
     // Como não temos acesso direto ao salvamento aqui, vamos usar o método original
     // O salvamento está disponível no resultado completo do job, não no produto individual
-    return await this.insertWebItem(cotacaoId, produto);
+    return await this.insertWebItemById(cotacaoId, produto.id, produto, produto.quantidade);
   }
 
   /**
@@ -105,6 +105,7 @@ class CotacoesItensService {
   async insertJobResultItems(cotacaoId: number, jobResult: any): Promise<number> {
     const produtos = jobResult.produtos || [];
     const salvamento = jobResult.salvamento;
+    const quantidade = jobResult.quantidade || 1;
     let inseridos = 0;
 
     // Criar um mapa de nome do produto para ID salvo
@@ -129,11 +130,7 @@ class CotacoesItensService {
         
         if (produtoId) {
           // Usar o ID do produto salvo
-          const idItem = await this.insertWebItemById(cotacaoId, produtoId, produto);
-          if (idItem) inseridos++;
-        } else {
-          // Fallback: inserir sem ID
-          const idItem = await this.insertWebItem(cotacaoId, produto);
+          const idItem = await this.insertWebItemById(cotacaoId, produtoId, produto, quantidade);
           if (idItem) inseridos++;
         }
       } catch (e) {

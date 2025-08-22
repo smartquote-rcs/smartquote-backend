@@ -17,8 +17,7 @@ from busca_local.text_utils import (
 )
 from busca_local.config import CATEGORY_EQUIV, STOPWORDS_PT, GROQ_API_KEY
 
-
-def _llm_escolher_indice(query: str, filtros: dict | None, custo_beneficio: dict | None, candidatos: List[Dict[str, Any]]) -> int:
+def _llm_escolher_indice(query: str, filtros: dict | None, custo_beneficio: dict | None, rigor: int | None, candidatos: List[Dict[str, Any]]) -> int:
     """Usa LLM (Groq) para escolher o índice do melhor candidato ou -1 se nenhum servir.
 
     Contrato rápido:
@@ -57,6 +56,13 @@ def _llm_escolher_indice(query: str, filtros: dict | None, custo_beneficio: dict
         "3. Relevância geral da consulta\n"
         "4. Disponibilidade em estoque\n"
         "5. Análise mais lógico-racional\n"
+        "6. **rigor**: inteiro (0–5) indicando quão exatamente o usuário quer o item:\n"
+        "   - 0 = genérico (\"um computador\")\n"
+        "   - 1 = pouco específico, com uma característica mínima\n"
+        "   - 2 = algumas características, ainda aberto a variações\n"
+        "   - 3 = moderadamente específico, margem de flexibilidade\n"
+        "   - 4 = quase fechado, pequenas variações possíveis\n"
+        "   - 5 = rígido, modelo exato exigido"
         "NÃO adicione explicações, comentários ou texto extra. APENAS o JSON."
     )
     filtros_str = "{}" if not filtros else json.dumps(filtros, ensure_ascii=False)
@@ -64,6 +70,7 @@ def _llm_escolher_indice(query: str, filtros: dict | None, custo_beneficio: dict
         f"QUERY: {query}\n"
         f"FILTROS: {filtros_str}\n"
         f"DADOS ORCAMENTAIS: {custo_beneficio or {}}\n"
+        f"RIGOR: {rigor or 0}\n"
         f"CANDIDATOS: {json.dumps(compacts, ensure_ascii=False)}\n"
         "Escolha o melhor índice ou -1."
     )

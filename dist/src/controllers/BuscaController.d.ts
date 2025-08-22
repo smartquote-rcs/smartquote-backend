@@ -1,6 +1,9 @@
 import { Request, Response } from 'express';
 interface BuscaRequest {
     produto: string;
+    quantidade?: number;
+    custo_beneficio?: any;
+    refinamento?: boolean;
 }
 declare class BuscaController {
     /**

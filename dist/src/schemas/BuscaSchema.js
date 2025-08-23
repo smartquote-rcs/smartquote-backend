@@ -11,6 +11,7 @@ exports.buscaSchema = zod_1.z.object({
     quantidade: zod_1.z.number().optional().default(1),
     custo_beneficio: zod_1.z.any().optional(),
     rigor: zod_1.z.number().int().min(0).max(5).optional().default(0),
-    refinamento: zod_1.z.boolean().optional().default(false)
+    refinamento: zod_1.z.boolean().optional().default(false),
+    faltante_id: zod_1.z.string().optional() // ID do faltante para rastreamento
 });
 //# sourceMappingURL=BuscaSchema.js.map

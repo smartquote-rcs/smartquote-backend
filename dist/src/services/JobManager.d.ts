@@ -16,6 +16,7 @@ interface JobStatus {
         custo_beneficio?: any;
         rigor?: number;
         refinamento?: boolean;
+        faltante_id?: string;
     };
     progresso?: {
         etapa: 'busca' | 'salvamento';
@@ -41,7 +42,7 @@ declare class JobManager {
      * Cria um novo job de busca
      */
     criarJob(termo: string, numResultados: number, fornecedores: number[], usuarioId?: number, quantidade?: number, custo_beneficio?: any, rigor?: number, // Novo parâmetro para rigor
-    refinamento?: boolean): string;
+    refinamento?: boolean, faltante_id?: string): string;
     /**
      * Executa um job em processo filho
      */

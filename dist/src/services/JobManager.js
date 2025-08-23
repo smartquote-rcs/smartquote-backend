@@ -17,7 +17,8 @@ class JobManager {
      * Cria um novo job de busca
      */
     criarJob(termo, numResultados, fornecedores, usuarioId, quantidade, custo_beneficio, rigor, // Novo parâmetro para rigor
-    refinamento) {
+    refinamento, faltante_id // ID do faltante para rastreamento
+    ) {
         const jobId = (0, uuid_1.v4)();
         const job = {
             id: jobId,
@@ -31,11 +32,12 @@ class JobManager {
                 quantidade: quantidade || 1,
                 custo_beneficio: custo_beneficio || {},
                 rigor: rigor || 0,
-                refinamento
+                refinamento,
+                faltante_id
             }
         };
         this.jobs.set(jobId, job);
-        console.log(`📝 Job criado: ${jobId} para busca "${termo}"${refinamento ? ' (com refinamento LLM)' : ''}`);
+        console.log(`📝 Job criado: ${jobId} para busca "${termo}"${refinamento ? ' (com refinamento LLM)' : ''}${faltante_id ? ` - Faltante ID: ${faltante_id}` : ''}`);
         // Executar job imediatamente
         this.executarJob(jobId);
         return jobId;
@@ -104,7 +106,8 @@ class JobManager {
             quantidade: job.parametros.quantidade,
             custo_beneficio: job.parametros.custo_beneficio,
             rigor: job.parametros.rigor,
-            refinamento: job.parametros.refinamento
+            refinamento: job.parametros.refinamento,
+            faltante_id: job.parametros.faltante_id
         };
         childProcess.stdin?.write(JSON.stringify(jobData) + '\n');
         // Escutar mensagens do processo filho via stdout
@@ -133,7 +136,8 @@ class JobManager {
             // Filtrar logs normais do worker que não são erros
             if (stderrData.includes('[WORKER]') ||
                 stderrData.includes('[dotenv@') ||
-                stderrData.includes('tip:')) {
+                stderrData.includes('tip:') ||
+                stderrData.includes('DeprecationWarning: The `punycode` module is deprecated')) {
                 // Estes são logs normais, não erros
                 console.log(`🔧 Worker log [${jobId}]: ${stderrData.trim()}`);
             }

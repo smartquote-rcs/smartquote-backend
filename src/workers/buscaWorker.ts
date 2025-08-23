@@ -18,6 +18,7 @@ interface JobMessage {
   custo_beneficio?: any; // Custo-benefício opcional para busca
   rigor?: number; // Novo parâmetro para rigor
   refinamento?: boolean; // Nova flag para indicar se deve fazer refinamento LLM
+  faltante_id?: string; // ID do faltante para rastreamento
 }
 
 interface ProgressMessage {
@@ -234,9 +235,9 @@ process.stdin.on('data', async (data: string) => {
 
 // Função principal que processa o job
 async function processarJob(message: JobMessage) {
-  const { id, termo, numResultados, fornecedores, usuarioId, quantidade, custo_beneficio, rigor, refinamento } = message;
+  const { id, termo, numResultados, fornecedores, usuarioId, quantidade, custo_beneficio, rigor, refinamento, faltante_id } = message;
 
-  log(`Worker iniciado para job ${id} - busca: "${termo}"${refinamento ? ' (com refinamento LLM)' : ''}`);
+  log(`Worker iniciado para job ${id} - busca: "${termo}"${refinamento ? ' (com refinamento LLM)' : ''}${faltante_id ? ` - Faltante ID: ${faltante_id}` : ''}`);
   
   const inicioTempo = Date.now();
   
@@ -283,6 +284,14 @@ async function processarJob(message: JobMessage) {
 
     // Combinar resultados
     let todosProdutos = buscaService.combinarResultados(resultados);
+    
+    // Adicionar o ID do faltante a todos os produtos
+    if (faltante_id) {
+      todosProdutos = todosProdutos.map(produto => ({
+        ...produto,
+        faltante_id: faltante_id
+      }));
+    }
     
     enviarMensagem({
       progresso: {

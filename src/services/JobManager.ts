@@ -21,6 +21,7 @@ interface JobStatus {
     custo_beneficio?: any; // Nova propriedade para custo-benefício
     rigor?: number; // Novo parâmetro para rigor
     refinamento?: boolean; // Nova flag para indicar se deve fazer refinamento LLM
+    faltante_id?: string; // ID do faltante para rastreamento
   };
   progresso?: {
     etapa: 'busca' | 'salvamento';
@@ -55,7 +56,8 @@ class JobManager {
     quantidade?: number,
     custo_beneficio?: any,
     rigor?: number, // Novo parâmetro para rigor
-    refinamento?: boolean
+    refinamento?: boolean,
+    faltante_id?: string // ID do faltante para rastreamento
   ): string {
     const jobId = uuidv4();
     
@@ -71,13 +73,14 @@ class JobManager {
         quantidade: quantidade || 1,
         custo_beneficio: custo_beneficio || {},
         rigor: rigor || 0,
-        refinamento
+        refinamento,
+        faltante_id
       }
     };
     
     this.jobs.set(jobId, job);
     
-    console.log(`📝 Job criado: ${jobId} para busca "${termo}"${refinamento ? ' (com refinamento LLM)' : ''}`);
+    console.log(`📝 Job criado: ${jobId} para busca "${termo}"${refinamento ? ' (com refinamento LLM)' : ''}${faltante_id ? ` - Faltante ID: ${faltante_id}` : ''}`);
     
     // Executar job imediatamente
     this.executarJob(jobId);
@@ -157,7 +160,8 @@ class JobManager {
       quantidade: job.parametros.quantidade,
       custo_beneficio: job.parametros.custo_beneficio,
       rigor: job.parametros.rigor,
-      refinamento: job.parametros.refinamento
+      refinamento: job.parametros.refinamento,
+      faltante_id: job.parametros.faltante_id
     };
     
     childProcess.stdin?.write(JSON.stringify(jobData) + '\n');

@@ -5,9 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BuscaLocalController = void 0;
 const PythonInterpretationProcessor_1 = require("../services/PythonInterpretationProcessor");
-const BuscaAtomatica_1 = require("../services/BuscaAtomatica");
-const FornecedorService_1 = __importDefault(require("../services/FornecedorService"));
-const CotacoesItensService_1 = __importDefault(require("../services/CotacoesItensService"));
+const WebBuscaJobService_1 = __importDefault(require("../services/WebBuscaJobService"));
 const connect_1 = __importDefault(require("../infra/supabase/connect"));
 const PromptsService_1 = __importDefault(require("../services/PromptsService"));
 const CotacoesService_1 = __importDefault(require("../services/CotacoesService"));
@@ -52,26 +50,42 @@ class BuscaLocalController {
             const faltantes = Array.isArray(payload.faltantes) ? payload.faltantes : [];
             const resumoLocal = payload?.resultado_resumo || {};
             const cotacoesInfo = payload.cotacoes || null;
+            console.log(`🔍 [BUSCA-LOCAL] Processando busca para: "${solicitacao}"`);
+            console.log(`📊 [BUSCA-LOCAL] Faltantes encontrados: ${faltantes.length}`);
+            console.log(`🏠 [BUSCA-LOCAL] Resultados locais: ${Object.keys(resumoLocal).length} queries`);
+            console.log(`📋 [BUSCA-LOCAL] Cotação Python: ${cotacoesInfo?.principal_id || 'Nenhuma'}`);
             let produtosWeb = [];
+            let resultadosCompletos = [];
             if (faltantes.length > 0) {
-                const fornecedores = await FornecedorService_1.default.getFornecedoresAtivos();
-                const sites = fornecedores.map(f => f.url).filter(Boolean);
-                const cfg = await FornecedorService_1.default.getConfiguracoesSistema();
-                const numPorSite = cfg?.numResultadosPorSite ?? 5;
-                const busca = new BuscaAtomatica_1.BuscaAutomatica();
-                // para cada faltante, buscar em todos os sites
-                const promessas = faltantes.map((f) => busca.buscarProdutosMultiplosSites(f.query_sugerida || solicitacao, sites, numPorSite));
-                const resultados = await Promise.all(promessas);
-                resultados.forEach(arr => {
-                    produtosWeb.push(...(new BuscaAtomatica_1.BuscaAutomatica()).combinarResultados(arr));
-                });
+                console.log(`🌐 [BUSCA-LOCAL] Iniciando busca web para ${faltantes.length} faltantes`);
+                const svc = new WebBuscaJobService_1.default();
+                const statusUrls = await svc.createJobsForFaltantes(faltantes, solicitacao);
+                console.log(`🚀 [BUSCA-LOCAL] Jobs criados: ${statusUrls.length}`);
+                const { resultadosCompletos: resultados, produtosWeb: aprovados } = await svc.waitJobs(statusUrls);
+                produtosWeb = aprovados;
+                resultadosCompletos = resultados;
+                console.log(`✅ [BUSCA-LOCAL] Jobs concluídos: ${produtosWeb.length} produtos aprovados`);
+                console.log(`📋 [BUSCA-LOCAL] Resultados completos: ${resultadosCompletos.length} jobs`);
+                // Criar cotação e inserir usando os resultados completos (IDs dos produtos já salvos)
+                if (produtosWeb.length > 0) {
+                    if (!cotacoesInfo?.principal_id) {
+                        // criacao da cotacao já ocorre mais abaixo se necessário
+                        console.log(`📝 [BUSCA-LOCAL] Cotação será criada para receber ${produtosWeb.length} produtos web`);
+                    }
+                }
             }
             // Garantir uma cotação principal: usar a que o Python criou, ou criar agora
             let itensInseridos = 0;
             let cotacaoPrincipalId = cotacoesInfo?.principal_id ?? null;
             // Novo critério: se houver resultados locais (mesmo sem faltantes/produtosWeb), também criaremos cotação
             const temResultadosLocais = Object.values(resumoLocal).some((arr) => Array.isArray(arr) && arr.length > 0);
+            console.log(`🏗️ [BUSCA-LOCAL] Verificando necessidade de criar cotação:`);
+            console.log(`   - Cotação existente: ${cotacaoPrincipalId || 'Nenhuma'}`);
+            console.log(`   - Produtos web: ${produtosWeb.length}`);
+            console.log(`   - Faltantes: ${faltantes.length}`);
+            console.log(`   - Resultados locais: ${temResultadosLocais ? 'Sim' : 'Não'}`);
             if (!cotacaoPrincipalId && (produtosWeb.length > 0 || faltantes.length > 0 || temResultadosLocais)) {
+                console.log(`📝 [BUSCA-LOCAL] Criando nova cotação principal`);
                 // Criar prompt e cotação principal - usar dados do Python se disponível
                 const dadosExtraidos = payload?.dados_extraidos || {
                     solucao_principal: solicitacao,
@@ -103,30 +117,42 @@ class BuscaLocalController {
                     try {
                         const criada = await CotacoesService_1.default.create(nova);
                         cotacaoPrincipalId = criada?.id ?? null;
+                        console.log(`✅ [BUSCA-LOCAL] Cotação criada com sucesso: ID ${cotacaoPrincipalId}`);
                     }
                     catch (e) {
-                        console.error('Erro ao criar cotação principal:', e);
+                        console.error('❌ [BUSCA-LOCAL] Erro ao criar cotação principal:', e);
                     }
                 }
             }
+            else if (cotacaoPrincipalId) {
+                console.log(`📋 [BUSCA-LOCAL] Usando cotação existente: ID ${cotacaoPrincipalId}`);
+            }
             // Inserir itens web, se houver
-            if (cotacaoPrincipalId && produtosWeb.length > 0) {
-                for (const p of produtosWeb) {
-                    try {
-                        const idItem = await CotacoesItensService_1.default.insertWebItem(Number(cotacaoPrincipalId), p);
-                        if (idItem)
-                            itensInseridos++;
-                    }
-                    catch (e) {
-                        console.error('Erro ao inserir item web na cotação:', e);
-                    }
+            if (cotacaoPrincipalId && resultadosCompletos.length > 0) {
+                console.log(`🔧 [BUSCA-LOCAL] Iniciando inserção de ${resultadosCompletos.length} resultados de jobs na cotação ${cotacaoPrincipalId}`);
+                try {
+                    const svc = new WebBuscaJobService_1.default();
+                    // Usar diretamente os resultados completos dos jobs que já contêm a estrutura correta
+                    console.log(`🚀 [BUSCA-LOCAL] Chamando insertJobResultsInCotacao com ${resultadosCompletos.length} resultados de jobs`);
+                    const inseridos = await svc.insertJobResultsInCotacao(Number(cotacaoPrincipalId), resultadosCompletos);
+                    console.log(`✅ [BUSCA-LOCAL] insertJobResultsInCotacao retornou: ${inseridos} itens inseridos`);
+                    itensInseridos += inseridos;
+                    await svc.recalcOrcamento(Number(cotacaoPrincipalId));
+                    console.log(`✅ [BUSCA-LOCAL] ${inseridos} itens web inseridos na cotação ${cotacaoPrincipalId}`);
                 }
-                // Recalcular orçamento geral na tabela de cotações
-                await this.recalcularOrcamento(Number(cotacaoPrincipalId));
+                catch (e) {
+                    console.error('❌ [BUSCA-LOCAL] Erro ao inserir itens web na cotação:', e);
+                    console.error('❌ [BUSCA-LOCAL] Stack trace:', e?.stack);
+                }
+            }
+            else {
+                console.log(`⚠️ [BUSCA-LOCAL] Condições não atendidas para inserção web:`);
+                console.log(`   - cotacaoPrincipalId: ${cotacaoPrincipalId}`);
+                console.log(`   - resultadosCompletos.length: ${resultadosCompletos.length}`);
             }
             // Inserir pelo menos 1 item local por query (top-1), quando não houver itens web e houver resultados locais
             // Evitar duplicação: só inserir locais pelo Node se o Python NÃO tiver criado cotação
-            if (!cotacaoPrincipalId && temResultadosLocais) {
+            if (cotacaoPrincipalId && temResultadosLocais) {
                 for (const [qid, arr] of Object.entries(resumoLocal)) {
                     const lista = Array.isArray(arr) ? arr : [];
                     if (!lista.length)
@@ -152,9 +178,10 @@ class BuscaLocalController {
                             payload: { query_id: qid, score: top?.score }
                         });
                         itensInseridos++;
+                        console.log(`✅ [BUSCA-LOCAL] Item local inserido: ${top?.nome || 'Sem nome'}`);
                     }
                     catch (e) {
-                        console.error('Erro ao inserir item local na cotação:', e);
+                        console.error('❌ [BUSCA-LOCAL] Erro ao inserir item local na cotação:', e);
                     }
                 }
                 await this.recalcularOrcamento(Number(cotacaoPrincipalId));

@@ -418,6 +418,93 @@
         }
       }
     },
+    "/cotacoes/{id}/remove-faltante": {
+      "post": {
+        "summary": "Remover elemento faltante",
+        "description": "Remove um elemento específico do campo faltantes da cotação e atualiza o status se necessário.",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID da cotação",
+            "required": true,
+            "type": "integer"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Critérios para identificar o elemento a ser removido",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "index": {
+                  "type": "integer",
+                  "description": "Índice do elemento no array faltantes",
+                  "example": 0
+                },
+                "query": {
+                  "type": "string",
+                  "description": "Query sugerida para identificar o elemento",
+                  "example": "servidor"
+                },
+                "nome": {
+                  "type": "string",
+                  "description": "Nome do produto para identificar o elemento",
+                  "example": "Servidor Dell"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Elemento removido com sucesso",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string"
+                },
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "elementoRemovido": {
+                      "type": "object"
+                    },
+                    "faltantesRestantes": {
+                      "type": "integer"
+                    },
+                    "novoStatus": {
+                      "type": "string",
+                      "enum": ["completa", "incompleta"]
+                    },
+                    "cotacao": {
+                      "$ref": "#/definitions/Cotacao"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Parâmetros inválidos ou índice fora do range"
+          },
+          "404": {
+            "description": "Cotação ou elemento não encontrado"
+          },
+          "500": {
+            "description": "Erro interno do servidor"
+          }
+        }
+      }
+    },
     "/produtos": {
       "get": {
         "summary": "Listar todos os produtos",

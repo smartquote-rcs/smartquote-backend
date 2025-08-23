@@ -2,6 +2,7 @@ import supabase from '../infra/supabase/connect';
 import CotacoesItensService from './CotacoesItensService';
 
 type Faltante = {
+  id?: number;
   query_sugerida?: string;
   nome?: string;
   categoria?: string;
@@ -56,6 +57,7 @@ export default class WebBuscaJobService {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
+              faltante_id: f.id, // Incluir o ID do faltante
               produto: termo,
               quantidade: f.quantidade,
               custo_beneficio: f.custo_beneficio,
@@ -113,14 +115,83 @@ export default class WebBuscaJobService {
 
   async insertJobResultsInCotacao(cotacaoId: number, resultadosCompletos: JobResultado[]): Promise<number> {
     let inseridos = 0;
+    
+    // Buscar a cotação atual para obter os faltantes
+    const { data: cotacao, error: cotacaoError } = await supabase
+      .from('cotacoes')
+      .select('faltantes, status')
+      .eq('id', Number(cotacaoId))
+      .single();
+    
+    if (cotacaoError) {
+      console.error('❌ [COTACAO] Erro ao buscar cotação:', cotacaoError);
+      return 0;
+    }
+    
+    const faltantesAtuais = Array.isArray(cotacao.faltantes) ? cotacao.faltantes : [];
+    const novosFaltantes = [...faltantesAtuais];
+    
     for (const resultadoJob of resultadosCompletos) {
       try {
         const adicionados = await CotacoesItensService.insertJobResultItems(Number(cotacaoId), resultadoJob as any);
         inseridos += adicionados;
+        
+        // Remover os itens faltantes correspondentes aos produtos inseridos
+        if (adicionados > 0 && resultadoJob.produtos) {
+          for (const produto of resultadoJob.produtos) {
+            // Usar o ID do faltante diretamente se disponível
+            if (produto.faltante_id) {
+              const indexToRemove = novosFaltantes.findIndex((faltante: any) => 
+                faltante.id === produto.faltante_id
+              );
+              
+              if (indexToRemove !== -1) {
+                const faltanteRemovido = novosFaltantes.splice(indexToRemove, 1)[0];
+                console.log(`🗑️ [FALTANTES] Removido item faltante ID ${produto.faltante_id} para produto: ${produto.name}`);
+              }
+            } else {
+              // Fallback: busca por nome ou query (mantido para compatibilidade)
+              const indexToRemove = novosFaltantes.findIndex((faltante: any) => {
+                return (faltante.nome && produto.name && 
+                        faltante.nome.toLowerCase().includes(produto.name.toLowerCase())) ||
+                       (faltante.query_sugerida && produto.name && 
+                        produto.name.toLowerCase().includes(faltante.query_sugerida.toLowerCase()));
+              });
+              
+              if (indexToRemove !== -1) {
+                const faltanteRemovido = novosFaltantes.splice(indexToRemove, 1)[0];
+                console.log(`🗑️ [FALTANTES] Removido item faltante (fallback) para produto: ${produto.name}`);
+              }
+            }
+          }
+        }
       } catch (e) {
         console.error('❌ [COTACAO-ITEM] Erro ao inserir itens do job:', (e as any)?.message || e);
       }
     }
+    
+    // Atualizar os faltantes na cotação
+    if (JSON.stringify(faltantesAtuais) !== JSON.stringify(novosFaltantes)) {
+      const novoStatus = novosFaltantes.length === 0 ? 'completa' : 'incompleta';
+      
+      const { error: updateError } = await supabase
+        .from('cotacoes')
+        .update({ 
+          faltantes: novosFaltantes,
+          status: novoStatus
+        })
+        .eq('id', Number(cotacaoId));
+      
+      if (updateError) {
+        console.error('❌ [COTACAO] Erro ao atualizar faltantes:', updateError);
+      } else {
+        console.log(`✅ [COTACAO] Faltantes atualizados: ${novosFaltantes.length} itens restantes`);
+        if (novoStatus === 'completa') {
+          console.log(`🎉 [COTACAO] Cotação ${cotacaoId} marcada como completa`);
+        }
+      }
+    }
+    
     return inseridos;
   }
 

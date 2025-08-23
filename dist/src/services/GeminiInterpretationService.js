@@ -9,9 +9,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const generative_ai_1 = require("@google/generative-ai");
 const PythonInterpretationProcessor_1 = require("./PythonInterpretationProcessor");
-const FornecedorService_1 = __importDefault(require("./FornecedorService"));
-const CotacoesItensService_1 = __importDefault(require("./CotacoesItensService"));
-const connect_1 = __importDefault(require("../infra/supabase/connect"));
+const WebBuscaJobService_1 = __importDefault(require("./WebBuscaJobService"));
 const PromptsService_1 = __importDefault(require("./PromptsService"));
 const CotacoesService_1 = __importDefault(require("./CotacoesService"));
 class GeminiInterpretationService {
@@ -214,83 +212,9 @@ DADOS DO EMAIL:
                             const payload = result.result || {};
                             const faltantes = Array.isArray(payload.faltantes) ? payload.faltantes : [];
                             let cotacaoPrincipalId = payload?.cotacoes?.principal_id ?? null;
-                            const fornecedores = await FornecedorService_1.default.getFornecedoresAtivos();
-                            const sites = fornecedores.map((f) => f.url).filter(Boolean);
-                            if (!sites.length)
-                                return;
-                            const cfg = await FornecedorService_1.default.getConfiguracoesSistema();
-                            const jobStatusUrls = [];
-                            await Promise.all(faltantes.map(async (f) => {
-                                const termo = f.query_sugerida || interpretation.solicitacao;
-                                console.log(`🔍 [BUSCA-WEB] Iniciando busca em background para: ${termo}`);
-                                try {
-                                    const resp = await fetch(`${process.env.API_BASE_URL}/api/busca-automatica/background`, {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({
-                                            produto: termo,
-                                            quantidade: f.quantidade,
-                                            custo_beneficio: f.custo_beneficio,
-                                            vigor: f.vigor,
-                                            refinamento: true // Ativar refinamento LLM no job
-                                        })
-                                    });
-                                    const data = (await resp.json());
-                                    if (data && data.statusUrl) {
-                                        // Guardar a URL de status retornada, ex.: /api/busca-automatica/job/${jobId}
-                                        jobStatusUrls.push(`${process.env.API_BASE_URL}${data.statusUrl}`);
-                                        console.log(`🧭 [BUSCA-WEB] Job criado: ${data.jobId} (${data.statusUrl})`);
-                                    }
-                                    else if (data && data.jobId) {
-                                        jobStatusUrls.push(`${process.env.API_BASE_URL}/api/busca-automatica/job/${data.jobId}`);
-                                        console.log(`🧭 [BUSCA-WEB] Job criado (fallback URL): ${data.jobId}`);
-                                    }
-                                    else {
-                                        console.warn('⚠️ [BUSCA-WEB] Resposta inesperada ao criar job:', data);
-                                    }
-                                }
-                                catch (e) {
-                                    console.error('❌ [BUSCA-WEB] Erro ao iniciar job:', e?.message || e);
-                                }
-                            }));
-                            // Função helper para aguardar
-                            const sleep = (ms) => new Promise(res => setTimeout(res, ms));
-                            // Monitorar todos os jobs até conclusão e coletar resultados
-                            const MAX_WAIT_MS = 30 * 60 * 1000; // 30 minutos
-                            const POLL_INTERVAL_MS = 2000; // 2s
-                            async function aguardarJob(url) {
-                                const inicio = Date.now();
-                                // Tenta até concluir ou atingir timeout
-                                while (Date.now() - inicio < MAX_WAIT_MS) {
-                                    try {
-                                        const r = await fetch(url, { method: 'GET' });
-                                        const j = (await r.json());
-                                        const job = j?.job;
-                                        const status = job?.status;
-                                        if (status === 'concluido') {
-                                            if (job?.resultado) {
-                                                job.resultado.quantidade = job.parametros?.quantidade;
-                                            }
-                                            // Retornar o resultado completo do job, não apenas os produtos
-                                            return job?.resultado || { produtos: [] };
-                                        }
-                                        if (status === 'erro') {
-                                            console.warn(`⚠️ [BUSCA-WEB] Job falhou (${url}):`, job?.erro);
-                                            return { produtos: [] };
-                                        }
-                                    }
-                                    catch (e) {
-                                        console.error('❌ [BUSCA-WEB] Erro ao consultar job:', url, e?.message || e);
-                                    }
-                                    await sleep(POLL_INTERVAL_MS);
-                                }
-                                console.warn(`⏱️ [BUSCA-WEB] Timeout aguardando job: ${url}`);
-                                return { produtos: [] };
-                            }
-                            const resultadosPorJob = await Promise.all(jobStatusUrls.map(aguardarJob));
-                            // Extrair produtos e resultados completos dos jobs
-                            const produtosWeb = resultadosPorJob.flatMap((r) => r.produtos || []);
-                            const resultadosCompletos = resultadosPorJob.filter((r) => r && typeof r === 'object' && r.produtos);
+                            const svc = new WebBuscaJobService_1.default();
+                            const statusUrls = await svc.createJobsForFaltantes(faltantes, interpretation.solicitacao);
+                            const { resultadosCompletos, produtosWeb } = await svc.waitJobs(statusUrls);
                             console.log(`🧠 [LLM-FILTER] ${produtosWeb.length} produtos selecionados pelos jobs`);
                             // Se não há cotação principal ainda, criar uma para receber itens/faltantes
                             if (!cotacaoPrincipalId && (produtosWeb.length > 0 || faltantes.length > 0)) {
@@ -332,38 +256,10 @@ DADOS DO EMAIL:
                             // Inserir itens web na cotação principal
                             let inseridos = 0;
                             if (cotacaoPrincipalId) {
-                                // Usar o novo método que aproveita IDs dos produtos já salvos
-                                for (const resultadoJob of resultadosCompletos) {
-                                    try {
-                                        const inseridosJob = await CotacoesItensService_1.default.insertJobResultItems(Number(cotacaoPrincipalId), resultadoJob);
-                                        inseridos += inseridosJob;
-                                    }
-                                    catch (e) {
-                                        console.error('❌ [COTACAO-ITEM] Erro ao inserir itens do job:', e?.message || e);
-                                    }
-                                }
+                                inseridos = await svc.insertJobResultsInCotacao(Number(cotacaoPrincipalId), resultadosCompletos);
+                                const total = await svc.recalcOrcamento(Number(cotacaoPrincipalId));
+                                console.log(`🧮 [COTACAO] Orçamento recalculado: ${total} (itens web inseridos: ${inseridos})`);
                             }
-                            // Recalcular orçamento geral
-                            try {
-                                if (!cotacaoPrincipalId)
-                                    return;
-                                const { data: itens, error } = await connect_1.default
-                                    .from('cotacoes_itens')
-                                    .select('item_preco, quantidade')
-                                    .eq('cotacao_id', Number(cotacaoPrincipalId));
-                                if (!error && Array.isArray(itens)) {
-                                    let total = 0;
-                                    for (const it of itens) {
-                                        const preco = parseFloat(String(it.item_preco ?? 0));
-                                        const qtd = parseInt(String(it.quantidade ?? 1));
-                                        if (!isNaN(preco) && !isNaN(qtd))
-                                            total += preco * qtd;
-                                    }
-                                    await connect_1.default.from('cotacoes').update({ orcamento_geral: total }).eq('id', Number(cotacaoPrincipalId));
-                                    console.log(`🧮 [COTACAO] Orçamento recalculado: ${total} (itens web inseridos: ${inseridos})`);
-                                }
-                            }
-                            catch { }
                         }
                         catch (e) {
                             console.error('❌ [BUSCA-WEB] Falha no fluxo pós-Python:', e?.message || e);

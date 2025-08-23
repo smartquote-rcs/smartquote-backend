@@ -151,6 +151,71 @@ class CotacoesController {
             return res.status(500).json({ error: err.message });
         }
     }
+    /**
+     * Remove um elemento específico do campo faltantes da cotação
+     */
+    async removeFaltante(req, res) {
+        try {
+            const { id } = req.params;
+            const { index, query, nome } = req.body;
+            if (index === undefined && !query && !nome) {
+                return res.status(400).json({
+                    error: 'É necessário fornecer index, query ou nome para identificar o elemento a ser removido'
+                });
+            }
+            const cotacao = await CotacoesService_1.default.getById(Number(id));
+            if (!cotacao) {
+                return res.status(404).json({ error: 'Cotação não encontrada' });
+            }
+            const faltantesAtuais = Array.isArray(cotacao.faltantes) ? cotacao.faltantes : [];
+            let novosFaltantes = [...faltantesAtuais];
+            let elementoRemovido = null;
+            if (index !== undefined) {
+                // Remover por índice
+                if (index >= 0 && index < novosFaltantes.length) {
+                    elementoRemovido = novosFaltantes.splice(index, 1)[0];
+                }
+                else {
+                    return res.status(400).json({ error: 'Índice inválido' });
+                }
+            }
+            else if (query) {
+                // Remover por query sugerida
+                const indexToRemove = novosFaltantes.findIndex((faltante) => faltante.query_sugerida && faltante.query_sugerida.toLowerCase().includes(query.toLowerCase()));
+                if (indexToRemove !== -1) {
+                    elementoRemovido = novosFaltantes.splice(indexToRemove, 1)[0];
+                }
+            }
+            else if (nome) {
+                // Remover por nome
+                const indexToRemove = novosFaltantes.findIndex((faltante) => faltante.nome && faltante.nome.toLowerCase().includes(nome.toLowerCase()));
+                if (indexToRemove !== -1) {
+                    elementoRemovido = novosFaltantes.splice(indexToRemove, 1)[0];
+                }
+            }
+            if (!elementoRemovido) {
+                return res.status(404).json({ error: 'Elemento não encontrado nos faltantes' });
+            }
+            // Atualizar status se necessário
+            const novoStatus = novosFaltantes.length === 0 ? 'completa' : 'incompleta';
+            const cotacaoAtualizada = await CotacoesService_1.default.updatePartial(Number(id), {
+                faltantes: novosFaltantes,
+                status: novoStatus
+            });
+            return res.status(200).json({
+                message: 'Elemento removido dos faltantes com sucesso.',
+                data: {
+                    elementoRemovido,
+                    faltantesRestantes: novosFaltantes.length,
+                    novoStatus,
+                    cotacao: cotacaoAtualizada
+                }
+            });
+        }
+        catch (err) {
+            return res.status(500).json({ error: err.message });
+        }
+    }
 }
 exports.default = new CotacoesController();
 //# sourceMappingURL=CotacoesController.js.map

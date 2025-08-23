@@ -47,23 +47,27 @@ def _llm_escolher_indice(query: str, filtros: dict | None, custo_beneficio: dict
         })
 
     prompt_sistema = (
-        "Você é um assistente especializado em análise de produtos. Sua tarefa é analisar candidatos e escolher o melhor.\n"
-        "IMPORTANTE: Responda APENAS com um número JSON válido no formato exato: {\"index\": N}\n"
-        "Onde N é o índice (0, 1, 2...) do melhor candidato ou -1 se nenhum for adequado.\n"
-        "Critérios de avaliação:\n"
-        "1. Correspondência com a categoria solicitada\n"
-        "2. Atendimento às especificações técnicas\n"
-        "3. Relevância geral da consulta\n"
-        "4. Disponibilidade em estoque\n"
-        "5. Análise mais lógico-racional\n"
-        "6. **rigor**: inteiro (0–5) indicando quão exatamente o usuário quer o item:\n"
-        "   - 0 = genérico (\"um computador\")\n"
-        "   - 1 = pouco específico, com uma característica mínima\n"
-        "   - 2 = algumas características, ainda aberto a variações\n"
-        "   - 3 = moderadamente específico, margem de flexibilidade\n"
-        "   - 4 = quase fechado, pequenas variações possíveis\n"
-        "   - 5 = rígido, modelo exato exigido"
-        "NÃO adicione explicações, comentários ou texto extra. APENAS o JSON."
+    "Você é um assistente de IA especialista em análise de produtos de T.I., focado em tomar decisões lógicas e precisas. Sua tarefa é analisar uma lista de produtos candidatos e escolher o índice do melhor produto que corresponde à solicitação do usuário.\n"
+    "Responda APENAS com um objeto JSON válido no formato exato: {\"index\": N}\n"
+    "Onde N é o índice (0, 1, 2...) do melhor candidato, ou -1 se nenhum for adequado.\n\n"
+    
+    "--- REGRAS DE DECISÃO ---\n"
+    "1. **REGRA NÃO NEGOCIÁVEL: CORRESPONDÊNCIA DE TIPO DE PRODUTO**\n"
+    "   - Primeiro, verifique se algum dos candidatos corresponde ao tipo de produto principal da QUERY (ex: se a query é sobre 'router', procure por 'router', 'roteador', etc.).\n"
+    "   - Se NENHUM candidato corresponder ao tipo de produto principal, você DEVE retornar {\"index\": -1}, independentemente dos outros critérios.\n\n"
+    
+    "2. **INTERPRETAÇÃO DO PARÂMETRO 'RIGOR'**\n"
+    "   - O 'rigor' (0-5) aplica-se às *especificações e características* do produto, NÃO ao seu tipo fundamental.\n"
+    "   - `rigor=0` significa que as especificações são flexíveis (qualquer velocidade, qualquer marca), mas o produto AINDA TEM que ser do tipo correto (um router ainda tem que ser um router).\n\n"
+    
+    "3. **CRITÉRIOS DE AVALIAÇÃO (Apenas se a Regra 1 for cumprida)**\n"
+    "   - Se múltiplos candidatos passarem na Regra 1, use estes critérios para escolher o melhor entre eles:\n"
+    "     a. Atendimento às especificações técnicas mencionadas na QUERY e nos FILTROS.\n"
+    "     b. Melhor custo-benefício, com base nos DADOS ORCAMENTAIS.\n"
+    "     c. Maior relevância geral para a intenção da QUERY.\n"
+    "     d. Disponibilidade em estoque (maior é melhor).\n\n"
+    
+    "NÃO adicione explicações, comentários ou qualquer texto extra. APENAS o JSON."
     )
     filtros_str = "{}" if not filtros else json.dumps(filtros, ensure_ascii=False)
     user_msg = (
@@ -74,6 +78,7 @@ def _llm_escolher_indice(query: str, filtros: dict | None, custo_beneficio: dict
         f"CANDIDATOS: {json.dumps(compacts, ensure_ascii=False)}\n"
         "Escolha o melhor índice ou -1."
     )
+  
 
     try:
         client = Groq(api_key=api_key)

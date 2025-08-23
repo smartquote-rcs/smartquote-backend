@@ -57,7 +57,8 @@ async function filtrarProdutosComLLM(produtos, termoBusca, quantidade, custo_ben
         const apiKey = process.env.GROQ_API_KEY;
         if (!apiKey) {
             log('❌ [LLM-FILTER] GROQ_API_KEY não encontrada');
-            return produtosValidos.slice(0, 1); // Fallback: primeiro produto válido
+            log('🧠 [LLM-FILTER] Sem API key - nenhum produto será salvo');
+            return []; // Sem API key, não salvar nenhum produto
         }
         // Compactar candidatos para o prompt
         const candidatos = produtosValidos.map((p, index) => ({
@@ -91,6 +92,7 @@ async function filtrarProdutosComLLM(produtos, termoBusca, quantidade, custo_ben
             "- NUNCA escolha produtos sem URL ou com informações vazias\n" +
             "- Prefira produtos com descrições detalhadas\n" +
             "- Se nenhum produto for adequado, retorne -1\n" +
+            "- Seja RIGOROSO na seleção - é melhor rejeitar do que aceitar produtos inadequados\n" +
             "NÃO adicione explicações, comentários ou texto extra. APENAS o JSON.";
         const userMsg = `TERMO DE BUSCA: ${termoBusca}\n` +
             `QUANTIDADE: ${quantidade || 1}\n` +
@@ -149,8 +151,12 @@ async function filtrarProdutosComLLM(produtos, termoBusca, quantidade, custo_ben
         }
         // Validar faixa
         if (typeof idx !== 'number' || idx < 0 || idx >= produtosValidos.length) {
+            if (idx === -1) {
+                log(`🧠 [LLM-FILTER] LLM rejeitou todos os produtos (índice: -1)`);
+                return []; // Nenhum produto selecionado pelo LLM
+            }
             log(`🧠 [LLM-FILTER] Índice inválido: ${idx}`);
-            return produtosValidos.slice(0, 1); // Fallback: primeiro produto válido
+            return []; // Não fazer fallback, apenas retornar vazio
         }
         const produtoSelecionado = produtosValidos[idx];
         log(`🧠 [LLM-FILTER] Produto selecionado: ${produtoSelecionado.name || produtoSelecionado.nome}`);
@@ -158,13 +164,9 @@ async function filtrarProdutosComLLM(produtos, termoBusca, quantidade, custo_ben
     }
     catch (error) {
         log(`❌ [LLM-FILTER] Erro no filtro LLM (Groq): ${error}`);
-        // Em caso de erro, retornar produtos originais filtrados ou vazio
-        const produtosValidosFallback = produtos.filter(p => {
-            const temNome = p.name && p.name.trim().length > 0;
-            const temUrl = p.product_url && p.product_url.trim().length > 0;
-            return temNome && temUrl;
-        });
-        return produtosValidosFallback.slice(0, 1);
+        // Em caso de erro, não salvar nenhum produto
+        log(`🧠 [LLM-FILTER] Erro no LLM - nenhum produto será salvo`);
+        return [];
     }
 }
 // Escutar mensagens via stdin
@@ -185,8 +187,8 @@ process.stdin.on('data', async (data) => {
 });
 // Função principal que processa o job
 async function processarJob(message) {
-    const { id, termo, numResultados, fornecedores, usuarioId, quantidade, custo_beneficio, rigor, refinamento } = message;
-    log(`Worker iniciado para job ${id} - busca: "${termo}"${refinamento ? ' (com refinamento LLM)' : ''}`);
+    const { id, termo, numResultados, fornecedores, usuarioId, quantidade, custo_beneficio, rigor, refinamento, faltante_id } = message;
+    log(`Worker iniciado para job ${id} - busca: "${termo}"${refinamento ? ' (com refinamento LLM)' : ''}${faltante_id ? ` - Faltante ID: ${faltante_id}` : ''}`);
     const inicioTempo = Date.now();
     try {
         // 1. Buscar fornecedores da base de dados
@@ -216,6 +218,13 @@ async function processarJob(message) {
         const resultados = await buscaService.buscarProdutosMultiplosSites(termo, sitesParaBusca, numResultados);
         // Combinar resultados
         let todosProdutos = buscaService.combinarResultados(resultados);
+        // Adicionar o ID do faltante a todos os produtos
+        if (faltante_id) {
+            todosProdutos = todosProdutos.map(produto => ({
+                ...produto,
+                faltante_id: faltante_id
+            }));
+        }
         enviarMensagem({
             progresso: {
                 etapa: 'busca',
@@ -238,8 +247,12 @@ async function processarJob(message) {
                     detalhes: 'Aplicando refinamento LLM...'
                 }
             });
+            const produtosAntesLLM = todosProdutos.length;
             todosProdutos = await filtrarProdutosComLLM(todosProdutos, termo, quantidade, custo_beneficio, rigor);
-            log(`Produtos após refinamento LLM: ${todosProdutos.length}`);
+            log(`Produtos após refinamento LLM: ${todosProdutos.length} de ${produtosAntesLLM}`);
+            if (todosProdutos.length === 0) {
+                log(`🧠 [LLM-FILTER] Nenhum produto aprovado pelo LLM para salvamento`);
+            }
         }
         // 5. Salvar produtos na base de dados (se houver produtos)
         if (todosProdutos.length > 0) {

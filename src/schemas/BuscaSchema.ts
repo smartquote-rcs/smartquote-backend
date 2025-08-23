@@ -9,7 +9,8 @@ export const buscaSchema = z.object({
   quantidade: z.number().optional().default(1),
   custo_beneficio: z.any().optional(),
   rigor: z.number().int().min(0).max(5).optional().default(0),
-  refinamento: z.boolean().optional().default(false)
+  refinamento: z.boolean().optional().default(false),
+  faltante_id: z.string().optional() // ID do faltante para rastreamento
 });
 
 export type BuscaData = z.infer<typeof buscaSchema>;

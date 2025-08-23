@@ -11,5 +11,7 @@ router.get('/', CotacoesController_1.default.getAll);
 router.get('/:id', CotacoesController_1.default.getById);
 router.patch('/:id', CotacoesController_1.default.patch);
 router.delete('/:id', CotacoesController_1.default.delete);
+// Nova rota para remover elementos faltantes
+router.post('/:id/remove-faltante', CotacoesController_1.default.removeFaltante);
 exports.default = router;
 //# sourceMappingURL=cotacoes.routes.js.map

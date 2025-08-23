@@ -5,6 +5,10 @@ declare class CotacoesController {
     getById(req: Request, res: Response): Promise<Response>;
     delete(req: Request, res: Response): Promise<Response>;
     patch(req: Request, res: Response): Promise<Response>;
+    /**
+     * Remove um elemento específico do campo faltantes da cotação
+     */
+    removeFaltante(req: Request, res: Response): Promise<Response>;
 }
 declare const _default: CotacoesController;
 export default _default;

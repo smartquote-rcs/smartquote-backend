@@ -1,0 +1,18 @@
+{
+  "id": "interp_1755421130129_anksh2sph",
+  "emailId": "198b7408c848c22b",
+  "tipo": "pedido",
+  "prioridade": "media",
+  "solicitacao": "Solicito cotação para servidores de alto desempenho.",
+  "cliente": {
+    "nome": "Dario Nzita",
+    "empresa": null,
+    "email": "darionzita90@gmail.com",
+    "telefone": null,
+    "website": null,
+    "localizacao": null
+  },
+  "confianca": 95,
+  "interpretedAt": "2025-08-17T08:58:50.130Z",
+  "rawGeminiResponse": "```json\n{\n  \"tipo\": \"pedido\",\n  \"prioridade\": \"media\",\n  \"solicitacao\": \"Solicito cotação para servidores de alto desempenho.\",\n  \"cliente\": {\n    \"nome\": \"Dario Nzita\",\n    \"empresa\": null,\n    \"email\": \"darionzita90@gmail.com\",\n    \"telefone\": null,\n    \"website\": null,\n    \"localizacao\": null\n  },\n  \"confianca\": 95\n}\n```"
+}

@@ -1,0 +1,18 @@
+{
+  "id": "interp_1755704993704_3ei61asg7",
+  "emailId": "198c82bfb4f3e5e1",
+  "tipo": "pedido",
+  "prioridade": "média",
+  "solicitacao": "Quero comprar um PC gamer com monitor 4k.",
+  "cliente": {
+    "nome": "Dario Nzita",
+    "empresa": "",
+    "email": "darionzita90@gmail.com",
+    "telefone": "",
+    "website": "",
+    "localizacao": ""
+  },
+  "confianca": 90,
+  "interpretedAt": "2025-08-20T15:49:53.704Z",
+  "rawGeminiResponse": "```json\n{\n  \"tipo\": \"pedido\",\n  \"prioridade\": \"média\",\n  \"solicitacao\": \"Quero comprar um PC gamer com monitor 4k.\",\n  \"cliente\": {\n    \"nome\": \"Dario Nzita\",\n    \"empresa\": \"\",\n    \"email\": \"darionzita90@gmail.com\",\n    \"telefone\": \"\",\n    \"website\": \"\",\n    \"localizacao\": \"\"\n  },\n  \"confianca\": 90\n}\n```"
+}

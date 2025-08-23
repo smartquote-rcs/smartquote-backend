@@ -1,0 +1,18 @@
+{
+  "id": "interp_1755518970221_n64d1sesc",
+  "emailId": "198bce53cad4796c",
+  "tipo": "pedido",
+  "prioridade": "media",
+  "solicitacao": "Gostaria de solicitar um computador portátil com as seguintes especificações: tela de 15.6 polegadas, processador I5-1235u, resolução FHD, modelo Uslim, 16GB de RAM, SSD de 512GB, Windows 11 Home e cor prata.",
+  "cliente": {
+    "nome": "Dario Nzita",
+    "empresa": "",
+    "email": "darionzita90@gmail.com",
+    "telefone": "",
+    "website": "",
+    "localizacao": ""
+  },
+  "confianca": 90,
+  "interpretedAt": "2025-08-18T12:09:30.222Z",
+  "rawGeminiResponse": "```json\n{\n  \"tipo\": \"pedido\",\n  \"prioridade\": \"media\",\n  \"solicitacao\": \"Gostaria de solicitar um computador portátil com as seguintes especificações: tela de 15.6 polegadas, processador I5-1235u, resolução FHD, modelo Uslim, 16GB de RAM, SSD de 512GB, Windows 11 Home e cor prata.\",\n  \"cliente\": {\n    \"nome\": \"Dario Nzita\",\n    \"empresa\": \"\",\n    \"email\": \"darionzita90@gmail.com\",\n    \"telefone\": \"\",\n    \"website\": \"\",\n    \"localizacao\": \"\"\n  },\n  \"confianca\": 90\n}\n```"
+}

@@ -1,0 +1,18 @@
+{
+  "id": "interp_1755344644242_l5x7hsdn7",
+  "emailId": "198b2b17e05f4fd6",
+  "tipo": "pedido",
+  "prioridade": "media",
+  "solicitacao": "Gostaria de uma proposta de firewall com VPN IPSec para 10 usuários, com capacidade de bloquear sites maliciosos. Gostaria de saber a marca e o preço.",
+  "cliente": {
+    "nome": "Dario Nzita",
+    "empresa": "Não informado",
+    "email": "darionzita90@gmail.com",
+    "telefone": "Não informado",
+    "website": "Não informado",
+    "localizacao": "Não informado"
+  },
+  "confianca": 95,
+  "interpretedAt": "2025-08-16T11:44:04.242Z",
+  "rawGeminiResponse": "```json\n{\n  \"tipo\": \"pedido\",\n  \"prioridade\": \"media\",\n  \"solicitacao\": \"Gostaria de uma proposta de firewall com VPN IPSec para 10 usuários, com capacidade de bloquear sites maliciosos. Gostaria de saber a marca e o preço.\",\n  \"cliente\": {\n    \"nome\": \"Dario Nzita\",\n    \"empresa\": \"Não informado\",\n    \"email\": \"darionzita90@gmail.com\",\n    \"telefone\": \"Não informado\",\n    \"website\": \"Não informado\",\n    \"localizacao\": \"Não informado\"\n  },\n  \"confianca\": 95\n}\n```"
+}

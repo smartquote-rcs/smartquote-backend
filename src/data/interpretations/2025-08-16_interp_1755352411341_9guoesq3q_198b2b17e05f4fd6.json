@@ -1,0 +1,37 @@
+{
+  "id": "interp_1755352411341_9guoesq3q",
+  "emailId": "198b2b17e05f4fd6",
+  "tipo": "cotacao",
+  "prioridade": "media",
+  "produtos": [
+    {
+      "nome": "firewall",
+      "descricao": "com VPN IPSec, para 10 usuários, com capacidade de bloquear sites ruins.",
+      "quantidade": 1,
+      "unidade": "unidade",
+      "preco": null,
+      "moeda": null,
+      "codigo": null,
+      "categoria": "seguranca"
+    }
+  ],
+  "cliente": {
+    "nome": "Dario Nzita",
+    "empresa": null,
+    "email": "darionzita90@gmail.com",
+    "telefone": null,
+    "website": null,
+    "localizacao": null
+  },
+  "resumo": "O email é uma solicitação de cotação para um firewall com VPN IPSec para 10 usuários com funcionalidade de bloqueio de sites. O remetente se identifica como 'Net Admin'.",
+  "acoes_sugeridas": [
+    "Responder ao email solicitando mais informações sobre a necessidade do cliente (tamanho da rede, throughput desejado, etc.)",
+    "Consultar o portfólio de firewalls da empresa para identificar modelos adequados.",
+    "Preparar uma proposta com diferentes opções de firewall e seus respectivos preços.",
+    "Incluir informações sobre serviços adicionais (instalação, configuração, suporte).",
+    "Enviar a proposta ao cliente."
+  ],
+  "confianca": 95,
+  "interpretedAt": "2025-08-16T13:53:31.341Z",
+  "rawGeminiResponse": "```json\n{\n  \"tipo\": \"cotacao\",\n  \"prioridade\": \"media\",\n  \"produtos\": [\n    {\n      \"nome\": \"firewall\",\n      \"descricao\": \"com VPN IPSec, para 10 usuários, com capacidade de bloquear sites ruins.\",\n      \"quantidade\": 1,\n      \"unidade\": \"unidade\",\n      \"preco\": null,\n      \"moeda\": null,\n      \"codigo\": null,\n      \"categoria\": \"seguranca\"\n    }\n  ],\n  \"cliente\": {\n    \"nome\": \"Dario Nzita\",\n    \"empresa\": null,\n    \"email\": \"darionzita90@gmail.com\",\n    \"telefone\": null,\n    \"website\": null,\n    \"localizacao\": null\n  },\n  \"resumo\": \"O email é uma solicitação de cotação para um firewall com VPN IPSec para 10 usuários com funcionalidade de bloqueio de sites. O remetente se identifica como 'Net Admin'.\",\n  \"acoes_sugeridas\": [\n    \"Responder ao email solicitando mais informações sobre a necessidade do cliente (tamanho da rede, throughput desejado, etc.)\",\n    \"Consultar o portfólio de firewalls da empresa para identificar modelos adequados.\",\n    \"Preparar uma proposta com diferentes opções de firewall e seus respectivos preços.\",\n    \"Incluir informações sobre serviços adicionais (instalação, configuração, suporte).\",\n    \"Enviar a proposta ao cliente.\"\n  ],\n  \"confianca\": 95\n}\n```"
+}

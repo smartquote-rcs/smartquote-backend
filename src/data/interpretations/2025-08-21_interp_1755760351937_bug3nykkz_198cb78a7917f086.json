@@ -1,0 +1,18 @@
+{
+  "id": "interp_1755760351937_bug3nykkz",
+  "emailId": "198cb78a7917f086",
+  "tipo": "pedido",
+  "prioridade": "média",
+  "solicitacao": "Quero comprar um Computador Desktop all-in-one 23.8 FHD i3-n300.",
+  "cliente": {
+    "nome": "Dario Nzita",
+    "empresa": "",
+    "email": "darionzita90@gmail.com",
+    "telefone": "",
+    "website": "",
+    "localizacao": ""
+  },
+  "confianca": 95,
+  "interpretedAt": "2025-08-21T07:12:31.937Z",
+  "rawGeminiResponse": "```json\n{\n  \"tipo\": \"pedido\",\n  \"prioridade\": \"média\",\n  \"solicitacao\": \"Quero comprar um Computador Desktop all-in-one 23.8 FHD i3-n300.\",\n  \"cliente\": {\n    \"nome\": \"Dario Nzita\",\n    \"empresa\": \"\",\n    \"email\": \"darionzita90@gmail.com\",\n    \"telefone\": \"\",\n    \"website\": \"\",\n    \"localizacao\": \"\"\n  },\n  \"confianca\": 95\n}\n```"
+}

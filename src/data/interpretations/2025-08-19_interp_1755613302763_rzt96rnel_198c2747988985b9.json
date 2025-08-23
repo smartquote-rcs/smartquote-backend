@@ -1,0 +1,18 @@
+{
+  "id": "interp_1755613302763_rzt96rnel",
+  "emailId": "198c2747988985b9",
+  "tipo": "pedido",
+  "prioridade": "média",
+  "solicitacao": "Estou interessado em adquirir um computador de bom desempenho para atividades de escritório e duas impressoras multifuncionais de qualidade.",
+  "cliente": {
+    "nome": "Dario Nzita",
+    "empresa": null,
+    "email": "darionzita90@gmail.com",
+    "telefone": null,
+    "website": null,
+    "localizacao": null
+  },
+  "confianca": 90,
+  "interpretedAt": "2025-08-19T14:21:42.763Z",
+  "rawGeminiResponse": "```json\n{\n  \"tipo\": \"pedido\",\n  \"prioridade\": \"média\",\n  \"solicitacao\": \"Estou interessado em adquirir um computador de bom desempenho para atividades de escritório e duas impressoras multifuncionais de qualidade.\",\n  \"cliente\": {\n    \"nome\": \"Dario Nzita\",\n    \"empresa\": null,\n    \"email\": \"darionzita90@gmail.com\",\n    \"telefone\": null,\n    \"website\": null,\n    \"localizacao\": null\n  },\n  \"confianca\": 90\n}\n```"
+}

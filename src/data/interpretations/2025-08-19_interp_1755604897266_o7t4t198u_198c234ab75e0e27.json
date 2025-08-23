@@ -1,0 +1,45 @@
+{
+  "id": "interp_1755604897266_o7t4t198u",
+  "emailId": "198c234ab75e0e27",
+  "tipo": "pedido",
+  "prioridade": "media",
+  "produtos": [
+    {
+      "nome": "computador",
+      "descricao": "bom",
+      "quantidade": 1,
+      "unidade": "unidade",
+      "preco": null,
+      "moeda": null,
+      "codigo": null,
+      "categoria": "hardware"
+    },
+    {
+      "nome": "impressora",
+      "descricao": "boa",
+      "quantidade": 2,
+      "unidade": "unidade",
+      "preco": null,
+      "moeda": null,
+      "codigo": null,
+      "categoria": "perifericos"
+    }
+  ],
+  "cliente": {
+    "nome": "Dario Nzita",
+    "empresa": null,
+    "email": "darionzita90@gmail.com",
+    "telefone": null,
+    "website": null,
+    "localizacao": null
+  },
+  "resumo": "O cliente Dario Nzita solicita um computador e duas impressoras de boa qualidade.",
+  "acoes_sugeridas": [
+    "Entrar em contato com o cliente para entender suas necessidades específicas em relação ao computador e impressoras (ex: especificações técnicas, orçamento disponível).",
+    "Enviar um catálogo ou lista de opções de computadores e impressoras que se encaixem nas possíveis necessidades do cliente.",
+    "Agendar uma demonstração dos produtos, se possível."
+  ],
+  "confianca": 95,
+  "interpretedAt": "2025-08-19T12:01:37.266Z",
+  "rawGeminiResponse": "```json\n{\n  \"tipo\": \"pedido\",\n  \"prioridade\": \"media\",\n  \"produtos\": [\n    {\n      \"nome\": \"computador\",\n      \"descricao\": \"bom\",\n      \"quantidade\": 1,\n      \"unidade\": \"unidade\",\n      \"preco\": null,\n      \"moeda\": null,\n      \"codigo\": null,\n      \"categoria\": \"hardware\"\n    },\n    {\n      \"nome\": \"impressora\",\n      \"descricao\": \"boa\",\n      \"quantidade\": 2,\n      \"unidade\": \"unidade\",\n      \"preco\": null,\n      \"moeda\": null,\n      \"codigo\": null,\n      \"categoria\": \"perifericos\"\n    }\n  ],\n  \"cliente\": {\n    \"nome\": \"Dario Nzita\",\n    \"empresa\": null,\n    \"email\": \"darionzita90@gmail.com\",\n    \"telefone\": null,\n    \"website\": null,\n    \"localizacao\": null\n  },\n  \"resumo\": \"O cliente Dario Nzita solicita um computador e duas impressoras de boa qualidade.\",\n  \"acoes_sugeridas\": [\n    \"Entrar em contato com o cliente para entender suas necessidades específicas em relação ao computador e impressoras (ex: especificações técnicas, orçamento disponível).\",\n    \"Enviar um catálogo ou lista de opções de computadores e impressoras que se encaixem nas possíveis necessidades do cliente.\",\n    \"Agendar uma demonstração dos produtos, se possível.\"\n  ],\n  \"confianca\": 95\n}\n```"
+}

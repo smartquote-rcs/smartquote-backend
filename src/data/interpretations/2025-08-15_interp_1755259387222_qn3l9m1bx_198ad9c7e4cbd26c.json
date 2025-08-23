@@ -1,0 +1,36 @@
+{
+  "id": "interp_1755259387222_qn3l9m1bx",
+  "emailId": "198ad9c7e4cbd26c",
+  "tipo": "cotacao",
+  "prioridade": "media",
+  "produtos": [
+    {
+      "nome": "Servidor de Alto Desempenho",
+      "descricao": "Modelos com processadores Intel Xeon Scalable",
+      "quantidade": null,
+      "unidade": null,
+      "preco": null,
+      "moeda": null,
+      "codigo": null,
+      "categoria": "servidor"
+    }
+  ],
+  "cliente": {
+    "nome": "Dario Nzita",
+    "empresa": null,
+    "email": "darionzita90@gmail.com",
+    "telefone": null,
+    "website": null,
+    "localizacao": null
+  },
+  "resumo": "O email é uma solicitação de cotação para servidores de alto desempenho com processadores Intel Xeon Scalable.",
+  "acoes_sugeridas": [
+    "Entrar em contato com o cliente para entender melhor suas necessidades específicas.",
+    "Preparar uma cotação detalhada com diferentes modelos de servidores Intel Xeon Scalable.",
+    "Incluir informações sobre prazos de entrega e condições de pagamento.",
+    "Enviar a cotação o mais rápido possível."
+  ],
+  "confianca": 95,
+  "interpretedAt": "2025-08-15T12:03:07.222Z",
+  "rawGeminiResponse": "```json\n{\n  \"tipo\": \"cotacao\",\n  \"prioridade\": \"media\",\n  \"produtos\": [\n    {\n      \"nome\": \"Servidor de Alto Desempenho\",\n      \"descricao\": \"Modelos com processadores Intel Xeon Scalable\",\n      \"quantidade\": null,\n      \"unidade\": null,\n      \"preco\": null,\n      \"moeda\": null,\n      \"codigo\": null,\n      \"categoria\": \"servidor\"\n    }\n  ],\n  \"cliente\": {\n    \"nome\": \"Dario Nzita\",\n    \"empresa\": null,\n    \"email\": \"darionzita90@gmail.com\",\n    \"telefone\": null,\n    \"website\": null,\n    \"localizacao\": null\n  },\n  \"resumo\": \"O email é uma solicitação de cotação para servidores de alto desempenho com processadores Intel Xeon Scalable.\",\n  \"acoes_sugeridas\": [\n    \"Entrar em contato com o cliente para entender melhor suas necessidades específicas.\",\n    \"Preparar uma cotação detalhada com diferentes modelos de servidores Intel Xeon Scalable.\",\n    \"Incluir informações sobre prazos de entrega e condições de pagamento.\",\n    \"Enviar a cotação o mais rápido possível.\"\n  ],\n  \"confianca\": 95\n}\n```"
+}

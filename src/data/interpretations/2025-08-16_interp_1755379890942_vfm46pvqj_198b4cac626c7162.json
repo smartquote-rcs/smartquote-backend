@@ -1,0 +1,18 @@
+{
+  "id": "interp_1755379890942_vfm46pvqj",
+  "emailId": "198b4cac626c7162",
+  "tipo": "pedido",
+  "prioridade": "media",
+  "solicitacao": "Gostaria de saber se vocês oferecem soluções de automação para limpeza de escritórios, como robôs aspiradores, similar à automação que vocês fazem para postos.",
+  "cliente": {
+    "nome": "Dario Nzita",
+    "empresa": null,
+    "email": "darionzita90@gmail.com",
+    "telefone": null,
+    "website": null,
+    "localizacao": null
+  },
+  "confianca": 95,
+  "interpretedAt": "2025-08-16T21:31:30.942Z",
+  "rawGeminiResponse": "```json\n{\n  \"tipo\": \"pedido\",\n  \"prioridade\": \"media\",\n  \"solicitacao\": \"Gostaria de saber se vocês oferecem soluções de automação para limpeza de escritórios, como robôs aspiradores, similar à automação que vocês fazem para postos.\",\n  \"cliente\": {\n    \"nome\": \"Dario Nzita\",\n    \"empresa\": null,\n    \"email\": \"darionzita90@gmail.com\",\n    \"telefone\": null,\n    \"website\": null,\n    \"localizacao\": null\n  },\n  \"confianca\": 95\n}\n```"
+}

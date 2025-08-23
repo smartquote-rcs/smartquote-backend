@@ -13,6 +13,7 @@ import notificationsRouter from "./notifications.routes";
 import { ProdutosService } from '../services/ProdutoService';
 import buscaLocalRouter from './buscaLocal.routes';
 import promptsRouter from './prompts.routes';
+import cotacoesItensRouter from './cotacoesItens.routes';
 
 const routers = Router();
 const produtosService = new ProdutosService();
@@ -28,6 +29,7 @@ routers.use('/fornecedores', fornecedoresRoutes);
 routers.use('/suppliers', fornecedoresRoutes);
 //routers.use('/cotacoes',authMiddleware, cotacoesRoutes);
 routers.use('/cotacoes', cotacoesRoutes);
+routers.use('/cotacoes-itens', cotacoesItensRouter);
 //routers.use('/busca-automatica',authMiddleware, buscaRouter);
 routers.use('/busca-automatica', buscaRouter);
 routers.use('/email', emailRouter);

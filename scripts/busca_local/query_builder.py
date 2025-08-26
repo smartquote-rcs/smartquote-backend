@@ -88,9 +88,6 @@ def gerar_queries_itens(brief: Dict[str, Any]) -> List[Dict[str, Any]]:
         rigor = int(item.get("rigor", 0) or 0)
         peso = _prioridade_para_peso(prioridade)
 
-        if prioridade not in {"critica", "alta"}:
-            # Se prioridade não for crítica ou alta, não gera query
-            continue
         termos_especificos = _flatten_specs_to_terms(item.get("especificacoes_minimas"))
 
         query_sem = _semantica_join([nome] + tags + [justificativa] + ["ou"] + alternativas)

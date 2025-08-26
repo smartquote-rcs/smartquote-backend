@@ -172,8 +172,6 @@ class WeaviateManager:
             }
             collection.data.update(uuid=uuid_produto, properties=dados_update)
             print(f"✏️ Produto atualizado (só preço/estoque): {nome} (id={produto_id})")
-        else:
-            print(f"⏩ Produto já está atualizado: {nome} (id={produto_id})")
 
     def remover_orfaos(self, valid_produto_ids: set[int]) -> dict:
         """Remove objetos em Weaviate cujo produto_id não existe na base relacional.

@@ -17,129 +17,121 @@ from busca_local.text_utils import (
 )
 from busca_local.config import CATEGORY_EQUIV, STOPWORDS_PT, GROQ_API_KEY
 
-def _llm_escolher_indice(query: str, filtros: dict | None, custo_beneficio: dict | None, rigor: int | None, candidatos: List[Dict[str, Any]]) -> int:
-    """Usa LLM (Groq) para escolher o índice do melhor candidato ou -1 se nenhum servir.
 
-    Contrato rápido:
-    - Input: query (str), filtros (dict ou None), candidatos (lista já limitada)
-    - Output: int (índice 0-based do candidato escolhido; -1 se nenhum adequado)
-    - Falhas: em erro de API ou chave ausente, retorna -1
+def _llm_escolher_indice(query: str, filtros: dict | None, custo_beneficio: dict | None, rigor: int | None, candidatos: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Usa LLM (Groq) para escolher o índice do melhor candidato e gerar relatório detalhado.
+    Esta versão foi refatorada para usar JSON garantido, tornando-a muito mais robusta.
     """
     if not candidatos:
-        return -1
+        return {"index": -1, "relatorio": {"erro": "Nenhum candidato fornecido"}}
 
-    api_key = os.environ.get("GROQ_API_KEY", GROQ_API_KEY)
+    # A API Key deve ser gerida de forma segura
+    api_key = os.environ.get("GROQ_API_KEY")
     if not api_key:
-        # Sem chave, não conseguimos refinar
-        return -1
+        return {"index": -1, "relatorio": {"erro": "API key da Groq não disponível"}}
 
-    # Compactar candidatos para o prompt (evitar payloads enormes)
+    # Compactar candidatos para o prompt, garantindo clareza para a LLM
     compacts: List[Dict[str, Any]] = []
     for i, c in enumerate(candidatos):
         compacts.append({
             "index": i,
+            "id": c.get("produto_id", ""),
             "nome": c.get("nome", ""),
-            "categoria": c.get("categoria") or c.get("modelo") or "",
+            "categoria": c.get("categoria_geral") or c.get("categoria") or "",
             "tags": c.get("tags") or [],
-            "descricao": (c.get("descricao") or "")[:400],
-            "preco": c.get("preco", None),
-            "estoque": c.get("estoque", None),
+            "descricao": (c.get("descricao_geral") or c.get("descricao") or "")[:400], # Limita o tamanho da descrição
+            "preco": c.get("preco"),
+            "estoque": c.get("estoque"),
         })
 
+    # --- PROMPT REFINADO PARA SAÍDA JSON ---
+    # A mudança principal é instruir a LLM a usar JSON.
     prompt_sistema = (
-    "Você é um assistente de IA especialista em análise de produtos de T.I., focado em tomar decisões lógicas e precisas. Sua tarefa é analisar uma lista de produtos candidatos e escolher o índice do melhor produto que corresponde à solicitação do usuário.\n"
-    "Responda APENAS com um objeto JSON válido no formato exato: {\"index\": N}\n"
-    "Onde N é o índice (0, 1, 2...) do melhor candidato, ou -1 se nenhum for adequado.\n\n"
-    
-    "--- REGRAS DE DECISÃO ---\n"
-    "1. **REGRA NÃO NEGOCIÁVEL: CORRESPONDÊNCIA DE TIPO DE PRODUTO**\n"
-    "   - Primeiro, verifique se algum dos candidatos corresponde ao tipo de produto principal da QUERY (ex: se a query é sobre 'router', procure por 'router', 'roteador', etc.).\n"
-    "   - Se NENHUM candidato corresponder ao tipo de produto principal, você DEVE retornar {\"index\": -1}, independentemente dos outros critérios.\n\n"
-    
-    "2. **INTERPRETAÇÃO DO PARÂMETRO 'RIGOR'**\n"
-    "   - O 'rigor' (0-5) aplica-se às *especificações e características* do produto, NÃO ao seu tipo fundamental.\n"
-    "   - `rigor=0` significa que as especificações são flexíveis (qualquer velocidade, qualquer marca), mas o produto AINDA TEM que ser do tipo correto (um router ainda tem que ser um router).\n\n"
-    
-    "3. **CRITÉRIOS DE AVALIAÇÃO (Apenas se a Regra 1 for cumprida)**\n"
-    "   - Se múltiplos candidatos passarem na Regra 1, use estes critérios para escolher o melhor entre eles:\n"
-    "     a. Atendimento às especificações técnicas mencionadas na QUERY e nos FILTROS.\n"
-    "     b. Melhor custo-benefício, com base nos DADOS ORCAMENTAIS.\n"
-    "     c. Maior relevância geral para a intenção da QUERY.\n"
-    "     d. Disponibilidade em estoque (maior é melhor).\n\n"
-    
-    "NÃO adicione explicações, comentários ou qualquer texto extra. APENAS o JSON."
+        "Você é um Analista de Soluções de T.I. sénior, agindo como o módulo de decisão final do sistema SmartQuote. Sua análise deve ser lógica, objetiva e implacável na aplicação das regras.\n"
+        "A sua tarefa é analisar uma lista de produtos candidatos e gerar um relatório de recomendação, seguindo estritamente o formato JSON especificado.\n"
+        "Responda APENAS com um objeto JSON válido, sem comentários, markdown ou qualquer texto extra.\n\n"
+        
+        "--- FORMATO DE SAÍDA (SUCESSO) ---\n"
+        '{"index": <int>, "relatorio": {"escolha_principal": "<string>", "justificativa_escolha": "<string>", "top5_ranking": [{"id": <int>, "posicao": <int>, "nome": "<string>", "preco": "<float_or_null>", "justificativa": "<string>", "pontos_fortes": ["<string>"], "pontos_fracos": ["<string>"], "score_estimado": <float>}], "criterios_avaliacao": {"correspondencia_tipo": "<string>", "especificacoes": "<string>", "custo_beneficio": "<string>", "disponibilidade": "<string>"}}}\n\n'
+
+        "--- FORMATO DE SAÍDA (FALHA) ---\n"
+        '{"index": -1, "relatorio": {"escolha_principal": null, "justificativa_escolha": "Nenhum candidato corresponde ao tipo de produto solicitado.", "top5_ranking": [], "criterios_avaliacao": {"correspondencia_tipo": "Falhou. Nenhum candidato elegível foi encontrado.", "especificacoes": null, "custo_beneficio": null, "disponibilidade": null}}}\n\n'
+
+        "--- REGRAS DE DECISÃO HIERÁRQUICAS ---\n"
+        "**PASSO 1: VERIFICAÇÃO DE ELEGIBILIDADE (REGRA NÃO NEGOCIÁVEL)**\n"
+        "   - PRIMEIRO, analise a QUERY do utilizador e a `categoria` e `nome` de CADA candidato.\n"
+        "   - PERGUNTA-CHAVE: Existe PELO MENOS UM candidato cujo tipo fundamental corresponde à QUERY? (Ex: a query pede 'router' e um candidato é um 'roteador').\n"
+        "   - **SE A RESPOSTA FOR NÃO:** Você DEVE parar imediatamente e retornar o JSON no `Formato de FALHA`.\n"
+        "   - **SE A RESPOSTA FOR SIM:** E APENAS nesse caso, prossiga para o Passo 2.\n\n"
+
+        "**PASSO 2: INTERPRETAÇÃO DO PARÂMETRO 'RIGOR'**\n"
+        "   - O 'rigor' (0-5) define o quão estritamente as especificações da QUERY devem ser seguidas.\n"
+        "   - `rigor=0` (genérico): Foque-se no custo-benefício. As especificações são flexíveis.\n"
+        "   - `rigor=5` (rígido): As especificações são OBRIGATÓRIAS. Um candidato que não cumpra uma especificação deve ser desqualificado.\n\n"
+
+        "**PASSO 3: ANÁLISE E GERAÇÃO DO RELATÓRIO (FORMATO DE SUCESSO)**\n"
+        "   - Escolha o melhor candidato ELEGÍVEL com base no 'rigor'.\n"
+        "   - Preencha todos os campos do relatório de forma detalhada e objetiva, justificando cada ponto do ranking e da avaliação."
     )
+    
     filtros_str = "{}" if not filtros else json.dumps(filtros, ensure_ascii=False)
     user_msg = (
         f"QUERY: {query}\n"
         f"FILTROS: {filtros_str}\n"
         f"DADOS ORCAMENTAIS: {custo_beneficio or {}}\n"
         f"RIGOR: {rigor or 0}\n"
-        f"CANDIDATOS: {json.dumps(compacts, ensure_ascii=False)}\n"
-        "Escolha o melhor índice ou -1."
+        f"CANDIDATOS: {json.dumps(compacts, ensure_ascii=False)}\n\n"
+        "Analise e retorne o JSON completo com o ranking e as justificativas."
     )
-  
 
     try:
+        # Importar a biblioteca Groq apenas quando necessário
+        from groq import Groq
+        
         client = Groq(api_key=api_key)
         resp = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            # Usar um modelo mais recente e robusto, se disponível
+            model="llama-3.3-70b-versatile", 
             messages=[
                 {"role": "system", "content": prompt_sistema},
                 {"role": "user", "content": user_msg},
             ],
             temperature=0,
-            max_tokens=50,
+            max_tokens=4096,
             stream=False,
+            response_format={"type": "json_object"},
         )
         
-        content = (resp.choices[0].message.content or "").strip()
-        print(f"[LLM] Resposta bruta: '{content}'", file=sys.stderr)
+        content = (resp.choices[0].message.content or "{}").strip()
+        print(f"[LLM] Resposta bruta (JSON): '{content}'", file=sys.stderr)
         
-        # Tentar extrair JSON {"index": X}
-        idx = -1
-        try:
-            # Primeiro, tentar buscar por um padrão JSON na resposta
-            json_match = re.search(r'\{\s*"index"\s*:\s*(-?\d+)\s*\}', content)
-            if json_match:
-                idx = int(json_match.group(1))
-                print(f"[LLM] Índice extraído via regex JSON: {idx}", file=sys.stderr)
-            else:
-                # Se não achou padrão JSON, tentar parse direto
-                cleaned_content = content
-                # Se a resposta contém apenas um número, envolver em JSON
-                if re.match(r"^-?\d+$", content.strip()):
-                    cleaned_content = f'{{"index": {content.strip()}}}'
-                
-                data = json.loads(cleaned_content)
-                val = data.get("index")
-                if isinstance(val, int):
-                    idx = val
-                    print(f"[LLM] Índice extraído via JSON parse: {idx}", file=sys.stderr)
-        except Exception as e:
-            print(f"[LLM] Erro ao fazer parse do JSON: {e}", file=sys.stderr)
-            # fallback: buscar qualquer número na resposta
-            number_match = re.search(r"-?\d+", content)
-            if number_match:
-                try:
-                    idx = int(number_match.group(0))
-                    print(f"[LLM] Índice extraído via regex numérica: {idx}", file=sys.stderr)
-                except Exception:
-                    idx = -1
+        data = json.loads(content)
         
-        # Validar faixa
-        if idx is None or not isinstance(idx, int):
-            print(f"[LLM] Índice inválido: {idx}", file=sys.stderr)
-            idx = -1
-        if idx < 0 or idx >= len(candidatos):
-            print(f"[LLM] Índice fora da faixa: {idx} (válido: 0-{len(candidatos)-1})", file=sys.stderr)
-            return -1
+        # A lógica de validação pode ser mantida, pois é robusta
+        idx = data.get("index", -1)
+        relatorio = data.get("relatorio", {})
+
+        if not isinstance(idx, int):
+             return {"index": -1, "relatorio": {"erro": f"Índice inválido: {idx}"}}
         
-        print(f"[LLM] Índice final selecionado: {idx}", file=sys.stderr)
-        return idx
+        if idx == -1:
+            print("[LLM] ⚠️ LLM rejeitou todos os candidatos.", file=sys.stderr)
+            return {"index": -1, "relatorio": relatorio or {"erro": "Nenhum candidato elegível."}}
+
+        if not (0 <= idx < len(candidatos)):
+            return {"index": -1, "relatorio": {"erro": f"Índice fora da faixa: {idx}"}}
+
+        print(f"[LLM] ✅ JSON recebido e válido - Índice escolhido: {idx}", file=sys.stderr)
+        return {"index": idx, "relatorio": relatorio}
+
+    except json.JSONDecodeError as e:
+        print(f"[LLM] ❌ Erro fatal ao fazer parse do JSON: {e}", file=sys.stderr)
+        return {"index": -1, "relatorio": {"erro": f"JSON malformado: {e}"}}
     except Exception as e:
-        print(f"[LLM] Erro na chamada da API: {e}", file=sys.stderr)
-        return -1
+        print(f"[LLM] ❌ Erro na chamada da API Groq: {e}", file=sys.stderr)
+        return {"index": -1, "relatorio": {"erro": f"Erro na API: {e}"}}
+
 
 def construir_filtro(filtros: dict = None):
     """Constrói filtros do Weaviate v4 (apenas estruturais, texto é tratado pela busca híbrida)."""
@@ -394,9 +386,9 @@ def buscar_hibrido_ponderado(client: weaviate.WeaviateClient, modelos: dict, que
     lista_final = lista_final[:limite]
 
     # 4. Exibir resultados
-    print(f"\n📊 Encontrados {len(lista_final)} produtos relevantes:")
+    print(f"\n📊 Encontrados {len(lista_final)} produtos candidatos no banco de dados:")
     for i, r in enumerate(lista_final, 1):
-        preco_info = f" | R$ {r.get('preco', 0):.2f}" if r.get('preco') else ""
+        preco_info = f" |AOA$ {r.get('preco', 0):.2f}" if r.get('preco') else ""
         sem_pct = int(r['score_semantico'] * 100)
         txt_pct = int(r['score_textual'] * 100)
         pc_pct = int(r.get('score_palavras_chave', 0.0) * 100)
@@ -406,4 +398,5 @@ def buscar_hibrido_ponderado(client: weaviate.WeaviateClient, modelos: dict, que
         print(f"{i:2d}. {r['nome']}")
         print(f"    📈 Score: {final_pct}% (Sem: {sem_pct}% + Txt: {txt_pct}% + PC: {pc_pct}% + Flt: {flt_pct}%)")
     
+    print(f"\n🔍 Estes produtos serão enviados para análise LLM para verificar se atendem aos critérios específicos da solicitação.")
     return lista_final

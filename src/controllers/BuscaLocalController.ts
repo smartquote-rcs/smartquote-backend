@@ -8,6 +8,7 @@ import supabase from '../infra/supabase/connect';
 import PromptsService from '../services/PromptsService';
 import CotacoesService from '../services/CotacoesService';
 import type { Cotacao } from '../models/Cotacao';
+import RelatorioService from '../services/RelatorioService';
 
 type BuscaLocalOptions = {
   limite?: number;
@@ -163,10 +164,14 @@ export class BuscaLocalController {
       // O Python já cria os itens locais automaticamente, não precisamos duplicar aqui
       // Apenas recalcular orçamento se houver resultados locais
       if (cotacaoPrincipalId && temResultadosLocais) {
-        console.log(`✅ [BUSCA-LOCAL] EVITANDO duplicação - apenas 1 item será mantido no banco`);
         await this.recalcularOrcamento(Number(cotacaoPrincipalId));
       }
 
+      // Relatório será gerado automaticamente pelo WebBuscaJobService quando a cotação estiver completa
+      
+    // Verificar e gerar relatório automaticamente
+    await RelatorioService.verificarEgerarRelatorio(Number(cotacaoPrincipalId));
+    
       return res.status(200).json({
         success: true,
         message: 'Busca híbrida concluída',
@@ -199,6 +204,7 @@ export class BuscaLocalController {
       console.error('Erro ao recalcular orçamento:', e);
     }
   }
+
 }
 
 export default new BuscaLocalController();

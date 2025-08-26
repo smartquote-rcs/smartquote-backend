@@ -30,6 +30,7 @@ interface JobStatus {
     detalhes?: string;
   };
   resultado?: {
+    relatorio?: any;
     produtos?: any[];
     salvamento?: {
       salvos: number;
@@ -236,6 +237,7 @@ class JobManager {
       job.concluidoEm = new Date();
       job.parametros.quantidade = message.quantidade;
       job.resultado = {
+        relatorio: message.relatorio,
         produtos: message.produtos,
         salvamento: message.salvamento,
         tempoExecucao: message.tempoExecucao

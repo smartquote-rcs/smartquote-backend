@@ -34,6 +34,7 @@ interface ResultMessage {
   status: 'sucesso' | 'erro';
   produtos?: any[];
   quantidade?: number; // Quantidade de produtos requerido
+  relatorio?: any; // Relatório gerado pelo LLM
   erro?: string;
   salvamento?: {
     salvos: number;
@@ -64,9 +65,9 @@ function log(message: string) {
 }
 
 // Função para filtrar produtos usando LLM
-async function filtrarProdutosComLLM(produtos: any[], termoBusca: string, quantidade?: number, custo_beneficio?: any, rigor?: number): Promise<any[]> {
+async function filtrarProdutosComLLM(produtos: any[], termoBusca: string, quantidade?: number, custo_beneficio?: any, rigor?: number): Promise<{produtos: any[], relatorio: any}> {
   if (!produtos || produtos.length === 0) {
-    return [];
+    return { produtos: [], relatorio: {} };
   }
 
   try {
@@ -77,17 +78,13 @@ async function filtrarProdutosComLLM(produtos: any[], termoBusca: string, quanti
       const temNome = p.name && p.name.trim().length > 0;
       const temUrl = p.product_url && p.product_url.trim().length > 0;
       const temDescricao = p.description && p.description.trim().length > 10;
-      
-      if (!temNome || !temUrl || !temDescricao) {
-        log(`🧠 [LLM-FILTER] Produto filtrado por dados incompletos: ${p.name || 'Sem nome'} (URL: ${!!p.product_url}, Desc: ${!!p.description})`);
-        return false;
-      }
+  
       return true;
     });
 
     if (produtosValidos.length === 0) {
       log(`🧠 [LLM-FILTER] Nenhum produto válido encontrado após filtro`);
-      return [];
+      return { produtos: [], relatorio: {} };
     }
 
     log(`🧠 [LLM-FILTER] ${produtosValidos.length} produtos válidos para análise LLM`);
@@ -99,7 +96,7 @@ async function filtrarProdutosComLLM(produtos: any[], termoBusca: string, quanti
     if (!apiKey) {
       log('❌ [LLM-FILTER] GROQ_API_KEY não encontrada');
       log('🧠 [LLM-FILTER] Sem API key - nenhum produto será salvo');
-      return []; // Sem API key, não salvar nenhum produto
+      return { produtos: [], relatorio: { erro: "API key não disponível" } };
     }
 
     // Compactar candidatos para o prompt
@@ -115,9 +112,35 @@ async function filtrarProdutosComLLM(produtos: any[], termoBusca: string, quanti
     }));
 
     const promptSistema =
-      "Você é um assistente especializado em análise de produtos. Sua tarefa é analisar candidatos e escolher o melhor.\n" +
-      "IMPORTANTE: Responda APENAS com um número JSON válido no formato exato: {\"index\": N}\n" +
-      "Onde N é o índice (0, 1, 2...) do melhor candidato ou -1 se nenhum for adequado.\n" +
+      "Você é um assistente especializado em análise de produtos. Sua tarefa é analisar candidatos e escolher o melhor.\n\n" +
+      "Responda APENAS com um objeto JSON válido no formato exato:\n" +
+      "{\n" +
+      '  "index": N,\n' +
+      '  "relatorio": {\n' +
+      '    "escolha_principal": "Nome do produto escolhido",\n' +
+      '    "justificativa_escolha": "Por que este produto foi escolhido como primeiro",\n' +
+      '    "top5_ranking": [\n' +
+      '      {\n' +
+      '        "posicao": 1,\n' +
+      '        "nome": "Nome do produto",\n' +
+      '        "url": "URL do produto",\n' +
+      '        "justificativa": "Por que ficou nesta posição",\n' +
+      '        "preco": "Preço do produto",\n' + 
+      '        "pontos_fortes": ["Ponto forte 1", "Ponto forte 2"],\n' +
+      '        "pontos_fracos": ["Ponto fraco 1", "Ponto fraco 2"],\n' +
+      '        "score_estimado": 0.95\n' +
+      '      }\n' +
+      '    ],\n' +
+      '    "criterios_avaliacao": {\n' +
+      '      "correspondencia_tipo": "Como o produto corresponde ao tipo solicitado",\n' +
+      '      "especificacoes": "Avaliação das especificações técnicas",\n' +
+      '      "custo_beneficio": "Análise de preço vs. funcionalidades",\n' +
+      '      "disponibilidade": "Status de estoque e entrega"\n' +
+      '    }\n' +
+      '  }\n' +
+      "}\n\n" +
+      "Caso não encontre um produto adequado estruture o JSON da seguinte forma: {\"index\": -1, \"relatorio\": {\"erro\": \"Produto não encontrado\"}}\n\n	" +
+
       "Critérios de avaliação:\n" +
       "1. Correspondência EXATA com o termo de busca\n" +
       "2. Produto deve ter URL válida e informações completas\n" +
@@ -131,11 +154,16 @@ async function filtrarProdutosComLLM(produtos: any[], termoBusca: string, quanti
       "   - 2 = algumas características\n" +
       "   - 3 = moderadamente específico\n" +
       "   - 4 = quase fechado\n" +
-      "   - 5 = rígido, modelo exato\n" +
+      "   - 5 = rígido, modelo exato\n\n" +
+      "RELATÓRIO DETALHADO:\n" +
+      "- Justifique cada posição do top 5\n" +
+      "- Explique por que o primeiro não é o segundo\n" +
+      "- Seja específico e técnico nas justificativas\n" +
+      "- Use linguagem profissional mas acessível\n\n" +
       "REGRAS IMPORTANTES:\n" +
       "- NUNCA escolha produtos sem URL ou com informações vazias\n" +
       "- Prefira produtos com descrições detalhadas\n" +
-      "- Se nenhum produto for adequado, retorne -1\n" +
+      "- Se nenhum produto for adequado, retorne index: -1\n" +
       "- Seja RIGOROSO na seleção - é melhor rejeitar do que aceitar produtos inadequados\n" +
       "NÃO adicione explicações, comentários ou texto extra. APENAS o JSON.";
 
@@ -145,51 +173,71 @@ async function filtrarProdutosComLLM(produtos: any[], termoBusca: string, quanti
       `CUSTO-BENEFÍCIO: ${JSON.stringify(custo_beneficio || {})}\n` +
       `RIGOR: ${rigor || 0}\n` +
       `CANDIDATOS: ${JSON.stringify(candidatos)}\n` +
-      "Escolha o melhor índice ou -1.";
+      "Analise e retorne o ranking completo com justificativas.";
 
     const client = new Groq({ apiKey });
     const resp = await client.chat.completions.create({
-      model: "llama-3.1-8b-instant",
+      model: "llama-3.3-70b-versatile",
       messages: [
         { role: "system", content: promptSistema },
         { role: "user", content: userMsg }
       ],
       temperature: 0,
-      max_tokens: 50,
+      max_tokens: 8000,  // Aumentado para acomodar o relatório
       stream: false
     });
 
     const content = (resp.choices[0].message.content || '').trim();
     log(`🧠 [LLM-FILTER] Resposta bruta: ${content}`);
 
-    // Tentar extrair JSON {"index": X}
+    // Tentar extrair JSON completo
     let idx = -1;
+    let relatorio = {};
+    
     try {
-      const jsonMatch = content.match(/\{\s*"index"\s*:\s*(-?\d+)\s*\}/);
-      if (jsonMatch) {
-        idx = parseInt(jsonMatch[1], 10);
-        log(`🧠 [LLM-FILTER] Índice extraído via regex JSON: ${idx}`);
-      } else {
-        // Se não achou padrão JSON, tentar parse direto
-        let cleanedContent = content;
-        if (/^-?\d+$/.test(content)) {
-          cleanedContent = `{"index": ${content}}`;
-        }
-        const data = JSON.parse(cleanedContent);
-        const val = data.index;
-        if (typeof val === 'number') {
-          idx = val;
-          log(`🧠 [LLM-FILTER] Índice extraído via JSON parse: ${idx}`);
+      // Limpar a resposta se necessário
+      let cleanedContent = content;
+      if (!content.startsWith('{')) {
+        // Buscar por JSON na resposta
+        const jsonMatch = content.match(/\{.*\}/s);
+        if (jsonMatch) {
+          cleanedContent = jsonMatch[0];
+          log(`🧠 [LLM-FILTER] JSON extraído da resposta: ${cleanedContent.substring(0, 200)}...`);
         }
       }
+      
+      const data = JSON.parse(cleanedContent);
+      idx = data.index;
+      relatorio = data.relatorio || data.report || {};
+      //prencher o campo url de cada cdato com o url do candidato
+    
+      
+      log(`🧠 [LLM-FILTER] Índice extraído via JSON parse: ${idx}`);
+      log(`🧠 [LLM-FILTER] Relatório extraído: ${JSON.stringify(relatorio).substring(0, 300)}...`);
+      
     } catch (e) {
       log(`🧠 [LLM-FILTER] Erro ao fazer parse do JSON: ${e}`);
-      // fallback: buscar qualquer número na resposta
+      log(`🧠 [LLM-FILTER] Conteúdo que falhou no parse: ${content.substring(0, 500)}...`);
+      
+      // Fallback: tentar extrair apenas o índice
       const numberMatch = content.match(/-?\d+/);
       if (numberMatch) {
         try {
           idx = parseInt(numberMatch[0], 10);
           log(`🧠 [LLM-FILTER] Índice extraído via regex numérica: ${idx}`);
+          
+          // Tentar extrair relatório manualmente se o JSON falhou
+          const reportMatch = content.match(/"relatorio":\s*\{[^}]*\}/);
+          if (reportMatch) {
+            try {
+              const reportJson = `{${reportMatch[0]}}`;
+              const reportData = JSON.parse(reportJson);
+              relatorio = reportData.relatorio || {};
+              log(`🧠 [LLM-FILTER] Relatório extraído via regex: ${JSON.stringify(relatorio)}`);
+            } catch (reportError) {
+              log(`🧠 [LLM-FILTER] Erro ao extrair relatório via regex: ${reportError}`);
+            }
+          }
         } catch {
           idx = -1;
         }
@@ -200,20 +248,24 @@ async function filtrarProdutosComLLM(produtos: any[], termoBusca: string, quanti
     if (typeof idx !== 'number' || idx < 0 || idx >= produtosValidos.length) {
       if (idx === -1) {
         log(`🧠 [LLM-FILTER] LLM rejeitou todos os produtos (índice: -1)`);
-        return []; // Nenhum produto selecionado pelo LLM
+        return { produtos: [], relatorio: relatorio };
       }
       log(`🧠 [LLM-FILTER] Índice inválido: ${idx}`);
-      return []; // Não fazer fallback, apenas retornar vazio
+      return { produtos: [], relatorio: { erro: `Índice inválido: ${idx}` } };
     }
 
     const produtoSelecionado = produtosValidos[idx];
     log(`🧠 [LLM-FILTER] Produto selecionado: ${produtoSelecionado.name || produtoSelecionado.nome}`);
-    return [produtoSelecionado];
+    
+    // Adicionar o relatório ao produto selecionado
+    produtoSelecionado.llm_relatorio = relatorio;
+    
+    return { produtos: [produtoSelecionado], relatorio: relatorio };
   } catch (error) {
     log(`❌ [LLM-FILTER] Erro no filtro LLM (Groq): ${error}`);
     // Em caso de erro, não salvar nenhum produto
     log(`🧠 [LLM-FILTER] Erro no LLM - nenhum produto será salvo`);
-    return [];
+    return { produtos: [], relatorio: { erro: `Erro no LLM: ${error}` } };
   }
 }
 
@@ -311,6 +363,7 @@ async function processarJob(message: JobMessage) {
     }
 
     // 4. Aplicar refinamento LLM se solicitado
+    let relatorioLLM = null;
     if (refinamento && todosProdutos.length > 0) {
       enviarMensagem({
         progresso: {
@@ -320,7 +373,10 @@ async function processarJob(message: JobMessage) {
       });
 
       const produtosAntesLLM = todosProdutos.length;
-      todosProdutos = await filtrarProdutosComLLM(todosProdutos, termo, quantidade, custo_beneficio, rigor);
+      const resultadoLLM = await filtrarProdutosComLLM(todosProdutos, termo, quantidade, custo_beneficio, rigor);
+      todosProdutos = resultadoLLM.produtos;
+      relatorioLLM = resultadoLLM.relatorio; // Capturar o relatório
+      
       log(`Produtos após refinamento LLM: ${todosProdutos.length} de ${produtosAntesLLM}`);
       
       if (todosProdutos.length === 0) {
@@ -409,6 +465,7 @@ async function processarJob(message: JobMessage) {
         status: 'sucesso',
         produtos: todosProdutos,
         quantidade: quantidade,
+        relatorio: relatorioLLM, // Incluir relatório do LLM
         salvamento: {
           salvos: totalSalvos,
           erros: totalErros,
@@ -426,6 +483,7 @@ async function processarJob(message: JobMessage) {
       enviarMensagem({
         status: 'sucesso',
         produtos: [],
+        relatorio: relatorioLLM, // Incluir relatório do LLM mesmo sem produtos
         salvamento: {
           salvos: 0,
           erros: 0,

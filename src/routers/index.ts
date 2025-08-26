@@ -14,6 +14,7 @@ import { ProdutosService } from '../services/ProdutoService';
 import buscaLocalRouter from './buscaLocal.routes';
 import promptsRouter from './prompts.routes';
 import cotacoesItensRouter from './cotacoesItens.routes';
+import relatorioRouter from './relatorios.routes';
 
 const routers = Router();
 const produtosService = new ProdutosService();
@@ -37,6 +38,7 @@ routers.use('/gemini', geminiRouter);
 routers.use('/busca-local', buscaLocalRouter);
 routers.use('/notifications', authMiddleware, notificationsRouter);
 routers.use('/prompts', promptsRouter);
+routers.use('/relatorios', relatorioRouter);
 
 // Rotas públicas RESTful para products (compatível com frontend)
 // GET /api/products

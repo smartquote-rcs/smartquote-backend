@@ -12,6 +12,7 @@ import supabase from '../infra/supabase/connect';
 import PromptsService from './PromptsService';
 import CotacoesService from './CotacoesService';
 import type { Cotacao } from '../models/Cotacao';
+import RelatorioService from './RelatorioService';
 
 export interface EmailInterpretation {
   id: string;
@@ -278,10 +279,10 @@ DADOS DO EMAIL:
 
             // 🌐 Fluxo adicional: buscar na web itens faltantes e inserir na cotação principal
       (async () => {
-              try {
-                const payload: any = result.result || {};
-                const faltantes = Array.isArray(payload.faltantes) ? payload.faltantes : [];
+        const payload: any = result.result || {};
         let cotacaoPrincipalId: number | null = payload?.cotacoes?.principal_id ?? null;
+              try {
+                const faltantes = Array.isArray(payload.faltantes) ? payload.faltantes : [];
 
         const svc = new WebBuscaJobService();
                 const statusUrls = await svc.createJobsForFaltantes(faltantes, interpretation.solicitacao);
@@ -335,7 +336,9 @@ DADOS DO EMAIL:
               } catch (e: any) {
                 console.error('❌ [BUSCA-WEB] Falha no fluxo pós-Python:', e?.message || e);
               }
+              await RelatorioService.verificarEgerarRelatorio(Number(cotacaoPrincipalId));
             })();
+                        
           } else {
             console.error(`❌ [PYTHON-ERROR] Falha ao processar interpretação ${interpretation.id}: ${result.error}`);
           }

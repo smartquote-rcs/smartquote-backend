@@ -70,20 +70,30 @@ def executar_estrutura_de_queries(
         lista = list(agregados.values())
         lista.sort(key=lambda x: x["score"], reverse=True)
 
-        idx_escolhido = -1
+        resultado_llm = {"index": -1, "relatorio": {}}
         try:
-            idx_escolhido = _llm_escolher_indice(q["query"], q.get("filtros") or None, q.get("custo_beneficio") or None, q.get("rigor") or None, lista)
+            resultado_llm = _llm_escolher_indice(q["query"], q.get("filtros") or None, q.get("custo_beneficio") or None, q.get("rigor") or None, lista)
+            print(f"🧠 [LLM] Resultado para {q['id']}: índice={resultado_llm.get('index')}, relatório={len(resultado_llm.get('relatorio', {}))} campos")
         except Exception as e:
             print(f"[LLM] Erro ao executar refinamento: {e}")
-            idx_escolhido = -1
+            resultado_llm = {"index": -1, "relatorio": {}}
+        
+        idx_escolhido = resultado_llm.get("index", -1)
+        relatorio_llm = resultado_llm.get("relatorio", {})
+        
         if isinstance(idx_escolhido, int) and 0 <= idx_escolhido < len(lista):
             escolhido = lista[idx_escolhido]
             escolhido["llm_match"] = True
             escolhido["llm_index"] = idx_escolhido
+            escolhido["llm_relatorio"] = relatorio_llm  # Adicionar relatório LLM
             print(f"🎯 Índice escolhido pela LLM: {idx_escolhido} - {escolhido.get('nome', 'N/A')}")
+            print(f"🧠 [LLM] Produto escolhido tem relatório: {bool(escolhido.get('llm_relatorio'))} - {len(escolhido.get('llm_relatorio', {}))} campos")
             lista = [escolhido]
         else:
-            print("🎯 Nenhum candidato disponível após refinamento LLM")
+            if idx_escolhido == -1:
+                print("🎯 LLM rejeitou todos os produtos candidatos - nenhum atende aos critérios específicos")
+            else:
+                print(f"🎯 Índice LLM inválido: {idx_escolhido} (esperado: 0-{len(lista)-1})")
             lista = []
 
         resultados_por_query[q["id"]] = lista
@@ -92,7 +102,7 @@ def executar_estrutura_de_queries(
         if verbose:
             print(f"\n📌 Top {min(limite, len(lista))} para {q['id']}:", file=sys.stderr)
             for i, r in enumerate(lista[:limite], start=1):
-                preco_info = f" | R$ {r.get('preco', 0):.2f}" if r.get('preco') else ""
+                preco_info = f" |AOA$ {r.get('preco', 0):.2f}" if r.get('preco') else ""
                 categoria_display = r.get('categoria', '') or r.get('modelo', '')
                 print(f" {i:2d}. {r['nome']} | {categoria_display}{preco_info} | Score {int(r['score']*100)}%", file=sys.stderr)
 
@@ -313,12 +323,26 @@ def processar_interpretacao(
                     )
                     continue
 
+                # Adicionar relatório LLM ao payload se disponível
+                payload = {
+                    "query_id": qid, 
+                    "score": top_resultado.get("score"), 
+                    "alternativa": False
+                }
+                
+                # Se o produto foi aprovado pelo LLM, incluir o relatório
+                if top_resultado.get('llm_relatorio'):
+                    payload["llm_relatorio"] = top_resultado.get('llm_relatorio')
+                    print(f"🧠 [COTACAO] Adicionando relatório LLM para {qid}: {len(top_resultado.get('llm_relatorio', {}))} campos")
+                else:
+                    print(f"⚠️ [COTACAO] Nenhum relatório LLM encontrado para {qid}")
+                
                 item_id = cotacao_manager.insert_cotacao_item_from_result(
                     cotacao_id=cotacao1_id,
                     resultado_produto=top_resultado,
                     origem="local",
                     produto_id=produto_id_local,
-                    payload={"query_id": qid, "score": top_resultado.get("score"), "alternativa": False},
+                    payload=payload,
                     quantidade=quantidade,
                 )
                 if item_id:
@@ -356,12 +380,26 @@ def processar_interpretacao(
                 print(f"⚠️ Alternativa '{top_resultado.get('nome')}' sem ID de produto. Pulando.", file=sys.stderr)
                 continue
 
+            # Adicionar relatório LLM ao payload se disponível
+            payload_alt = {
+                "query_id": qid, 
+                "score": top_resultado.get("score"), 
+                "alternativa": True
+            }
+            
+            # Se o produto foi aprovado pelo LLM, incluir o relatório
+            if top_resultado.get('llm_relatorio'):
+                payload_alt["llm_relatorio"] = top_resultado.get('llm_relatorio')
+                print(f"🧠 [COTACAO-ALT] Adicionando relatório LLM para alternativa {qid}: {len(top_resultado.get('llm_relatorio', {}))} campos")
+            else:
+                print(f"⚠️ [COTACAO-ALT] Nenhum relatório LLM encontrado para alternativa {qid}")
+            
             item_id = cotacao_manager.insert_cotacao_item_from_result(
                 cotacao_id=cotacao_alt_id,
                 resultado_produto=top_resultado,
                 origem="local",
                 produto_id=produto_id_local,
-                payload={"query_id": qid, "score": top_resultado.get("score"), "alternativa": True},
+                payload=payload_alt,
             )
             if item_id:
                 alternativas_ids.append(str(cotacao_alt_id))

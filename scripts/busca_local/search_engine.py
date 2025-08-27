@@ -92,7 +92,7 @@ def _llm_escolher_indice(query: str, filtros: dict | None, custo_beneficio: dict
         client = Groq(api_key=api_key)
         resp = client.chat.completions.create(
             # Usar um modelo mais recente e robusto, se disponível
-            model="llama-3.3-70b-versatile", 
+            model="openai/gpt-oss-20b", 
             messages=[
                 {"role": "system", "content": prompt_sistema},
                 {"role": "user", "content": user_msg},
@@ -111,7 +111,6 @@ def _llm_escolher_indice(query: str, filtros: dict | None, custo_beneficio: dict
         # A lógica de validação pode ser mantida, pois é robusta
         idx = data.get("index", -1)
         relatorio = data.get("relatorio", {})
-
         if not isinstance(idx, int):
              return {"index": -1, "relatorio": {"erro": f"Índice inválido: {idx}"}}
         

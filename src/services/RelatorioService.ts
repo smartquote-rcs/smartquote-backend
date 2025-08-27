@@ -305,10 +305,16 @@ export class RelatorioService {
         const doc = new PDFDocument({
           size: 'A4',
           margins: {
-            top: 50,
-            bottom: 50,
-            left: 50,
-            right: 50
+            top: 60,
+            bottom: 60,
+            left: 60,
+            right: 60
+          },
+          info: {
+            Title: `Relatório de Cotação #${data.cotacaoId}`,
+            Author: 'SmartQuote System',
+            Subject: 'Relatório Comercial de Cotação',
+            Keywords: 'cotação, relatório, comercial, proposta'
           }
         });
 
@@ -389,550 +395,1588 @@ export class RelatorioService {
    * Adiciona cabeçalho ao documento
    */
   private adicionarCabecalho(doc: PDFKit.PDFDocument, data: RelatorioData) {
+    const pageWidth = doc.page.width;
+    const margin = doc.page.margins.left;
+    const contentWidth = pageWidth - (margin * 2);
+    
+    // Cabeçalho com fundo colorido
     doc
-      .fontSize(24)
-      .font('Helvetica-Bold')
-      .text('RELATÓRIO DE COTAÇÃO', { align: 'center' })
-      .moveDown(0.5);
-
+      .rect(margin - 20, 20, contentWidth + 40, 120)
+      .fillAndStroke('#2c3e50', '#34495e')
+      .fill('#ffffff');
+    
+    // Logo placeholder (círculo com iniciais)
     doc
-      .fontSize(14)
-      .font('Helvetica')
-      .text(`Cotação ID: ${data.cotacaoId}`, { align: 'center' })
-      .text(`Data: ${new Date().toLocaleDateString('pt-BR')}`, { align: 'center' })
-      .moveDown(1);
-
-    doc
+      .circle(margin + 40, 60, 25)
+      .fillAndStroke('#3498db', '#2980b9')
+      .fill('#ffffff')
       .fontSize(16)
       .font('Helvetica-Bold')
-      .text('Solicitação:', { underline: true })
-      .moveDown(0.3);
-
+      .text('SQ', margin + 30, 52, { width: 20, align: 'center' });
+    
+    // Título principal
     doc
-      .fontSize(12)
-      .font('Helvetica')
-      .text(data.solicitacao, { width: 500 })
-      .moveDown(1);
-  }
-
-  /**
-   * Adiciona seção de proposta comercial e email
-   */
-  private adicionarSecaoProposta(doc: PDFKit.PDFDocument, data: RelatorioData) {
-    doc
-      .fontSize(18)
+      .fill('#ffffff')
+      .fontSize(28)
       .font('Helvetica-Bold')
-      .text('PROPOSTA COMERCIAL E EMAIL DE RESPOSTA', { underline: true })
-      .moveDown(1);
-
-    // Resumo da cotação
+      .text('RELATORIO DE COTACAO', margin + 100, 40, { width: contentWidth - 120 });
+    
+    // Subtítulo
     doc
       .fontSize(14)
-      .font('Helvetica-Bold')
-      .text('Resumo da Cotação:')
-      .moveDown(0.5);
-
-    doc
-      .fontSize(12)
       .font('Helvetica')
-      .text(`• Total de itens: ${data.itens.length}`)
-      .text(`• Orçamento geral:AOA$ ${data.orcamentoGeral.toFixed(2)}`)
-      .text(`• Status: ${data.itens.length > 0 ? 'Completa' : 'Incompleta'}`)
-      .moveDown(1);
-
-    // Lista de itens principais
-    if (data.itens.length > 0) {
-      doc
-        .fontSize(14)
-        .font('Helvetica-Bold')
-        .text('Itens Incluídos:')
-        .moveDown(0.5);
-
-      data.itens.forEach((item, index) => {
-        const preco = item.preco || 0;
-        const total = preco * item.quantidade;
-        
-        doc
-          .fontSize(11)
-          .font('Helvetica-Bold')
-          .text(`${index + 1}. ${item.nome}`)
-          .moveDown(0.2);
-
-        doc
-          .fontSize(10)
-          .font('Helvetica')
-          .text(`   Descrição: ${item.descricao || 'Não informada'}`)
-          .text(`   Preço unitário:AOA$ ${preco.toFixed(2)}`)
-          .text(`   Quantidade: ${item.quantidade}`)
-          .text(`   Total:AOA$ ${total.toFixed(2)}`)
-          .text(`   Origem: ${item.origem}`)
-          .moveDown(0.5);
-
-        // Se houver relatório LLM, mostrar resumo
-        if (item.llm_relatorio) {
-          const rel = item.llm_relatorio;
-          if (rel.escolha_principal && rel.justificativa_escolha) {
-            doc
-              .fontSize(9)
-              .font('Helvetica-Bold')
-              .text(`    Análise LLM: ${rel.escolha_principal}`)
-              .moveDown(0.1);
-            
-            doc
-              .fontSize(8)
-              .font('Helvetica')
-              .text(`      Justificativa: ${rel.justificativa_escolha}`, { width: 400 })
-              .moveDown(0.2);
-          }
-        }
-      });
-    }
-
-    // Template de email
+      .text('Analise Tecnica e Proposta Comercial', margin + 100, 75, { width: contentWidth - 120 });
+    
+    // Informações da cotação em caixa
     doc
-      .fontSize(14)
-      .font('Helvetica-Bold')
-      .text('Template de Email de Resposta:')
-      .moveDown(0.5);
-
-    const emailTemplate = this.gerarTemplateEmail(data);
+      .fill('#ecf0f1')
+      .rect(margin, 160, contentWidth, 80)
+      .fillAndStroke('#ecf0f1', '#bdc3c7');
     
     doc
-      .fontSize(10)
+      .fill('#2c3e50')
+      .fontSize(12)
+      .font('Helvetica-Bold')
+      .text('INFORMACOES DA COTACAO', margin + 20, 175);
+      doc
+      .fontSize(11)
       .font('Helvetica')
-      .text(emailTemplate, { width: 500 })
-      .moveDown(1);
+      .text(`Cotacao ID: #${data.cotacaoId}`, margin + 20, 195)
+      .text(
+        `Data de Geracao: ${new Date().toLocaleDateString('pt-BR', { 
+          weekday: 'long', 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        })}`,
+        margin + 20,
+        210
+      )
+      .text(
+        `Orcamento Total: AOA$ ${data.orcamentoGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+        -margin - 20, // joga para o lado direito
+        195,
+        { align: 'right' }
+      )
+      .text(`Total de Itens: ${data.itens.length}`, -margin - 20, 210, { align: 'right' });
+    
+    // Seção de solicitação com estilo aprimorado
+    doc
+      .fill('#34495e')
+      .fontSize(16)
+      .font('Helvetica-Bold')
+      .text('SOLICITACAO DO CLIENTE', margin, 270)
+      .moveDown(0.3);
+    
+    // Linha decorativa
+    doc
+      .strokeColor('#3498db')
+      .lineWidth(3)
+      .moveTo(margin, 290)
+      .lineTo(margin + 150, 290)
+      .stroke();
+    
+    // Caixa para solicitação com altura dinâmica
+    const solicitacaoHeight = Math.max(60, Math.min(data.solicitacao.length / 3, 120));
+    doc
+      .fill('#f8f9fa')
+      .rect(margin, 305, contentWidth, solicitacaoHeight)
+      .fillAndStroke('#f8f9fa', '#dee2e6');
+    
+    doc
+      .fill('#2c3e50')
+      .fontSize(11)
+      .font('Helvetica')
+      .text(data.solicitacao, margin + 15, 320, { 
+        width: contentWidth - 30,
+        lineGap: 3
+      });
+    
+    doc.y = 305 + solicitacaoHeight + 20; // Posicionar dinamicamente para próximo conteúdo
+  }/**
+ * Adiciona seção de proposta comercial e email
+ */
+/**
+ * Adiciona seção de proposta comercial e email
+ */
+private adicionarSecaoProposta(doc: PDFKit.PDFDocument, data: RelatorioData) {
+  const margin = doc.page.margins.left;
+  const pageWidth = doc.page.width;
+  const contentWidth = pageWidth - (margin * 2);
+  
+  // Verificar espaço inicial
+  this.verificarEspacoPagina(doc, 100);
+  
+  // ========== CABEÇALHO DA SEÇÃO ==========
+  const headerHeight = 55;
+  const headerY = doc.y;
+  
+  // Fundo principal com gradiente simulado
+  doc
+    .fill('#27ae60')
+    .rect(margin - 15, headerY, contentWidth + 30, headerHeight)
+    .fill();
+  
+  // Linha de destaque superior
+  doc
+    .fill('#2ecc71')
+    .rect(margin - 15, headerY, contentWidth + 30, 4)
+    .fill();
+  
+  // Ícone principal
+  doc
+    .fill('#ffffff')
+    .circle(margin + 30, headerY + 27, 18)
+    .fill()
+    .fill('#27ae60')
+    .fontSize(16)
+    .font('Helvetica-Bold')
+    .text('$', margin + 25, headerY + 19);
+  
+  // Título principal
+  doc
+    .fill('#ffffff')
+    .fontSize(19)
+    .font('Helvetica-Bold')
+    .text('PROPOSTA COMERCIAL', margin + 60, headerY + 12)
+    .fontSize(12)
+    .font('Helvetica')
+    .text('E-mail de Resposta Automatizado', margin + 60, headerY + 35);
+  
+  doc.y = headerY + headerHeight + 25;
+  
+  // ========== CARD RESUMO EXECUTIVO ==========
+  this.verificarEspacoPagina(doc, 120);
+  
+  const resumoY = doc.y;
+  const resumoHeight = 110;
+  
+  // Fundo do card com sombra simulada
+  doc
+    .fill('#f8fffe')
+    .rect(margin + 3, resumoY + 3, contentWidth - 6, resumoHeight - 6)
+    .fill();
+  
+  // Card principal
+  doc
+    .fill('#ffffff')
+    .rect(margin, resumoY, contentWidth, resumoHeight)
+    .fillAndStroke('#ffffff', '#d5e8d4');
+  
+  // Borda lateral verde
+  doc
+    .fill('#27ae60')
+    .rect(margin, resumoY, 6, resumoHeight)
+    .fill();
+  
+  // Header do card
+  const cardHeaderY = resumoY + 15;
+  
+  // Badge do resumo
+  doc
+    .fill('#e8f5e8')
+    .roundedRect(margin + 25, cardHeaderY - 3, 140, 28, 14)
+    .fill()
+    .fill('#27ae60')
+    .fontSize(12)
+    .font('Helvetica-Bold')
+    .text('RESUMO EXECUTIVO', margin + 35, cardHeaderY + 5);
+  
+  // Grid de informações
+  const infoY = cardHeaderY + 40;
+  const colWidth = (contentWidth - 60) / 3;
+  
+  // Dados da cotação
+  const totalItens = data.itens.length;
+  const orcamento = data.orcamentoGeral || 0;
+  const status = totalItens > 0 ? 'COMPLETA' : 'PENDENTE';
+  const statusColor = totalItens > 0 ? '#27ae60' : '#e74c3c';
+  
+  // Coluna 1 - Total de Itens
+  doc
+    .fill('#7f8c8d')
+    .fontSize(9)
+    .font('Helvetica-Bold')
+    .text('TOTAL DE ITENS', margin + 25, infoY);
+  
+  doc
+    .fill('#2c3e50')
+    .fontSize(16)
+    .font('Helvetica-Bold')
+    .text(`${totalItens}`, margin + 25, infoY + 12)
+    .fontSize(9)
+    .font('Helvetica')
+    .text('produtos', margin + 25, infoY + 32);
+  
+  // Coluna 2 - Orçamento
+  doc
+    .fill('#7f8c8d')
+    .fontSize(9)
+    .font('Helvetica-Bold')
+    .text('ORÇAMENTO GERAL', margin + 25 + colWidth, infoY);
+  
+  doc
+    .fill('#27ae60')
+    .fontSize(14)
+    .font('Helvetica-Bold')
+    .text(
+      `${orcamento.toLocaleString('pt-AO', { 
+        style: 'currency', 
+        currency: 'AOA',
+        minimumFractionDigits: 2 
+      })}`,
+      margin + 25 + colWidth,
+      infoY + 12
+    );
+  
+  // Coluna 3 - Status
+  doc
+    .fill('#7f8c8d')
+    .fontSize(9)
+    .font('Helvetica-Bold')
+    .text('STATUS', margin + 25 + (colWidth * 2), infoY);
+  
+  // Badge de status
+  doc
+    .fill(statusColor === '#27ae60' ? '#e8f5e8' : '#ffeaea')
+    .roundedRect(margin + 25 + (colWidth * 2), infoY + 10, 70, 20, 10)
+    .fill()
+    .fill(statusColor)
+    .fontSize(10)
+    .font('Helvetica-Bold')
+    .text(status, margin + 35 + (colWidth * 2), infoY + 16);
+  
+  doc.y = resumoY + resumoHeight + 25;
+  
+  // ========== LISTA DE ITENS ==========
+  if (data.itens.length > 0) {
+    doc.addPage();
+    // Header da seção de itens
+    const itemsHeaderY = doc.y;
+    
+    doc
+      .fill('#34495e')
+      .fontSize(16)
+      .font('Helvetica-Bold')
+      .text('ITENS INCLUÍDOS NA PROPOSTA', margin, itemsHeaderY);
+    
+    // Linha decorativa moderna
+    doc
+      .fill('#3498db')
+      .rect(margin, itemsHeaderY + 25, 180, 2)
+      .fill();
+    
+    doc.y = itemsHeaderY + 40;
+    
+    // Processar cada item
+    data.itens.forEach((item, index) => {
+      const preco = item.preco || 0;
+      const total = preco * item.quantidade;
+      
+      // ========== CÁLCULO DINÂMICO DA ALTURA ==========
+      let itemHeight = 30; // padding superior
+      
+      // Altura do header (incluindo nome do produto que pode ser multilinha)
+      doc.fontSize(13).font('Helvetica-Bold');
+      const nomeHeight = doc.heightOfString(item.nome, { 
+        width: contentWidth - 280,
+        lineGap: 2
+      });
+      itemHeight += Math.max(nomeHeight, 25) + 10; // mínimo 25px para o header
+      
+      // Altura da descrição
+      doc.fontSize(10).font('Helvetica');
+      const descricao = item.descricao || 'Descrição não informada';
+      const descHeight = doc.heightOfString(descricao, { 
+        width: contentWidth - 40, 
+        lineGap: 3 
+      });
+      itemHeight += descHeight + 25; // altura + espaçamento
+      
+      // Altura dos dados técnicos
+      itemHeight += 45;
+      
+      // Altura da análise IA (se existir)
+      if (item.llm_relatorio?.escolha_principal) {
+        doc.fontSize(9).font('Helvetica');
+        const analiseHeight = doc.heightOfString(
+          item.llm_relatorio.escolha_principal, 
+          { width: contentWidth - 60, lineGap: 2 }
+        );
+        itemHeight += analiseHeight + 40; // altura do texto + header + padding
+      }
+      
+      itemHeight += 25; // padding inferior
+      
+      // Verificar se cabe na página
+      this.verificarEspacoPagina(doc, itemHeight);
+      
+      const itemY = doc.y;
+      
+      // ========== DESENHO DO CARD DO ITEM ==========
+      // Sombra simulada
+      doc
+        .fill('#f5f5f5')
+        .rect(margin + 2, itemY + 2, contentWidth - 4, itemHeight - 4)
+        .fill();
+      
+      // Card principal
+      doc
+        .fill('#ffffff')
+        .rect(margin, itemY, contentWidth, itemHeight)
+        .fillAndStroke('#ffffff', '#e1e8ed');
+      
+      // Borda lateral colorida por posição
+      const borderColors = ['#3498db', '#e74c3c', '#f39c12', '#9b59b6', '#1abc9c'];
+      const borderColor = borderColors[index % borderColors.length];
+      
+      doc
+        .fill(borderColor)
+        .rect(margin, itemY, 5, itemHeight)
+        .fill();
+      
+      // ========== HEADER DO ITEM ==========
+      const itemHeaderY = itemY + 20;
+      
+      // Número do item em badge
+      doc
+        .fill(borderColor)
+        .roundedRect(margin + 20, itemHeaderY - 5, 32, 26, 13)
+        .fill()
+        .fill('#ffffff')
+        .fontSize(12)
+        .font('Helvetica-Bold')
+        .text(`${index + 1}`, margin + 31, itemHeaderY + 3);
+      
+      // Nome do produto (usar a altura já calculada)
+      doc
+        .fill('#1a1a1a')
+        .fontSize(13)
+        .font('Helvetica-Bold')
+        .text(item.nome, margin + 65, itemHeaderY, { 
+          width: contentWidth - 280,
+          lineGap: 2 // Permitir múltiplas linhas sem truncar
+        });
+      
+      // Preço total em destaque (ajustar posição baseada na altura do nome para centralizar verticalmente)
+      const headerMinHeight = Math.max(nomeHeight, 25);
+      const precoY = itemHeaderY + (headerMinHeight - 26) / 2; // Centralizar a caixa de preço verticalmente no header
+      const precoBoxX = margin + contentWidth - 130;
+      doc
+        .fill('#e8f5e8')
+        .roundedRect(precoBoxX, precoY, 120, 26, 13)
+        .fill()
+        .fill('#27ae60')
+        .fontSize(13)
+        .font('Helvetica-Bold')
+        .text(
+          `${total.toLocaleString('pt-AO', { 
+            style: 'currency', 
+            currency: 'AOA' 
+          })}`,
+          precoBoxX + 5,
+          precoY + 6,
+          { width: 110, align: 'center' }
+        );
+      
+      // ========== DESCRIÇÃO ==========
+      const descY = itemHeaderY + headerMinHeight + 15;
+      
+      doc
+        .fill('#666666')
+        .fontSize(8)
+        .font('Helvetica-Bold')
+        .text('DESCRIÇÃO', margin + 20, descY);
+      
+      doc
+        .fill('#333333')
+        .fontSize(10)
+        .font('Helvetica')
+        .text(descricao, margin + 20, descY + 12, { 
+          width: contentWidth - 40, 
+          lineGap: 3,
+          continued: false // Não truncar o texto
+        });
+      
+      // ========== DADOS TÉCNICOS EM GRID ==========
+      const techY = descY + descHeight + 25;
+      
+      // Fundo sutil para a área técnica
+      doc
+        .fill('#f8f9fa')
+        .rect(margin + 15, techY - 5, contentWidth - 30, 35)
+        .fill();
+      
+      // Grid de informações com colunas dinâmicas
+      const techColWidth = (contentWidth - 40) / 4;
+      const techData = [
+        { label: 'PREÇO UNIT.', value: preco.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' }), x: margin + 20 },
+        { label: 'QUANTIDADE', value: `${item.quantidade} un.`, x: margin + 20 + techColWidth },
+        { label: 'ORIGEM', value: item.origem.toUpperCase(), x: margin + 20 + (techColWidth * 2) },
+        { label: 'SUBTOTAL', value: total.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA' }), x: margin + 20 + (techColWidth * 3) }
+      ];
+      
+      techData.forEach(tech => {
+        doc
+          .fill('#7f8c8d')
+          .fontSize(7)
+          .font('Helvetica-Bold')
+          .text(tech.label, tech.x, techY + 2)
+          .fill('#2c3e50')
+          .fontSize(10)
+          .font('Helvetica-Bold')
+          .text(tech.value, tech.x, techY + 15);
+      });
+      
+      // ========== ANÁLISE IA ==========
+      if (item.llm_relatorio?.escolha_principal) {
+        const analiseY = techY + 50;
+        
+        // Fundo da análise IA
+        doc
+          .fill('#f8f4ff')
+          .roundedRect(margin + 15, analiseY - 8, contentWidth - 30, 30, 10)
+          .fill();
+        
+        // Badge IA
+        doc
+          .fill('#8e44ad')
+          .circle(margin + 35, analiseY + 7, 10)
+          .fill()
+          .fill('#ffffff')
+          .fontSize(8)
+          .font('Helvetica-Bold')
+          .text('AI', margin + 31, analiseY + 3);
+        
+        // Label da análise
+        doc
+          .fill('#8e44ad')
+          .fontSize(9)
+          .font('Helvetica-Bold')
+          .text('ANÁLISE INTELIGENTE', margin + 55, analiseY + 3);
+        
+        // Conteúdo da análise
+        doc
+          .fill('#5d4e75')
+          .fontSize(9)
+          .font('Helvetica')
+          .text(
+            item.llm_relatorio.escolha_principal,
+            margin + 25,
+            analiseY + 25,
+            { width: contentWidth - 60, lineGap: 2 }
+          );
+      }
+      
+      // Atualizar posição Y
+      doc.y = itemY + itemHeight + 20;
+    });
+  }
+  
+  // ========== TEMPLATE DE EMAIL COM DESIGN CONTÍNUO ==========
+  this.adicionarTemplateEmailComDesignContinuo(doc, data, margin, contentWidth);
+}
+
+  /**
+   * Adiciona template de email com design que continua através das páginas
+   */
+  private adicionarTemplateEmailComDesignContinuo(
+    doc: PDFKit.PDFDocument, 
+    data: RelatorioData, 
+    margin: number, 
+    contentWidth: number
+  ) {
+    const emailTemplate = this.gerarTemplateEmail(data);
+    const emailHeaderHeight = 45;
+    const padding = 20;
+    
+    // Dividir o texto em linhas para controle manual de quebra
+    const lines = emailTemplate.split('\n');
+    let isFirstPage = true;
+    
+    // Função para desenhar header do email
+    const drawEmailHeader = (y: number, isContinuation = false) => {
+      const headerY = y;
+      
+      // Fundo do header
+      doc
+        .fill('#e67e22')
+        .rect(margin - 15, headerY, contentWidth + 30, emailHeaderHeight)
+        .fill();
+      
+      // Linha de destaque superior
+      doc
+        .fill('#f39c12')
+        .rect(margin - 15, headerY, contentWidth + 30, 3)
+        .fill();
+      
+      // Ícone do email
+      doc
+        .fill('#ffffff')
+        .circle(margin + 30, headerY + 22, 16)
+        .fill()
+        .fill('#e67e22')
+        .fontSize(14)
+        .font('Helvetica-Bold')
+        .text('@', margin + 25, headerY + 15);
+      
+      // Título do email
+      const title = isContinuation ? 'TEMPLATE DE E-MAIL RESPOSTA (CONT.)' : 'TEMPLATE DE E-MAIL RESPOSTA';
+      doc
+        .fill('#ffffff')
+        .fontSize(16)
+        .font('Helvetica-Bold')
+        .text(title, margin + 60, headerY + 18);
+      
+      return headerY + emailHeaderHeight + 15;
+    };
+    
+    // Função para desenhar box do email com bordas
+    const drawEmailBox = (startY: number, height: number) => {
+      // Sombra
+      doc
+        .fill('#fff8e7')
+        .rect(margin + 2, startY + 2, contentWidth - 4, height - 4)
+        .fill();
+      
+      // Box principal
+      doc
+        .fill('#fffbf0')
+        .rect(margin, startY, contentWidth, height)
+        .fillAndStroke('#fffbf0', '#f39c12');
+      
+      // Borda lateral decorativa
+      doc
+        .fill('#e67e22')
+        .rect(margin, startY, 5, height)
+        .fill();
+    };
+    
+    // Verificar espaço inicial
+    this.verificarEspacoPagina(doc, emailHeaderHeight + 100);
+    
+    // Desenhar header inicial
+    let currentY = drawEmailHeader(doc.y, false);
+    let boxStartY = currentY;
+    let textY = currentY + padding;
+    
+    // Desenhar box de fundo primeiro (estimativa inicial)
+    const estimatedHeight = Math.min(600, lines.length * 15 + padding * 2);
+    drawEmailBox(boxStartY, estimatedHeight);
+    
+    // Desenhar texto linha por linha
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i] || '';
+      
+      if (line.trim() === '') {
+        textY += 10; // Espaço para linhas vazias
+        continue;
+      }
+      
+      // Verificar se precisa quebrar página
+      const availableSpace = doc.page.height - textY - doc.page.margins.bottom - 50;
+      
+      if (availableSpace < 30 && i > 0) {
+        // Quebrar página
+        doc.addPage();
+        
+        // Desenhar header de continuação
+        currentY = drawEmailHeader(doc.page.margins.top, true);
+        boxStartY = currentY;
+        textY = currentY + padding;
+        
+        // Desenhar nova box para a página
+        const remainingLines = lines.length - i;
+        const newBoxHeight = Math.min(650, remainingLines * 20 + padding * 2);
+        drawEmailBox(boxStartY, newBoxHeight);
+      }
+      
+      // Desenhar o texto da linha
+      doc
+        .fill('#2c3e50')
+        .fontSize(10)
+        .font('Helvetica')
+        .text(line, margin + 20, textY, {
+          width: contentWidth - 40,
+          lineGap: 3,
+          continued: false
+        });
+      
+      // Calcular altura real da linha e atualizar posição
+      const lineHeight = doc.heightOfString(line, {
+        width: contentWidth - 40,
+        lineGap: 3
+      });
+      textY += lineHeight + 3;
+    }
+    
+    // Atualizar posição final
+    doc.y = textY + 20;
+    
+    // Linha final decorativa
+    doc
+      .fill('#ecf0f1')
+      .rect(margin, doc.y - 10, contentWidth, 2)
+      .fill();
   }
 
   /**
-   * Adiciona seção de análise LLM e top 5
+   * Verifica se há espaço suficiente na página atual, senão adiciona nova página
    */
-  private adicionarSecaoAnaliseLLM(doc: PDFKit.PDFDocument, data: RelatorioData) {
-    doc
-      .fontSize(18)
-      .font('Helvetica-Bold')
-      .text('ANÁLISE LLM - TOP 5 PRODUTOS POR PESQUISA', { underline: true })
-      .moveDown(1);
-
-    if (data.queries.length === 0) {
-      doc
-        .fontSize(12)
-        .font('Helvetica')
-        .text('Nenhuma análise LLM disponível para esta cotação.')
-        .moveDown(1);
-      return;
+  private verificarEspacoPagina(doc: PDFKit.PDFDocument, alturaMinima: number) {
+    const espacoRestante = doc.page.height - doc.y - doc.page.margins.bottom;
+    if (espacoRestante < alturaMinima) {
+      doc.addPage();
     }
+  }
+/**
+ * Adiciona seção de análise LLM e top 5
+ */
+private adicionarSecaoAnaliseLLM(doc: PDFKit.PDFDocument, data: RelatorioData) {
+  const margin = doc.page.margins.left;
+  const pageWidth = doc.page.width;
+  const contentWidth = pageWidth - (margin * 2);
+  
+  // Verificar espaço para a seção
+  this.verificarEspacoPagina(doc, 100);
+  
+  // Título da seção com gradiente visual
+  doc
+    .fill('#8e44ad')
+    .rect(margin - 20, doc.y - 10, contentWidth + 40, 45)
+    .fillAndStroke('#8e44ad', '#7d3c98');
+  
+  doc
+    .fill('#ffffff')
+    .fontSize(18)
+    .font('Helvetica-Bold')
+    .text('ANALISE INTELIGENTE - TOP 5 PRODUTOS', margin, doc.y + 10)
+    .moveDown(1.5);
 
-    // Para cada query, mostrar top 5
-    data.queries.forEach((query, queryIndex) => {
-      doc
-        .fontSize(16)
-        .font('Helvetica-Bold')
-        .text(`Pesquisa ${queryIndex + 1}: ${query.queryId}`, { underline: true })
-        .moveDown(0.5);
+  if (data.queries.length === 0) {
+    // Card de aviso quando não há análises
+    doc
+      .fill('#fff3cd')
+      .rect(margin, doc.y, contentWidth, 60)
+      .fillAndStroke('#fff3cd', '#ffc107');
+    
+    doc
+      .fill('#856404')
+      .fontSize(12)
+      .font('Helvetica-Bold')
+      .text('AVISO', margin + 20, doc.y + 20)
+      .fontSize(11)
+      .font('Helvetica')
+      .text('Nenhuma analise LLM disponivel para esta cotacao.', margin + 20, doc.y + 35)
+      .moveDown(2);
+    return;
+  }
 
-              // Relatório LLM se disponível
-        if (query.produtos.length > 0 && query.produtos[0]?.llm_relatorio) {
-          const rel = query.produtos[0]!.llm_relatorio;
+  // Para cada query, mostrar top 5 com design aprimorado
+  data.queries.forEach((query, queryIndex) => {
+    // Verificar espaço para cada query
+    this.verificarEspacoPagina(doc, 150);
+    
+    // Card da query
+    const queryY = doc.y;
+    doc
+      .fill('#f8f9fa')
+      .rect(margin, queryY, contentWidth, 40)
+      .fillAndStroke('#f8f9fa', '#8e44ad');
+    
+    // Ícone da pesquisa
+    doc
+      .fill('#8e44ad')
+      .circle(margin + 20, queryY + 20, 12)
+      .fill()
+      .fill('#ffffff')
+      .fontSize(10)
+      .font('Helvetica-Bold')
+      .text(`${queryIndex + 1}`, margin + 16, queryY + 16);
+    
+    doc
+      .fill('#2c3e50')
+      .fontSize(14)
+      .font('Helvetica-Bold')
+      .text(`PESQUISA: ${query.queryId}`, margin + 45, queryY + 15)
+      .moveDown(1.5);
+
+    // Relatório LLM se disponível
+    if (query.produtos.length > 0 && query.produtos[0]?.llm_relatorio) {
+      const rel = query.produtos[0]!.llm_relatorio;
+      
+      // Card da escolha principal
+      if (rel.escolha_principal) {
+        const choiceY = doc.y;
         
-        // Mostrar escolha principal
-        if (rel.escolha_principal) {
-          doc
-            .fontSize(14)
-            .font('Helvetica-Bold')
-            .text('ESCOLHA PRINCIPAL:', { underline: true })
-            .moveDown(0.3);
-
-          doc
-            .fontSize(12)
-            .font('Helvetica-Bold')
-            .text(rel.escolha_principal)
-            .moveDown(0.2);
-
-          if (rel.justificativa_escolha) {
-            doc
-              .fontSize(11)
-              .font('Helvetica-Bold')
-              .text('Justificativa da Escolha:')
-              .moveDown(0.2);
-
-            doc
-              .fontSize(10)
-              .font('Helvetica')
-              .text(rel.justificativa_escolha, { width: 450 })
-              .moveDown(0.3);
-          }
-        }
-
-        // Mostrar ranking completo top 5
-        if (rel.top5_ranking && Array.isArray(rel.top5_ranking)) {
-          doc
-            .fontSize(14)
-            .font('Helvetica-Bold')
-            .text('RANKING COMPLETO TOP 5:', { underline: true })
-            .moveDown(0.5);
-
-          rel.top5_ranking.forEach((ranking: any, rankIndex: number) => {
-            doc
-              .fontSize(12)
-              .font('Helvetica-Bold')
-              .text(`${ranking.posicao}º LUGAR: ${ranking.nome}`)
-              .moveDown(0.2);
-
-            doc
-              .fontSize(11)
-              .font('Helvetica')
-              .text(`Score Estimado: ${(ranking.score_estimado * 100).toFixed(1)}%`)
-              .moveDown(0.2);
-
-            if (ranking.justificativa) {
-              doc
-                .fontSize(10)
-                .font('Helvetica-Bold')
-                .text('Justificativa:')
-                .moveDown(0.1);
-
-              doc
-                .fontSize(9)
-                .font('Helvetica')
-                .text(ranking.justificativa, { width: 430 })
-                .moveDown(0.2);
-            }
-            if (ranking.id) {
-              doc
-                .fontSize(10)
-                .font('Helvetica-Bold')
-                .text(`ID: ${ranking.id}`)
-                .moveDown(0.2);
-            }
-
-            if (ranking.pontos_fortes && Array.isArray(ranking.pontos_fortes)) {
-              doc
-                .fontSize(10)
-                .font('Helvetica-Bold')
-                .text('Pontos Fortes:')
-                .moveDown(0.1);
-
-              ranking.pontos_fortes.forEach((ponto: string) => {
-                doc
-                  .fontSize(9)
-                  .font('Helvetica')
-                  .text(`• ${ponto}`, { width: 430 });
-              });
-              doc.moveDown(0.2);
-            }
-
-            if (ranking.pontos_fracos && Array.isArray(ranking.pontos_fracos)) {
-              doc
-                .fontSize(10)
-                .font('Helvetica-Bold')
-                .text('Pontos Fracos:')
-                .moveDown(0.1);
-
-              ranking.pontos_fracos.forEach((ponto: string) => {
-                doc
-                  .fontSize(9)
-                  .font('Helvetica')
-                  .text(`• ${ponto}`, { width: 430 });
-              });
-              doc.moveDown(0.2);
-            }
-            if (ranking.preco) {
-              doc
-                .fontSize(10)
-                .font('Helvetica-Bold')
-                .text('Preço: AOA$ ' + ranking.preco)
-                .moveDown(0.1);
-            }
-            doc.moveDown(0.3);
-          });
-        }
-
-        // Mostrar critérios de avaliação
-        if (rel.criterios_avaliacao) {
-          doc
-            .fontSize(14)
-            .font('Helvetica-Bold')
-            .text(' CRITÉRIOS DE AVALIAÇÃO:', { underline: true })
-            .moveDown(0.5);
-
-          const criterios = rel.criterios_avaliacao;
-          if (criterios.correspondencia_tipo) {
-            doc
-              .fontSize(11)
-              .font('Helvetica-Bold')
-              .text('• Correspondência de Tipo:')
-              .moveDown(0.1);
-            doc
-              .fontSize(10)
-              .font('Helvetica')
-              .text(`  ${criterios.correspondencia_tipo}`, { width: 430 })
-              .moveDown(0.2);
-          }
-          if (criterios.especificacoes) {
-            doc
-              .fontSize(11)
-              .font('Helvetica-Bold')
-              .text('• Especificações:')
-              .moveDown(0.1);
-            doc
-              .fontSize(10)
-              .font('Helvetica')
-              .text(`  ${criterios.especificacoes}`, { width: 430 })
-              .moveDown(0.2);
-          }
-          if (criterios.custo_beneficio) {
-            doc
-              .fontSize(11)
-              .font('Helvetica-Bold')
-              .text('• Custo-Benefício:')
-              .moveDown(0.1);
-            doc
-              .fontSize(10)
-              .font('Helvetica')
-              .text(`  ${criterios.custo_beneficio}`, { width: 430 })
-              .moveDown(0.2);
-          }
-          if (criterios.disponibilidade) {
-            doc
-              .fontSize(11)
-              .font('Helvetica-Bold')
-              .text('• Disponibilidade:')
-              .moveDown(0.1);
-            doc
-              .fontSize(10)
-              .font('Helvetica')
-              .text(`  ${criterios.disponibilidade}`, { width: 430 })
-              .moveDown(0.2);
-          }
-        }
-      } else {
-        // Fallback: mostrar produtos da query sem relatório LLM
+        // Calcular altura dinâmica do texto da escolha
+        doc.fontSize(12).font('Helvetica-Bold');
+        const escolhaHeight = doc.heightOfString(rel.escolha_principal, { 
+          width: contentWidth - 40,
+          lineGap: 2
+        });
+        const totalChoiceHeight = escolhaHeight + 60; // padding + header
+        
+        doc
+          .fill('#e8f5e8')
+          .rect(margin, choiceY, contentWidth, totalChoiceHeight)
+          .fillAndStroke('#e8f5e8', '#27ae60');
+        
+        // Indicador de escolha
+        doc
+          .fill('#27ae60')
+          .fontSize(12)
+          .font('Helvetica-Bold')
+          .text('TOP', margin + 20, choiceY + 18);
+        
+        doc
+          .fill('#2c3e50')
+          .fontSize(14)
+          .font('Helvetica-Bold')
+          .text('PRODUTO RECOMENDADO', margin + 50, choiceY + 15);
+        
+        // Texto da escolha principal
         doc
           .fontSize(12)
-          .font('Helvetica')
-          .text('Relatório LLM não disponível para esta query.')
-          .moveDown(0.5);
-
-        // Top 5 produtos
-        query.produtos.slice(0, 5).forEach((produto, posicao) => {
+          .font('Helvetica-Bold')
+          .text(rel.escolha_principal, margin + 20, choiceY + 40, { 
+            width: contentWidth - 40,
+            lineGap: 2
+          });
+        
+        doc.y = choiceY + totalChoiceHeight + 15;
+        
+        if (rel.justificativa_escolha) {
+          // Verificar espaço mínimo antes de desenhar
+          this.verificarEspacoPagina(doc, 100);
+        
+          const justY = doc.y;
+          
+          // Calcular altura dinâmica da justificativa
+          doc.fontSize(10).font('Helvetica');
+          const justificativaHeight = doc.heightOfString(rel.justificativa_escolha, {
+            width: contentWidth - 40,
+            lineGap: 2
+          });
+          const totalJustHeight = justificativaHeight + 50; // padding + header
+        
+          // Caixa amarela
           doc
+            .fill('#fff3cd')
+            .rect(margin, justY, contentWidth, totalJustHeight)
+            .fillAndStroke('#fff3cd', '#ffc107');
+        
+          // Título
+          doc
+            .fill('#856404')
             .fontSize(11)
             .font('Helvetica-Bold')
-            .text(`${posicao + 1}º: ${produto.nome}`)
-            .moveDown(0.2);
-
+            .text('JUSTIFICATIVA DA ESCOLHA', margin + 20, justY + 15);
+        
+          // Texto da justificativa
           doc
             .fontSize(10)
             .font('Helvetica')
-            .text(`Score: ${(produto.score * 100).toFixed(1)}%`)
-            .moveDown(0.3);
+            .text(rel.justificativa_escolha, margin + 20, justY + 35, {
+              width: contentWidth - 40,
+              lineGap: 2
+            });
+        
+          // Atualizar posição Y
+          doc.y = justY + totalJustHeight + 15;
+        }
+      }
+
+      // Mostrar ranking completo top 5 com design aprimorado
+      if (rel.top5_ranking && Array.isArray(rel.top5_ranking)) {
+        // Verificar espaço para título do ranking
+        this.verificarEspacoPagina(doc, 50);
+        
+        // Título do ranking
+        doc
+          .fill('#3498db')
+          .rect(margin, doc.y, contentWidth, 35)
+          .fillAndStroke('#3498db', '#2980b9');
+        
+        doc
+          .fill('#ffffff')
+          .fontSize(14)
+          .font('Helvetica-Bold')
+          .text('RANKING COMPLETO TOP 5', margin + 20, doc.y + 10)
+          .moveDown(1.2);
+
+        rel.top5_ranking.forEach((ranking: any, rankIndex: number) => {
+          // Calcular altura dinâmica para cada item do ranking
+          let itemHeight = 40; // padding inicial
+          
+          // Altura do nome do produto
+          doc.fontSize(12).font('Helvetica-Bold');
+          const nomeHeight = doc.heightOfString(ranking.nome || 'Produto sem nome', { 
+            width: contentWidth - 220,
+            lineGap: 2
+          });
+          itemHeight += Math.max(nomeHeight, 20) + 10;
+          
+          // Altura da justificativa
+          if (ranking.justificativa) {
+            doc.fontSize(9).font('Helvetica');
+            const justHeight = doc.heightOfString(ranking.justificativa, { 
+              width: contentWidth - 220,
+              lineGap: 2
+            });
+            itemHeight += justHeight + 10;
+          }
+          
+          // Altura dos pontos fortes/fracos
+          const hasFortes = ranking.pontos_fortes && Array.isArray(ranking.pontos_fortes) && ranking.pontos_fortes.length > 0;
+          const hasFracos = ranking.pontos_fracos && Array.isArray(ranking.pontos_fracos) && ranking.pontos_fracos.length > 0;
+          
+          if (hasFortes || hasFracos) {
+            itemHeight += 45; // altura dos mini cards
+          }
+          
+          itemHeight += 20; // padding final
+          
+          // Verificar espaço para cada item do ranking
+          this.verificarEspacoPagina(doc, itemHeight);
+          
+          const rankY = doc.y;
+          const medalColors = ['#ffd700', '#c0c0c0', '#cd7f32', '#4a90e2', '#9b59b6'];
+          const medalColor = medalColors[rankIndex] || '#95a5a6';
+          
+          // Card do ranking
+          doc
+            .fill('#ffffff')
+            .rect(margin, rankY, contentWidth, itemHeight)
+            .fillAndStroke('#ffffff', '#bdc3c7');
+          
+          // Medalha/posição
+          doc
+            .fill(medalColor)
+            .circle(margin + 25, rankY + 25, 15)
+            .fill()
+            .fill('#ffffff')
+            .fontSize(12)
+            .font('Helvetica-Bold')
+            .text(`${ranking.posicao || rankIndex + 1}`, margin + 20, rankY + 20);
+          
+          // Nome do produto (com altura calculada)
+          const nomeY = rankY + 15;
+          doc
+            .fill('#2c3e50')
+            .fontSize(12)
+            .font('Helvetica-Bold')
+            .text(ranking.nome || 'Produto sem nome', margin + 55, nomeY, { 
+              width: contentWidth - 220,
+              lineGap: 2
+            });
+
+          // Score em destaque (posicionado adequadamente)
+          if (ranking.score_estimado) {
+            doc
+              .fill('#27ae60')
+              .fontSize(16)
+              .font('Helvetica-Bold')
+              .text(`${(ranking.score_estimado * 100).toFixed(1)}%`, margin + contentWidth - 100, nomeY + 5);
+          }
+
+          // Preço (abaixo do score)
+          if (ranking.preco) {
+            doc
+              .fill('#e67e22')
+              .fontSize(11)
+              .font('Helvetica-Bold')
+              .text(`AOA$ ${ranking.preco}`, margin + contentWidth - 100, nomeY + 30);
+          }
+
+          // ID do produto (pequeno e discreto)
+          if (ranking.id) {
+            doc
+              .fill('#95a5a6')
+              .fontSize(8)
+              .font('Helvetica')
+              .text(`ID: ${ranking.id}`, margin + 55, nomeY + Math.max(nomeHeight, 20) + 5);
+          }
+
+          // Justificativa (com espaçamento adequado)
+          let currentY = nomeY + Math.max(nomeHeight, 20) + 25;
+          if (ranking.justificativa) {
+            doc
+              .fill('#7f8c8d')
+              .fontSize(9)
+              .font('Helvetica')
+              .text(ranking.justificativa, margin + 55, currentY, { 
+                width: contentWidth - 220,
+                lineGap: 2
+              });
+            
+            const justHeight = doc.heightOfString(ranking.justificativa, { 
+              width: contentWidth - 220,
+              lineGap: 2
+            });
+            currentY += justHeight + 15;
+          }
+
+          // Pontos fortes e fracos em mini cards (lado a lado)
+          if (hasFortes || hasFracos) {
+            const cardsY = currentY;
+            const cardWidth = (contentWidth - 120) / 2;
+            
+            if (hasFortes) {
+              // Card pontos fortes
+              doc
+                .fill('#d5f4e6')
+                .rect(margin + 55, cardsY, cardWidth - 5, 35)
+                .fillAndStroke('#d5f4e6', '#27ae60');
+              
+              doc
+                .fill('#27ae60')
+                .fontSize(8)
+                .font('Helvetica-Bold')
+                .text('PONTOS FORTES', margin + 60, cardsY + 5);
+              
+              const fortesText = ranking.pontos_fortes.slice(0, 2).join(', ');
+              doc
+                .fill('#2c3e50')
+                .fontSize(7)
+                .font('Helvetica')
+                .text(fortesText, margin + 60, cardsY + 18, { 
+                  width: cardWidth - 15,
+                  lineGap: 1
+                });
+            }
+
+            if (hasFracos) {
+              // Card pontos fracos
+              const fracosX = hasFortes ? margin + 55 + cardWidth + 5 : margin + 55;
+              
+              doc
+                .fill('#fdeaea')
+                .rect(fracosX, cardsY, cardWidth - 5, 35)
+                .fillAndStroke('#fdeaea', '#e74c3c');
+              
+              doc
+                .fill('#e74c3c')
+                .fontSize(8)
+                .font('Helvetica-Bold')
+                .text('PONTOS FRACOS', fracosX + 5, cardsY + 5);
+              
+              const fracosText = ranking.pontos_fracos.slice(0, 2).join(', ');
+              doc
+                .fill('#2c3e50')
+                .fontSize(7)
+                .font('Helvetica')
+                .text(fracosText, fracosX + 5, cardsY + 18, { 
+                  width: cardWidth - 15,
+                  lineGap: 1
+                });
+            }
+          }
+          
+          doc.y = rankY + itemHeight + 15;
         });
       }
 
-      doc.moveDown(1);
-    });
-  }
+      // Mostrar critérios de avaliação se existirem
+      if (rel.criterios_avaliacao) {
+        this.verificarEspacoPagina(doc, 100);
+        
+        // Header dos critérios
+        doc
+          .fill('#34495e')
+          .rect(margin, doc.y, contentWidth, 30)
+          .fillAndStroke('#34495e', '#2c3e50');
+        
+        doc
+          .fill('#ffffff')
+          .fontSize(12)
+          .font('Helvetica-Bold')
+          .text('CRITÉRIOS DE AVALIAÇÃO', margin + 20, doc.y + 8)
+          .moveDown(1.2);
 
-  /**
-   * Adiciona seção de relatórios de busca web
-   */
-  private adicionarSecaoRelatoriosWeb(doc: PDFKit.PDFDocument, data: RelatorioData) {
-    doc
-      .fontSize(18)
-      .font('Helvetica-Bold')
-      .text('RELATÓRIOS DE BUSCA WEB', { underline: true })
-      .moveDown(1);
+        const criterios = rel.criterios_avaliacao;
+        const criteriosList = [
+          { key: 'correspondencia_tipo', label: 'Correspondência de Tipo' },
+          { key: 'especificacoes', label: 'Especificações' },
+          { key: 'custo_beneficio', label: 'Custo-Benefício' },
+          { key: 'disponibilidade', label: 'Disponibilidade' }
+        ];
 
-    if (data.relatoriosWeb.length === 0) {
-      doc
-        .fontSize(12)
-        .font('Helvetica')
-        .text('Nenhum relatório de busca web disponível para esta cotação.')
-        .moveDown(1);
-      return;
-    }
-
-    data.relatoriosWeb.forEach((relatorioWeb, index) => {
-      doc
-        .fontSize(16)
-        .font('Helvetica-Bold')
-        .text(`Busca Web ${index + 1}`, { underline: true })
-        .moveDown(0.5);
-
-      // Informações básicas da busca
-      doc
-        .fontSize(12)
-        .font('Helvetica')
-        .text(`Data: ${new Date(relatorioWeb.timestamp).toLocaleString('pt-BR')}`)
-        .text(`Produtos analisados: ${relatorioWeb.produtos_analisados}`)
-        .text(`Produtos selecionados: ${relatorioWeb.produtos_selecionados}`)
-        .moveDown(0.5);
-
-      // Relatório LLM da busca web
-      if (relatorioWeb.relatorio) {
-        const rel = relatorioWeb.relatorio;
-
-        // Escolha principal
-        if (rel.escolha_principal) {
-          doc
-            .fontSize(14)
-            .font('Helvetica-Bold')
-            .text('PRODUTO ESCOLHIDO:', { underline: true })
-            .moveDown(0.3);
-
-          doc
-            .fontSize(12)
-            .font('Helvetica-Bold')
-            .text(rel.escolha_principal)
-            .moveDown(0.2);
-
-          if (rel.justificativa_escolha) {
+        criteriosList.forEach(criterio => {
+          if (criterios[criterio.key]) {
+            // Verificar espaço para cada critério
+            this.verificarEspacoPagina(doc, 60);
+            
+            const criterioY = doc.y;
+            
+            // Calcular altura do texto do critério
+            doc.fontSize(10).font('Helvetica');
+            const textHeight = doc.heightOfString(criterios[criterio.key], {
+              width: contentWidth - 40,
+              lineGap: 2
+            });
+            const totalHeight = textHeight + 35;
+            
+            // Card do critério
             doc
+              .fill('#f8f9fa')
+              .rect(margin, criterioY, contentWidth, totalHeight)
+              .fillAndStroke('#f8f9fa', '#dee2e6');
+            
+            // Título do critério
+            doc
+              .fill('#495057')
               .fontSize(11)
               .font('Helvetica-Bold')
-              .text('Justificativa:')
-              .moveDown(0.2);
-
+              .text(`• ${criterio.label}:`, margin + 20, criterioY + 10);
+            
+            // Conteúdo do critério
             doc
               .fontSize(10)
               .font('Helvetica')
-              .text(rel.justificativa_escolha, { width: 450 })
-              .moveDown(0.3);
+              .text(criterios[criterio.key], margin + 25, criterioY + 25, { 
+                width: contentWidth - 50,
+                lineGap: 2
+              });
+            
+            doc.y = criterioY + totalHeight + 10;
           }
-        }
+        });
+      }
+    } else {
+      // Fallback: mostrar produtos da query sem relatório LLM
+      const fallbackY = doc.y;
+      doc
+        .fill('#fff3cd')
+        .rect(margin, fallbackY, contentWidth, 50)
+        .fillAndStroke('#fff3cd', '#ffc107');
+      
+      doc
+        .fill('#856404')
+        .fontSize(12)
+        .font('Helvetica')
+        .text('Relatório LLM não disponível para esta query.', margin + 20, fallbackY + 18)
+        .moveDown(1.5);
 
-        // Top 5 ranking
-        if (rel.top5_ranking && Array.isArray(rel.top5_ranking)) {
-          doc
-            .fontSize(14)
-            .font('Helvetica-Bold')
-            .text('RANKING TOP 5:', { underline: true })
-            .moveDown(0.5);
+      // Top 5 produtos básicos
+      query.produtos.slice(0, 5).forEach((produto, posicao) => {
+        this.verificarEspacoPagina(doc, 40);
+        
+        const prodY = doc.y;
+        doc
+          .fill('#ffffff')
+          .rect(margin, prodY, contentWidth, 35)
+          .fillAndStroke('#ffffff', '#dee2e6');
+        
+        doc
+          .fill('#6c757d')
+          .fontSize(10)
+          .font('Helvetica-Bold')
+          .text(`${posicao + 1}º:`, margin + 15, prodY + 10)
+          .fill('#212529')
+          .text(produto.nome, margin + 35, prodY + 10, { width: contentWidth - 120 })
+          .fill('#28a745')
+          .text(`${(produto.score * 100).toFixed(1)}%`, margin + contentWidth - 70, prodY + 10);
+        
+        doc.y = prodY + 40;
+      });
+    }
 
-          rel.top5_ranking.slice(0, 5).forEach((ranking: any) => {
-            doc
-              .fontSize(12)
-              .font('Helvetica-Bold')
-              .text(`${ranking.posicao}º LUGAR: ${ranking.nome}`)
-              .moveDown(0.2);
+    doc.moveDown(1);
+  });
+}
 
-            if (ranking.score_estimado) {
-              doc
-                .fontSize(11)
-                .font('Helvetica')
-                .text(`Score: ${(ranking.score_estimado * 100).toFixed(1)}%`)
-                .moveDown(0.2);
-            }
+/**
+ * Adiciona seção de relatórios de busca web
+ */
+private adicionarSecaoRelatoriosWeb(doc: PDFKit.PDFDocument, data: RelatorioData) {
+  const margin = doc.page.margins.left;
+  const pageWidth = doc.page.width;
+  const contentWidth = pageWidth - (margin * 2);
+  
+  // Verificar espaço para a seção
+  this.verificarEspacoPagina(doc, 100);
+  
+  // Título da seção com gradiente visual (mesmo estilo)
+  doc
+    .fill('#e74c3c')
+    .rect(margin - 20, doc.y - 10, contentWidth + 40, 45)
+    .fillAndStroke('#e74c3c', '#c0392b');
+  
+  doc
+    .fill('#ffffff')
+    .fontSize(18)
+    .font('Helvetica-Bold')
+    .text('RELATORIOS DE BUSCA WEB', margin, doc.y + 10)
+    .moveDown(1.5);
 
-            if (ranking.preco) {
-              doc
-                .fontSize(11)
-                .font('Helvetica')
-                .text(`Preço: AOA$ ${ranking.preco}`)
-                .moveDown(0.2);
-            }
+  if (data.relatoriosWeb.length === 0) {
+    // Card de aviso quando não há relatórios web
+    doc
+      .fill('#fff3cd')
+      .rect(margin, doc.y, contentWidth, 60)
+      .fillAndStroke('#fff3cd', '#ffc107');
+    
+    doc
+      .fill('#856404')
+      .fontSize(12)
+      .font('Helvetica-Bold')
+      .text('AVISO', margin + 20, doc.y + 20)
+      .fontSize(11)
+      .font('Helvetica')
+      .text('Nenhum relatório de busca web disponível para esta cotação.', margin + 20, doc.y + 35)
+      .moveDown(2);
+    return;
+  }
 
-            if (ranking.justificativa) {
-              doc
-                .fontSize(10)
-                .font('Helvetica')
-                .text(`Justificativa: ${ranking.justificativa}`, { width: 430 })
-                .moveDown(0.2);
-            }
+  // Para cada relatório web, mostrar com design aprimorado
+  data.relatoriosWeb.forEach((relatorioWeb, webIndex) => {
+    // Verificar espaço para cada relatório web
+    this.verificarEspacoPagina(doc, 150);
+    
+    // Card do relatório web
+    const webY = doc.y;
+    doc
+      .fill('#f8f9fa')
+      .rect(margin, webY, contentWidth, 80)
+      .fillAndStroke('#f8f9fa', '#e74c3c');
+    
+    // Ícone da busca web
+    doc
+      .fill('#e74c3c')
+      .circle(margin + 20, webY + 20, 12)
+      .fill()
+      .fill('#ffffff')
+      .fontSize(10)
+      .font('Helvetica-Bold')
+      .text(`${webIndex + 1}`, margin + 16, webY + 16);
+    
+    doc
+      .fill('#2c3e50')
+      .fontSize(14)
+      .font('Helvetica-Bold')
+      .text(`BUSCA WEB: ${webIndex + 1}`, margin + 45, webY + 15);
 
-            if (ranking.url) {
-              doc
-                .fontSize(10)
-                .font('Helvetica-Bold')
-                .text(`URL: ${ranking.url}`)
-                .moveDown(0.2);
-            }
+    // Informações da busca em linha
+    doc
+      .fill('#7f8c8d')
+      .fontSize(9)
+      .font('Helvetica')
+      .text(`Data: ${new Date(relatorioWeb.timestamp).toLocaleDateString('pt-BR')} | `, margin + 45, webY + 35)
+      .text(`Analisados: ${relatorioWeb.produtos_analisados} | `, margin + 180, webY + 35)
+      .text(`Selecionados: ${relatorioWeb.produtos_selecionados}`, margin + 300, webY + 35);
+    
+    doc.y = webY + 95;
 
-
-            if (ranking.pontos_fortes && Array.isArray(ranking.pontos_fortes)) {
-              doc
-                .fontSize(10)
-                .font('Helvetica-Bold')
-                .text('Pontos Fortes:')
-                .moveDown(0.1);
-
-              ranking.pontos_fortes.forEach((ponto: string) => {
-                doc
-                  .fontSize(9)
-                  .font('Helvetica')
-                  .text(`• ${ponto}`, { width: 430 });
-              });
-              doc.moveDown(0.2);
-            }
-
-            if (ranking.pontos_fracos && Array.isArray(ranking.pontos_fracos)) {
-              doc
-                .fontSize(10)
-                .font('Helvetica-Bold')
-                .text('Pontos Fracos:')
-                .moveDown(0.1);
-
-              ranking.pontos_fracos.forEach((ponto: string) => {
-                doc
-                  .fontSize(9)
-                  .font('Helvetica')
-                  .text(`• ${ponto}`, { width: 430 });
-              });
-              doc.moveDown(0.2);
-            }
-
-            doc.moveDown(0.3);
+    // Relatório LLM da busca web se disponível
+    if (relatorioWeb.relatorio) {
+      const rel = relatorioWeb.relatorio;
+      
+      // Card da escolha principal
+      if (rel.escolha_principal) {
+        const choiceY = doc.y;
+        
+        // Calcular altura dinâmica do texto da escolha
+        doc.fontSize(12).font('Helvetica-Bold');
+        const escolhaHeight = doc.heightOfString(rel.escolha_principal, { 
+          width: contentWidth - 40,
+          lineGap: 2
+        });
+        const totalChoiceHeight = escolhaHeight + 60; // padding + header
+        
+        doc
+          .fill('#e8f5e8')
+          .rect(margin, choiceY, contentWidth, totalChoiceHeight)
+          .fillAndStroke('#e8f5e8', '#27ae60');
+        
+        // Indicador de escolha
+        doc
+          .fill('#27ae60')
+          .fontSize(12)
+          .font('Helvetica-Bold')
+          .text('TOP', margin + 20, choiceY + 18);
+        
+        doc
+          .fill('#2c3e50')
+          .fontSize(14)
+          .font('Helvetica-Bold')
+          .text('PRODUTO RECOMENDADO WEB', margin + 50, choiceY + 15);
+        
+        // Texto da escolha principal
+        doc
+          .fontSize(12)
+          .font('Helvetica-Bold')
+          .text(rel.escolha_principal, margin + 20, choiceY + 40, { 
+            width: contentWidth - 40,
+            lineGap: 2
           });
-        }
-
-        // Critérios de avaliação
-        if (rel.criterios_avaliacao) {
-          doc
-            .fontSize(14)
-            .font('Helvetica-Bold')
-            .text('CRITÉRIOS DE AVALIAÇÃO:', { underline: true })
-            .moveDown(0.5);
-
-          const criterios = rel.criterios_avaliacao;
-          Object.entries(criterios).forEach(([key, value]) => {
-            if (value && typeof value === 'string') {
-              doc
-                .fontSize(11)
-                .font('Helvetica-Bold')
-                .text(`• ${key.replace(/_/g, ' ').toUpperCase()}:`)
-                .moveDown(0.1);
-              doc
-                .fontSize(10)
-                .font('Helvetica')
-                .text(`  ${value}`, { width: 430 })
-                .moveDown(0.2);
-            }
+        
+        doc.y = choiceY + totalChoiceHeight + 15;
+        
+        if (rel.justificativa_escolha) {
+          // Verificar espaço mínimo antes de desenhar
+          this.verificarEspacoPagina(doc, 100);
+        
+          const justY = doc.y;
+          
+          // Calcular altura dinâmica da justificativa
+          doc.fontSize(10).font('Helvetica');
+          const justificativaHeight = doc.heightOfString(rel.justificativa_escolha, {
+            width: contentWidth - 40,
+            lineGap: 2
           });
-        }
-
-        // Erro se houver
-        if (rel.erro) {
+          const totalJustHeight = justificativaHeight + 50; // padding + header
+        
+          // Caixa amarela
           doc
-            .fontSize(12)
-            .font('Helvetica-Bold')
-            .text('ERRO NA ANÁLISE:', { underline: true })
-            .moveDown(0.3);
-
+            .fill('#fff3cd')
+            .rect(margin, justY, contentWidth, totalJustHeight)
+            .fillAndStroke('#fff3cd', '#ffc107');
+        
+          // Título
           doc
+            .fill('#856404')
             .fontSize(11)
+            .font('Helvetica-Bold')
+            .text('JUSTIFICATIVA DA ESCOLHA', margin + 20, justY + 15);
+        
+          // Texto da justificativa
+          doc
+            .fontSize(10)
             .font('Helvetica')
-            .text(rel.erro, { width: 450 })
-            .moveDown(0.3);
+            .text(rel.justificativa_escolha, margin + 20, justY + 35, {
+              width: contentWidth - 40,
+              lineGap: 2
+            });
+        
+          // Atualizar posição Y
+          doc.y = justY + totalJustHeight + 15;
         }
       }
 
-      doc.moveDown(1);
-    });
-  }
+      // Mostrar ranking completo top 5 com design aprimorado
+      if (rel.top5_ranking && Array.isArray(rel.top5_ranking)) {
+        // Verificar espaço para título do ranking
+        this.verificarEspacoPagina(doc, 50);
+        
+        // Título do ranking
+        doc
+          .fill('#3498db')
+          .rect(margin, doc.y, contentWidth, 35)
+          .fillAndStroke('#3498db', '#2980b9');
+        
+        doc
+          .fill('#ffffff')
+          .fontSize(14)
+          .font('Helvetica-Bold')
+          .text('RANKING WEB COMPLETO TOP 5', margin + 20, doc.y + 10)
+          .moveDown(1.2);
 
+        rel.top5_ranking.forEach((ranking: any, rankIndex: number) => {
+          // Calcular altura dinâmica para cada item do ranking
+          let itemHeight = 40; // padding inicial
+          
+          // Altura do nome do produto
+          doc.fontSize(12).font('Helvetica-Bold');
+          const nomeHeight = doc.heightOfString(ranking.nome || 'Produto sem nome', { 
+            width: contentWidth - 220,
+            lineGap: 2
+          });
+          itemHeight += Math.max(nomeHeight, 20) + 10;
+          
+          // Altura da justificativa
+          if (ranking.justificativa) {
+            doc.fontSize(9).font('Helvetica');
+            const justHeight = doc.heightOfString(ranking.justificativa, { 
+              width: contentWidth - 220,
+              lineGap: 2
+            });
+            itemHeight += justHeight + 10;
+          }
+
+          // Altura da URL
+          if (ranking.url) {
+            itemHeight += 15;
+          }
+          
+          // Altura dos pontos fortes/fracos
+          const hasFortes = ranking.pontos_fortes && Array.isArray(ranking.pontos_fortes) && ranking.pontos_fortes.length > 0;
+          const hasFracos = ranking.pontos_fracos && Array.isArray(ranking.pontos_fracos) && ranking.pontos_fracos.length > 0;
+          
+          if (hasFortes || hasFracos) {
+            itemHeight += 45; // altura dos mini cards
+          }
+          
+          itemHeight += 20; // padding final
+          
+          // Verificar espaço para cada item do ranking
+          this.verificarEspacoPagina(doc, itemHeight);
+          
+          const rankY = doc.y;
+          const medalColors = ['#ffd700', '#c0c0c0', '#cd7f32', '#4a90e2', '#9b59b6'];
+          const medalColor = medalColors[rankIndex] || '#95a5a6';
+          
+          // Card do ranking
+          doc
+            .fill('#ffffff')
+            .rect(margin, rankY, contentWidth, itemHeight)
+            .fillAndStroke('#ffffff', '#bdc3c7');
+          
+          // Medalha/posição
+          doc
+            .fill(medalColor)
+            .circle(margin + 25, rankY + 25, 15)
+            .fill()
+            .fill('#ffffff')
+            .fontSize(12)
+            .font('Helvetica-Bold')
+            .text(`${ranking.posicao || rankIndex + 1}`, margin + 20, rankY + 20);
+          
+          // Nome do produto (com altura calculada)
+          const nomeY = rankY + 15;
+          doc
+            .fill('#2c3e50')
+            .fontSize(12)
+            .font('Helvetica-Bold')
+            .text(ranking.nome || 'Produto sem nome', margin + 55, nomeY, { 
+              width: contentWidth - 220,
+              lineGap: 2
+            });
+
+          // Score em destaque (posicionado adequadamente)
+          if (ranking.score_estimado) {
+            doc
+              .fill('#27ae60')
+              .fontSize(16)
+              .font('Helvetica-Bold')
+              .text(`${(ranking.score_estimado * 100).toFixed(1)}%`, margin + contentWidth - 100, nomeY + 5);
+          }
+
+          // Preço (abaixo do score)
+          if (ranking.preco) {
+            doc
+              .fill('#e67e22')
+              .fontSize(11)
+              .font('Helvetica-Bold')
+              .text(`AOA$ ${ranking.preco}`, margin + contentWidth - 100, nomeY + 30);
+          }
+
+          // URL (pequena e discreta)
+          let currentY = nomeY + Math.max(nomeHeight, 20) + 10;
+          if (ranking.url) {
+            const urlText = ranking.url.length > 60 ? ranking.url.substring(0, 60) + '...' : ranking.url;
+            doc
+              .fill('#3498db')
+              .fontSize(8)
+              .font('Helvetica')
+              .text(` ${urlText}`, margin + 55, currentY);
+            currentY += 15;
+          }
+
+          // Justificativa (com espaçamento adequado)
+          if (ranking.justificativa) {
+            doc
+              .fill('#7f8c8d')
+              .fontSize(9)
+              .font('Helvetica')
+              .text(ranking.justificativa, margin + 55, currentY, { 
+                width: contentWidth - 220,
+                lineGap: 2
+              });
+            
+            const justHeight = doc.heightOfString(ranking.justificativa, { 
+              width: contentWidth - 220,
+              lineGap: 2
+            });
+            currentY += justHeight + 15;
+          }
+
+          // Pontos fortes e fracos em mini cards (lado a lado)
+          if (hasFortes || hasFracos) {
+            const cardsY = currentY;
+            const cardWidth = (contentWidth - 120) / 2;
+            
+            if (hasFortes) {
+              // Card pontos fortes
+              doc
+                .fill('#d5f4e6')
+                .rect(margin + 55, cardsY, cardWidth - 5, 35)
+                .fillAndStroke('#d5f4e6', '#27ae60');
+              
+              doc
+                .fill('#27ae60')
+                .fontSize(8)
+                .font('Helvetica-Bold')
+                .text('PONTOS FORTES', margin + 60, cardsY + 5);
+              
+              const fortesText = ranking.pontos_fortes.slice(0, 2).join(', ');
+              doc
+                .fill('#2c3e50')
+                .fontSize(7)
+                .font('Helvetica')
+                .text(fortesText, margin + 60, cardsY + 18, { 
+                  width: cardWidth - 15,
+                  lineGap: 1
+                });
+            }
+
+            if (hasFracos) {
+              // Card pontos fracos
+              const fracosX = hasFortes ? margin + 55 + cardWidth + 5 : margin + 55;
+              
+              doc
+                .fill('#fdeaea')
+                .rect(fracosX, cardsY, cardWidth - 5, 35)
+                .fillAndStroke('#fdeaea', '#e74c3c');
+              
+              doc
+                .fill('#e74c3c')
+                .fontSize(8)
+                .font('Helvetica-Bold')
+                .text('PONTOS FRACOS', fracosX + 5, cardsY + 5);
+              
+              const fracosText = ranking.pontos_fracos.slice(0, 2).join(', ');
+              doc
+                .fill('#2c3e50')
+                .fontSize(7)
+                .font('Helvetica')
+                .text(fracosText, fracosX + 5, cardsY + 18, { 
+                  width: cardWidth - 15,
+                  lineGap: 1
+                });
+            }
+          }
+          
+          doc.y = rankY + itemHeight + 15;
+        });
+      }
+
+      // Mostrar critérios de avaliação se existirem
+      if (rel.criterios_avaliacao) {
+        this.verificarEspacoPagina(doc, 100);
+        
+        // Header dos critérios
+        doc
+          .fill('#34495e')
+          .rect(margin, doc.y, contentWidth, 30)
+          .fillAndStroke('#34495e', '#2c3e50');
+        
+        doc
+          .fill('#ffffff')
+          .fontSize(12)
+          .font('Helvetica-Bold')
+          .text('CRITÉRIOS DE AVALIAÇÃO WEB', margin + 20, doc.y + 8)
+          .moveDown(1.2);
+
+        const criterios = rel.criterios_avaliacao;
+        const criteriosList = [
+          { key: 'correspondencia_tipo', label: 'Correspondência de Tipo' },
+          { key: 'especificacoes', label: 'Especificações' },
+          { key: 'custo_beneficio', label: 'Custo-Benefício' },
+          { key: 'disponibilidade', label: 'Disponibilidade' },
+          { key: 'confiabilidade', label: 'Confiabilidade da Fonte' },
+          { key: 'reputacao_vendedor', label: 'Reputação do Vendedor' }
+        ];
+
+        criteriosList.forEach(criterio => {
+          if (criterios[criterio.key]) {
+            // Verificar espaço para cada critério
+            this.verificarEspacoPagina(doc, 60);
+            
+            const criterioY = doc.y;
+            
+            // Calcular altura do texto do critério
+            doc.fontSize(10).font('Helvetica');
+            const textHeight = doc.heightOfString(criterios[criterio.key], {
+              width: contentWidth - 40,
+              lineGap: 2
+            });
+            const totalHeight = textHeight + 35;
+            
+            // Card do critério
+            doc
+              .fill('#f8f9fa')
+              .rect(margin, criterioY, contentWidth, totalHeight)
+              .fillAndStroke('#f8f9fa', '#dee2e6');
+            
+            // Título do critério
+            doc
+              .fill('#495057')
+              .fontSize(11)
+              .font('Helvetica-Bold')
+              .text(`• ${criterio.label}:`, margin + 20, criterioY + 10);
+            
+            // Conteúdo do critério
+            doc
+              .fontSize(10)
+              .font('Helvetica')
+              .text(criterios[criterio.key], margin + 25, criterioY + 25, { 
+                width: contentWidth - 50,
+                lineGap: 2
+              });
+            
+            doc.y = criterioY + totalHeight + 10;
+          }
+        });
+      }
+
+      // Mostrar erro se houver
+      if (rel.erro) {
+        this.verificarEspacoPagina(doc, 80);
+        
+        const erroY = doc.y;
+        
+        // Calcular altura do erro
+        doc.fontSize(10).font('Helvetica');
+        const erroHeight = doc.heightOfString(rel.erro, {
+          width: contentWidth - 40,
+          lineGap: 2
+        });
+        const totalErroHeight = erroHeight + 50;
+        
+        // Card de erro
+        doc
+          .fill('#fdeaea')
+          .rect(margin, erroY, contentWidth, totalErroHeight)
+          .fillAndStroke('#fdeaea', '#e74c3c');
+        
+        doc
+          .fill('#e74c3c')
+          .fontSize(12)
+          .font('Helvetica-Bold')
+          .text('ERRO NA ANÁLISE WEB', margin + 20, erroY + 15);
+        
+        doc
+          .fontSize(10)
+          .font('Helvetica')
+          .text(rel.erro, margin + 20, erroY + 35, {
+            width: contentWidth - 40,
+            lineGap: 2
+          });
+        
+        doc.y = erroY + totalErroHeight + 15;
+      }
+    } else {
+      // Fallback: informar que não há relatório LLM para esta busca web
+      const fallbackY = doc.y;
+      doc
+        .fill('#fff3cd')
+        .rect(margin, fallbackY, contentWidth, 50)
+        .fillAndStroke('#fff3cd', '#ffc107');
+      
+      doc
+        .fill('#856404')
+        .fontSize(12)
+        .font('Helvetica')
+        .text('Relatório LLM não disponível para esta busca web.', margin + 20, fallbackY + 18)
+        .moveDown(1.5);
+    }
+
+    doc.moveDown(1);
+  });
+}
   /**
-   * Adiciona rodapé ao documento
+   * Adiciona rodapé ao documento com design aprimorado
    */
   private adicionarRodape(doc: PDFKit.PDFDocument) {
     try {
@@ -944,6 +1988,9 @@ export class RelatorioService {
       
       const pageCount = pageRange.count;
       const startPage = pageRange.start;
+      const margin = doc.page.margins.left;
+      const pageWidth = doc.page.width;
+      const contentWidth = pageWidth - (margin * 2);
       
       console.log(`📄 [RELATORIO] Adicionando rodapé em ${pageCount} páginas (${startPage} a ${startPage + pageCount - 1})`);
       
@@ -951,14 +1998,32 @@ export class RelatorioService {
         const pageIndex = startPage + i;
         doc.switchToPage(pageIndex);
         
+        const footerY = doc.page.height - doc.page.margins.bottom - 30;
+        
+        // Linha decorativa no rodapé
         doc
-          .fontSize(10)
+          .strokeColor('#3498db')
+          .lineWidth(1)
+          .moveTo(margin, footerY)
+          .lineTo(margin + contentWidth, footerY)
+          .stroke();
+        
+        // Informações do rodapé
+        doc
+          .fill('#7f8c8d')
+          .fontSize(9)
           .font('Helvetica')
           .text(
+            `SmartQuote System - Relatório Gerado em ${new Date().toLocaleDateString('pt-BR')}`,
+            margin,
+            footerY + 10,
+            { width: contentWidth / 2 }
+          )
+          .text(
             `Página ${i + 1} de ${pageCount}`,
-            doc.page.margins.left,
-            doc.page.height - doc.page.margins.bottom - 20,
-            { align: 'center' }
+            margin + contentWidth / 2,
+            footerY + 10,
+            { width: contentWidth / 2, align: 'right' }
           );
       }
     } catch (error) {
@@ -971,45 +2036,152 @@ export class RelatorioService {
    * Gera template de email baseado nos dados da cotação
    */
   private gerarTemplateEmail(data: RelatorioData): string {
-    const dataAtual = new Date().toLocaleDateString('pt-BR');
+    const dataAtual = new Date().toLocaleDateString('pt-BR', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
     
-    return `Prezado Cliente,
+    const valorTotal = data.orcamentoGeral.toLocaleString('pt-BR', { 
+      style: 'currency', 
+      currency: 'AOA',
+      minimumFractionDigits: 2 
+    }).replace('AOA', 'AOA$');
+    
+    return `Prezado(a) Cliente,
+  
+  Esperamos que esteja bem. É com grande satisfação que apresentamos nossa proposta comercial personalizada para atender às suas necessidades de tecnologia.
+  
+  SOLICITACAO ORIGINAL:
+  ${data.solicitacao}
+  
+  RESUMO EXECUTIVO DA PROPOSTA:
+  --------------------------------------------
+  • Total de Produtos Selecionados: ${data.itens.length} item(ns)
+  • Investimento Total: ${valorTotal}
+  • Prazo de Entrega: 5-10 dias úteis
+  • Condições de Pagamento: À vista / Parcelado
+  --------------------------------------------
+  
+  PRODUTOS INCLUIDOS NA PROPOSTA:
+  ${data.itens.map((item, index) => {
+    const preco = item.preco || 0;
+    const total = preco * item.quantidade;
+     return `
+  ${index + 1}. ${item.nome.toUpperCase()}
+      - Preço Unitário: AOA$ ${preco.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+      - Quantidade: ${item.quantidade} unidade(s)
+      - Subtotal: AOA$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+  }).join('\n')}
+  
+  CONDICOES COMERCIAIS:
+  • Validade da Proposta: 30 dias corridos
+  • Garantia: Conforme especificações dos fabricantes
+  • Suporte Técnico: Incluso por 90 dias
+  • Frete: Consultar conforme localização
+  • Formas de Pagamento: À vista, cartão ou parcelado
+  
+  DIFERENCIAIS DA NOSSA PROPOSTA:
+  • Análise técnica realizada por inteligência artificial
+  • Seleção criteriosa baseada em custo-benefício
+  • Produtos de fornecedores qualificados
+  • Suporte especializado pós-venda
+  
+  Esta proposta foi elaborada utilizando nossa tecnologia de análise inteligente, considerando as melhores opções disponíveis no mercado em termos de qualidade, preço e adequação às suas necessidades específicas.
+  
+  Estamos à disposição para esclarecimentos adicionais, ajustes na proposta ou para prosseguirmos com a implementação do projeto.
+  
+  Para aprovação ou dúvidas, entre em contato:
+  • Email: vendas@smartquote.ao
+  • Telefone: +244 XXX XXX XXX
+  • WhatsApp: +244 XXX XXX XXX
+  
+  Atenciosamente,
+  
+  --------------------------------------------
+  SMARTQUOTE SYSTEM
+  Equipe Comercial e Técnica
+  ${dataAtual}
+  --------------------------------------------
+  
+  *Esta proposta foi gerada automaticamente pelo sistema SmartQuote v2.0*`;
+  }
+  
+  private gerarTemplateEmailold(data: RelatorioData): string {
+    const dataAtual = new Date().toLocaleDateString('pt-BR', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+    
+    const valorTotal = data.orcamentoGeral.toLocaleString('pt-BR', { 
+      style: 'currency', 
+      currency: 'AOA',
+      minimumFractionDigits: 2 
+    }).replace('AOA', 'AOA$');
+    
+    return `Prezado(a) Cliente,
 
-Espero que esteja bem. Conforme solicitado, segue nossa proposta comercial para a aquisição dos produtos de T.I.
+Esperamos que esteja bem. É com grande satisfação que apresentamos nossa proposta comercial personalizada para atender às suas necessidades de tecnologia.
 
-SOLICITAÇÃO:
+SOLICITACAO ORIGINAL:
 ${data.solicitacao}
 
-RESUMO DA PROPOSTA:
-• Total de itens: ${data.itens.length}
-• Orçamento geral:AOA$ ${data.orcamentoGeral.toFixed(2)}
-• Prazo de entrega: A combinar
-• Forma de pagamento: A combinar
+RESUMO EXECUTIVO DA PROPOSTA:
+┌─────────────────────────────────────────────┐
+│ Total de Produtos Selecionados: ${data.itens.length.toString().padStart(2)} itens     │
+│ Investimento Total: ${valorTotal.padStart(15)}     │
+│ Prazo de Entrega: 5-10 dias úteis          │
+│ Condições de Pagamento: À vista/Parcelado   │
+└─────────────────────────────────────────────┘
 
-ITENS INCLUÍDOS:
+PRODUTOS INCLUIDOS NA PROPOSTA:
 ${data.itens.map((item, index) => {
   const preco = item.preco || 0;
   const total = preco * item.quantidade;
-  const descricao = item.descricao || 'Descrição não informada';
-  return `${index + 1}. ${item.nome}
-     Descrição: ${descricao}
-     Preço unitário:AOA$ ${preco.toFixed(2)}
-     Quantidade: ${item.quantidade}
-     Total:AOA$ ${total.toFixed(2)}`;
-}).join('\n\n')}
+  const descricao = item.descricao || 'Especificações técnicas disponíveis';
+  return `
+${(index + 1).toString().padStart(2)}. ${item.nome.toUpperCase()}
+    ├─ Descrição: ${descricao}
+    ├─ Preço Unitário: AOA$ ${preco.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+    ├─ Quantidade: ${item.quantidade} unidade(s)
+    ├─ Subtotal: AOA$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+    └─ Origem: ${item.origem.toUpperCase()}`;
+}).join('\n')}
 
-CONDIÇÕES COMERCIAIS:
-• Validade da proposta: 30 dias
-• Garantia: Conforme especificações dos fabricantes
-• Suporte técnico: Incluso conforme disponibilidade
+CONDICOES COMERCIAIS:
+• Validade da Proposta: 30 dias corridos
+• Garantia: Conforme especificacoes dos fabricantes
+• Suporte Tecnico: Incluso por 90 dias
+• Frete: Consultar conforme localizacao
+• Formas de Pagamento: A vista, cartao ou parcelado
 
-Esta proposta foi elaborada com base na análise técnica de nossos especialistas, considerando as melhores opções disponíveis no mercado em termos de custo-benefício e adequação às suas necessidades.
+DIFERENCIAIS DA NOSSA PROPOSTA:
+• Análise técnica realizada por inteligência artificial
+• Seleção criteriosa baseada em custo-benefício
+• Produtos de fornecedores qualificados
+• Suporte especializado pós-venda
 
-Aguardamos seu retorno para esclarecimentos adicionais ou para prosseguirmos com a implementação.
+Esta proposta foi elaborada utilizando nossa tecnologia de análise inteligente, considerando as melhores opções disponíveis no mercado em termos de qualidade, preço e adequação às suas necessidades específicas.
+
+Estamos à disposição para esclarecimentos adicionais, ajustes na proposta ou para prosseguirmos com a implementação do projeto.
+
+Para aprovacao ou duvidas, entre em contato:
+• Email: vendas@smartquote.ao
+• Telefone: +244 XXX XXX XXX
+• WhatsApp: +244 XXX XXX XXX
 
 Atenciosamente,
-Equipe de Vendas
-Data: ${dataAtual}`;
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SMARTQUOTE SYSTEM
+Equipe Comercial e Técnica
+${dataAtual}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+*Esta proposta foi gerada automaticamente pelo sistema SmartQuote v2.0*`;
   }
 
 }

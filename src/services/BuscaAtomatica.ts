@@ -84,7 +84,7 @@ export class BuscaAutomatica {
         schema: this.getProductSchema(),
 
         // As regras não negociáveis e o "código de conduta" da IA
-        systemPrompt: `You are a precise data extraction agent. 
+        systemPrompt: `You are a precise data extraction agent.
                       If you cannot find the requested information, you MUST return an empty 'products' array. 
                       DO NOT invent or fabricate data.`,
 

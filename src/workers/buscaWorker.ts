@@ -111,62 +111,71 @@ async function filtrarProdutosComLLM(produtos: any[], termoBusca: string, quanti
       url: p.product_url || p.url || ''
     }));
 
-    const promptSistema =
-      "Você é um assistente especializado em análise de produtos. Sua tarefa é analisar candidatos e escolher o melhor.\n\n" +
-      "Responda APENAS com um objeto JSON válido no formato exato:\n" +
+    const prompt_sistema = (
+      "Você é um Analista de Soluções de T.I. sénior, agindo como o módulo de decisão final do sistema SmartQuote. A sua análise deve ser lógica, objetiva e implacável na aplicação das regras.\n" +
+      "A sua tarefa é analisar uma lista de produtos candidatos extraídos da web e gerar um relatório de recomendação, seguindo estritamente o formato JSON especificado.\n" +
+      "Responda APENAS com um objeto JSON válido, sem comentários ou texto extra.\n\n" +
+      "--- FORMATO DE SAÍDA (SUCESSO ou FALHA PARCIAL) ---\n" +
       "{\n" +
-      '  "index": N,\n' +
+      '  "index": <int>,             // Índice (0, 1, 2...) do melhor candidato ou -1 se nenhum for totalmente elegível\n' +
       '  "relatorio": {\n' +
-      '    "escolha_principal": "Nome do produto escolhido",\n' +
-      '    "justificativa_escolha": "Por que este produto foi escolhido como primeiro",\n' +
-      '    "top5_ranking": [\n' +
+      '    "escolha_principal": "<string_or_null>",\n' +
+      '    "justificativa_escolha": "<string>",\n' +
+      '    "top_ranking": [\n' +
       '      {\n' +
-      '        "posicao": 1,\n' +
-      '        "nome": "Nome do produto",\n' +
-      '        "url": "URL do produto",\n' +
-      '        "justificativa": "Por que ficou nesta posição",\n' +
-      '        "preco": "Preço do produto",\n' + 
-      '        "pontos_fortes": ["Ponto forte 1", "Ponto forte 2"],\n' +
-      '        "pontos_fracos": ["Ponto fraco 1", "Ponto fraco 2"],\n' +
-      '        "score_estimado": 0.95\n' +
+      '        "posicao": <int>,\n' +
+      '        "nome": "<string>",\n' +
+      '        "url": "<string>",\n' +
+      '        "preco": "<string_or_null>",\n' +
+      '        "justificativa": "<string>",\n' +
+      '        "pontos_fortes": ["<string>"],\n' +
+      '        "pontos_fracos": ["<string>"],\n' +
+      '        "score_estimado": <float>\n' +
       '      }\n' +
       '    ],\n' +
       '    "criterios_avaliacao": {\n' +
-      '      "correspondencia_tipo": "Como o produto corresponde ao tipo solicitado",\n' +
-      '      "especificacoes": "Avaliação das especificações técnicas",\n' +
-      '      "custo_beneficio": "Análise de preço vs. funcionalidades",\n' +
-      '      "disponibilidade": "Status de estoque e entrega"\n' +
+      '      "correspondencia_tipo": "<string>",\n' +
+      '      "especificacoes": "<string>",\n' +
+      '      "custo_beneficio": "<string>",\n' +
+      '      "disponibilidade": "<string>"\n' +
       '    }\n' +
       '  }\n' +
       "}\n\n" +
-      "Caso não encontre um produto adequado estruture o JSON da seguinte forma: {\"index\": -1, \"relatorio\": {\"erro\": \"Produto não encontrado\"}}\n\n	" +
-
-      "Critérios de avaliação:\n" +
-      "1. Correspondência EXATA com o termo de busca\n" +
-      "2. Produto deve ter URL válida e informações completas\n" +
-      "3. Relevância técnica e funcional\n" +
-      "4. Qualidade da descrição e especificações\n" +
-      "5. Disponibilidade (se informada)\n" +
-      "6. Melhor custo-benefício\n" +
-      "7. Rigor na busca: inteiro (0–5) indicando quão exatamente o usuário quer o item:\n" +
-      "   - 0 = genérico (\"um computador\")\n" +
-      "   - 1 = pouco específico\n" +
-      "   - 2 = algumas características\n" +
-      "   - 3 = moderadamente específico\n" +
-      "   - 4 = quase fechado\n" +
-      "   - 5 = rígido, modelo exato\n\n" +
-      "RELATÓRIO DETALHADO:\n" +
-      "- Justifique cada posição do top 5\n" +
-      "- Explique por que o primeiro não é o segundo\n" +
-      "- Seja específico e técnico nas justificativas\n" +
-      "- Use linguagem profissional mas acessível\n\n" +
-      "REGRAS IMPORTANTES:\n" +
-      "- NUNCA escolha produtos sem URL ou com informações vazias\n" +
-      "- Prefira produtos com descrições detalhadas\n" +
-      "- Se nenhum produto for adequado, retorne index: -1\n" +
-      "- Seja RIGOROSO na seleção - é melhor rejeitar do que aceitar produtos inadequados\n" +
-      "NÃO adicione explicações, comentários ou texto extra. APENAS o JSON.";
-
+  
+      "--- FORMATO DE SAÍDA (FALHA TOTAL) ---\n" +
+      "{\n" +
+      '  "index": -1,\n' +
+      '  "relatorio": {\n' +
+      '    ...            \n' +
+      '    "erro": "Produto não encontrado"\n' +
+      '  }\n' +
+      "}\n\n" +
+  
+      "--- REGRAS DE DECISÃO HIERÁRQUICAS ---\n" +
+      "**PASSO 1: VERIFICAÇÃO DE ELEGIBILIDADE (REGRAS NÃO NEGOCIÁVEIS)**\n" +
+      "   - Para CADA candidato, verifique o seguinte:\n" +
+      "     1. **Tipo de Produto:** O tipo fundamental do produto corresponde à QUERY? (Ex: a query pede 'router', o candidato não pode ser um 'switch').\n" +
+      "     2. **Validade dos Dados:** O produto tem um `nome` e uma `url` válidos e não vazios?\n" +
+      "   - **SE NENHUM candidato passar nestas verificações:** Você DEVE parar imediatamente e retornar o JSON no `Formato de FALHA TOTAL`.\n" +
+      "   - **SE HOUVER candidatos que passam:** Prossiga para o Passo 2 apenas com a lista de candidatos que passaram nesta verificação.\n\n" +
+  
+      "**PASSO 2: INTERPRETAÇÃO DO PARÂMETRO 'RIGOR'**\n" +
+      "   - O 'rigor' (0-5) define  o quão estritamente as especificações da QUERY e dos FILTROS devem ser seguidas.\n" +
+      "   - `rigor=0` (genérico): Foque-se no custo-benefício e na relevância geral. As especificações são flexíveis.\n" +
+      "   - `rigor=5` (rígido): As especificações são OBRIGATÓRIAS. Um candidato que não cumpra uma especificação explícita do cliente deve ser desqualificado da posição de `index` principal.\n\n" +
+  
+      "**PASSO 3: ANÁLISE E GERAÇÃO DO RELATÓRIO**\n" +
+      "   - **Cenário A (SUCESSO):** Se existe PELO MENOS UM candidato que cumpre os requisitos do 'rigor'.\n" +
+      "     - Escolha o melhor entre os elegíveis e defina o seu `index`.\n" +
+      "     - Gere o relatório completo no `Formato de SUCESSO`.\n" +
+      "   - **Cenário B (FALHA PARCIAL):** Se existem candidatos do tipo correto, MAS NENHUM cumpre as especificações com o 'rigor' exigido.\n" +
+      "     - Você DEVE definir `index: -1` e `escolha_principal: null`.\n" +
+      "     - No `top_ranking`, liste os candidatos mais próximos, mas na `justificativa` de cada um, explique CLARAMENTE qual especificação obrigatória falhou.\n" +
+      "   - **`top_ranking`:**\n" +
+      "     - Não force um ranking. Liste apenas os candidatos que são genuinamente relevantes (máximo de 5).\n" +
+      "     - Para cada candidato, liste os `pontos_fortes` (ex: 'Preço competitivo', 'Descrição detalhada') e `pontos_fracos` (ex: 'Estoque não informado', 'Especificação inferior à ideal').\n" +
+      "   - **`criterios_avaliacao`:** Forneça uma análise honesta e técnica para cada critério."
+    )
     const userMsg =
       `TERMO DE BUSCA: ${termoBusca}\n` +
       `QUANTIDADE: ${quantidade || 1}\n` +
@@ -179,7 +188,7 @@ async function filtrarProdutosComLLM(produtos: any[], termoBusca: string, quanti
     const resp = await client.chat.completions.create({
       model: "llama-3.3-70b-versatile",
       messages: [
-        { role: "system", content: promptSistema },
+        { role: "system", content: prompt_sistema },
         { role: "user", content: userMsg }
       ],
       temperature: 0,

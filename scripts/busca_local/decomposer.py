@@ -91,7 +91,7 @@ class SolutionDecomposer:
 
         try:
             result = self.groq_simple.chat.completions.create(
-                model="llama-3.3-70b-versatile",
+                model="openai/gpt-oss-20b",
                 messages=[
                     {"role": "system", "content": decomposition_prompt},
                     {"role": "user", "content": main_request}
@@ -113,6 +113,7 @@ class SolutionDecomposer:
             
             try:
                 data_dict = yaml.safe_load(yaml_output_string)
+                
                 resposta_validada = DecompositionResult.model_validate(data_dict)
                 
                 print("\n✅ DECOMPOSIÇÃO CONCLUÍDA COM SUCESSO!")

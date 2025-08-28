@@ -200,6 +200,21 @@ export class RelatorioService {
       // Gerar PDF
       const pdfPath = await this.gerarPDF(relatorioData);
       console.log(`🎉 [RELATORIO] Relatório gerado com sucesso: ${pdfPath}`);
+
+        // Criar notificação informando que uma proposta de cotação foi criada
+        try {
+          const NotificationService = require('../services/NotificationService').NotificationService;
+          const notificationService = new NotificationService();
+          await notificationService.create({
+            title: 'Proposta de Cotação Criada',
+            subject: `Uma nova proposta de cotação foi gerada para a cotação #${cotacaoId}`,
+            type: 'proposta_cotacao',
+            url_redir: `/cotacoes/${cotacaoId}`
+          });
+          console.log(`🔔 Notificação criada: Proposta de cotação gerada (ID: ${cotacaoId})`);
+        } catch (err) {
+          console.error('Erro ao criar notificação de proposta de cotação:', err);
+        }
       
       return pdfPath;
 
@@ -419,7 +434,7 @@ export class RelatorioService {
       .fill('#ffffff')
       .fontSize(28)
       .font('Helvetica-Bold')
-      .text('RELATORIO DE COTACAO', margin + 100, 40, { width: contentWidth - 120 });
+      .text('RELATÓRIO DE COTAÇÃO', margin + 100, 40, { width: contentWidth - 120 });
     
     // Subtítulo
     doc
@@ -437,13 +452,13 @@ export class RelatorioService {
       .fill('#2c3e50')
       .fontSize(12)
       .font('Helvetica-Bold')
-      .text('INFORMACOES DA COTACAO', margin + 20, 175);
+      .text('INFORMAÇÕES DA COTAÇÃO', margin + 20, 175);
       doc
       .fontSize(11)
       .font('Helvetica')
-      .text(`Cotacao ID: #${data.cotacaoId}`, margin + 20, 195)
+      .text(`Cotação ID: #${data.cotacaoId}`, margin + 20, 195)
       .text(
-        `Data de Geracao: ${new Date().toLocaleDateString('pt-BR', { 
+        `Data de Geração: ${new Date().toLocaleDateString('pt-BR', { 
           weekday: 'long', 
           year: 'numeric', 
           month: 'long', 
@@ -453,7 +468,7 @@ export class RelatorioService {
         210
       )
       .text(
-        `Orcamento Total: AOA$ ${data.orcamentoGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+        `Orçamento Total: AOA$ ${data.orcamentoGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
         -margin - 20, // joga para o lado direito
         195,
         { align: 'right' }
@@ -465,7 +480,7 @@ export class RelatorioService {
       .fill('#34495e')
       .fontSize(16)
       .font('Helvetica-Bold')
-      .text('SOLICITACAO DO CLIENTE', margin, 270)
+      .text('SOLICITAÇÃO DO CLIENTE', margin, 270)
       .moveDown(0.3);
     
     // Linha decorativa
@@ -1188,7 +1203,7 @@ private adicionarSecaoAnaliseLLM(doc: PDFKit.PDFDocument, data: RelatorioData) {
       }
 
       // Mostrar ranking completo top 5 com design aprimorado
-      if (rel.top5_ranking && Array.isArray(rel.top5_ranking)) {
+      if (rel.top_ranking && Array.isArray(rel.top_ranking)) {
         // Verificar espaço para título do ranking
         this.verificarEspacoPagina(doc, 50);
         
@@ -1205,7 +1220,7 @@ private adicionarSecaoAnaliseLLM(doc: PDFKit.PDFDocument, data: RelatorioData) {
           .text('RANKING COMPLETO TOP 5', margin + 20, doc.y + 10)
           .moveDown(1.2);
 
-        rel.top5_ranking.forEach((ranking: any, rankIndex: number) => {
+        rel.top_ranking.forEach((ranking: any, rankIndex: number) => {
           // Calcular altura dinâmica para cada item do ranking
           let itemHeight = 40; // padding inicial
           
@@ -1507,7 +1522,7 @@ private adicionarSecaoRelatoriosWeb(doc: PDFKit.PDFDocument, data: RelatorioData
     .fill('#ffffff')
     .fontSize(18)
     .font('Helvetica-Bold')
-    .text('RELATORIOS DE BUSCA WEB', margin, doc.y + 10)
+    .text('RELATÓRIO DE BUSCA WEB', margin, doc.y + 10)
     .moveDown(1.5);
 
   if (data.relatoriosWeb.length === 0) {
@@ -1655,7 +1670,7 @@ private adicionarSecaoRelatoriosWeb(doc: PDFKit.PDFDocument, data: RelatorioData
       }
 
       // Mostrar ranking completo top 5 com design aprimorado
-      if (rel.top5_ranking && Array.isArray(rel.top5_ranking)) {
+      if (rel.top_ranking && Array.isArray(rel.top_ranking)) {
         // Verificar espaço para título do ranking
         this.verificarEspacoPagina(doc, 50);
         
@@ -1672,7 +1687,7 @@ private adicionarSecaoRelatoriosWeb(doc: PDFKit.PDFDocument, data: RelatorioData
           .text('RANKING WEB COMPLETO TOP 5', margin + 20, doc.y + 10)
           .moveDown(1.2);
 
-        rel.top5_ranking.forEach((ranking: any, rankIndex: number) => {
+        rel.top_ranking.forEach((ranking: any, rankIndex: number) => {
           // Calcular altura dinâmica para cada item do ranking
           let itemHeight = 40; // padding inicial
           

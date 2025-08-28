@@ -13,7 +13,7 @@ class ComponenteParaAquisicao(BaseModel):
     natureza_componente: str = Field(description="natureza_componente do componente (hardware, software, servico)")
     prioridade: ComponentPriority = Field(description="Prioridade do componente")
     categoria: str = Field(description="Categoria")
-    especificacoes_minimas: Dict[str, Any] = Field(description="Especificações técnicas mínimas")
+    especificacoes_minimas: Optional[dict] = Field(default_factory=dict)
     justificativa: str = Field(description="Por que este componente é necessário")
     tags: List[str] = Field(default=[], description="Tags relacionadas a este componente")
     alternativas: List[str] = Field(default=[], description="Alternativas viáveis para este componente")

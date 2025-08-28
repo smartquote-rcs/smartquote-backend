@@ -2,6 +2,12 @@ import { Request, Response } from 'express';
 import { ProdutosService } from '../services/ProdutoService';
 import { produtoSchema } from '../schemas/ProdutoSchema';
 import { Produto } from '../models/Produto';
+import supabase from '../infra/supabase/connect';
+
+// Tipos auxiliares para upload
+interface MulterRequest extends Request {
+  file?: any; // usar any para compat se tipos do multer não estiverem carregados
+}
 
 const produtosService = new ProdutosService();
 
@@ -77,6 +83,60 @@ class ProdutosController {
       });
     } catch (err: any) {
       return res.status(500).json({ error: err.message });
+    }
+  }
+
+  /**
+   * Upload de imagem de produto para o bucket do Supabase Storage.
+   * Campo do formulário: 'imagem'
+   * Retorna: { url: string }
+   */
+  async uploadImagem(req: MulterRequest, res: Response): Promise<Response> {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'Arquivo não enviado (campo esperado: imagem).' });
+      }
+
+      const bucket = process.env.SUPABASE_BUCKET_PRODUTOS || 'produtos';
+      const file = req.file;
+
+      // validações simples
+      const mimeOk = /^image\/(png|jpe?g|webp|gif)$/i.test(file.mimetype);
+      if (!mimeOk) {
+        return res.status(400).json({ error: 'Tipo de arquivo inválido. Use png, jpg, jpeg, webp ou gif.' });
+      }
+      const maxSize = 2 * 1024 * 1024; // 2MB
+      if (file.size > maxSize) {
+        return res.status(400).json({ error: 'Arquivo excede 2MB.' });
+      }
+
+      // gera caminho único
+      const ext = file.originalname.split('.').pop()?.toLowerCase() || 'png';
+      const nomeSeguro = file.originalname
+        .replace(/[^a-zA-Z0-9_.-]/g, '_')
+        .replace(/_{2,}/g, '_')
+        .slice(0, 40);
+      const path = `produtos/${Date.now()}_${Math.random().toString(36).slice(2,8)}_${nomeSeguro}.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from(bucket)
+        .upload(path, file.buffer, {
+          contentType: file.mimetype,
+          upsert: true
+        });
+
+      if (uploadError) {
+        return res.status(500).json({ error: 'Falha ao enviar imagem', detalhe: uploadError.message });
+      }
+
+      const { data: publicData } = supabase.storage.from(bucket).getPublicUrl(path);
+      if (!publicData || !publicData.publicUrl) {
+        return res.status(500).json({ error: 'Não foi possível obter URL pública.' });
+      }
+
+      return res.status(201).json({ url: publicData.publicUrl });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message || 'Erro interno no upload.' });
     }
   }
 }

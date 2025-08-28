@@ -8,15 +8,18 @@ class FornecedoresController {
     const parsed = fornecedorSchema.safeParse(req.body);
     if (!parsed.success) {
       const errors = parsed.error.format();
+  console.error('❌ Validação fornecedor falhou:', errors, 'Payload recebido:', req.body);
       return res.status(400).json({ errors });
     }
     try {
-      const fornecedor = await FornecedoresService.create(parsed.data as Fornecedor);
+  console.log('✅ Validação fornecedor ok. Dados normalizados:', parsed.data);
+  const fornecedor = await FornecedoresService.create(parsed.data as Fornecedor);
       return res.status(201).json({
         message: 'Fornecedor cadastrado com sucesso.',
         data: fornecedor,
       });
     } catch (err: any) {
+  console.error('💥 Erro ao criar fornecedor:', err);
       return res.status(400).json({ error: err.message });
     }
   }

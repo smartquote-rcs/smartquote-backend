@@ -31,7 +31,7 @@ function log(message) {
 // Função para filtrar produtos usando LLM
 async function filtrarProdutosComLLM(produtos, termoBusca, quantidade, custo_beneficio, rigor) {
     if (!produtos || produtos.length === 0) {
-        return [];
+        return { produtos: [], relatorio: {} };
     }
     try {
         log(`🧠 [LLM-FILTER] Iniciando filtro LLM (Groq) para ${produtos.length} produtos`);
@@ -40,15 +40,11 @@ async function filtrarProdutosComLLM(produtos, termoBusca, quantidade, custo_ben
             const temNome = p.name && p.name.trim().length > 0;
             const temUrl = p.product_url && p.product_url.trim().length > 0;
             const temDescricao = p.description && p.description.trim().length > 10;
-            if (!temNome || !temUrl || !temDescricao) {
-                log(`🧠 [LLM-FILTER] Produto filtrado por dados incompletos: ${p.name || 'Sem nome'} (URL: ${!!p.product_url}, Desc: ${!!p.description})`);
-                return false;
-            }
             return true;
         });
         if (produtosValidos.length === 0) {
             log(`🧠 [LLM-FILTER] Nenhum produto válido encontrado após filtro`);
-            return [];
+            return { produtos: [], relatorio: {} };
         }
         log(`🧠 [LLM-FILTER] ${produtosValidos.length} produtos válidos para análise LLM`);
         // Usar a lib groq (deve estar instalada via npm install groq-sdk)
@@ -58,7 +54,7 @@ async function filtrarProdutosComLLM(produtos, termoBusca, quantidade, custo_ben
         if (!apiKey) {
             log('❌ [LLM-FILTER] GROQ_API_KEY não encontrada');
             log('🧠 [LLM-FILTER] Sem API key - nenhum produto será salvo');
-            return []; // Sem API key, não salvar nenhum produto
+            return { produtos: [], relatorio: { erro: "API key não disponível" } };
         }
         // Compactar candidatos para o prompt
         const candidatos = produtosValidos.map((p, index) => ({
@@ -71,78 +67,127 @@ async function filtrarProdutosComLLM(produtos, termoBusca, quantidade, custo_ben
             estoque: p.estoque || null,
             url: p.product_url || p.url || ''
         }));
-        const promptSistema = "Você é um assistente especializado em análise de produtos. Sua tarefa é analisar candidatos e escolher o melhor.\n" +
-            "IMPORTANTE: Responda APENAS com um número JSON válido no formato exato: {\"index\": N}\n" +
-            "Onde N é o índice (0, 1, 2...) do melhor candidato ou -1 se nenhum for adequado.\n" +
-            "Critérios de avaliação:\n" +
-            "1. Correspondência EXATA com o termo de busca\n" +
-            "2. Produto deve ter URL válida e informações completas\n" +
-            "3. Relevância técnica e funcional\n" +
-            "4. Qualidade da descrição e especificações\n" +
-            "5. Disponibilidade (se informada)\n" +
-            "6. Melhor custo-benefício\n" +
-            "7. Rigor na busca: inteiro (0–5) indicando quão exatamente o usuário quer o item:\n" +
-            "   - 0 = genérico (\"um computador\")\n" +
-            "   - 1 = pouco específico\n" +
-            "   - 2 = algumas características\n" +
-            "   - 3 = moderadamente específico\n" +
-            "   - 4 = quase fechado\n" +
-            "   - 5 = rígido, modelo exato\n" +
-            "REGRAS IMPORTANTES:\n" +
-            "- NUNCA escolha produtos sem URL ou com informações vazias\n" +
-            "- Prefira produtos com descrições detalhadas\n" +
-            "- Se nenhum produto for adequado, retorne -1\n" +
-            "- Seja RIGOROSO na seleção - é melhor rejeitar do que aceitar produtos inadequados\n" +
-            "NÃO adicione explicações, comentários ou texto extra. APENAS o JSON.";
+        const prompt_sistema = ("Você é um Analista de Soluções de T.I. sénior, agindo como o módulo de decisão final do sistema SmartQuote. A sua análise deve ser lógica, objetiva e implacável na aplicação das regras.\n" +
+            "A sua tarefa é analisar uma lista de produtos candidatos extraídos da web e gerar um relatório de recomendação, seguindo estritamente o formato JSON especificado.\n" +
+            "Responda APENAS com um objeto JSON válido, sem comentários ou texto extra.\n\n" +
+            "--- FORMATO DE SAÍDA (SUCESSO ou FALHA PARCIAL) ---\n" +
+            "{\n" +
+            '  "index": <int>,             // Índice (0, 1, 2...) do melhor candidato ou -1 se nenhum for totalmente elegível\n' +
+            '  "relatorio": {\n' +
+            '    "escolha_principal": "<string_or_null>",\n' +
+            '    "justificativa_escolha": "<string>",\n' +
+            '    "top_ranking": [\n' +
+            '      {\n' +
+            '        "posicao": <int>,\n' +
+            '        "nome": "<string>",\n' +
+            '        "url": "<string>",\n' +
+            '        "preco": "<string_or_null>",\n' +
+            '        "justificativa": "<string>",\n' +
+            '        "pontos_fortes": ["<string>"],\n' +
+            '        "pontos_fracos": ["<string>"],\n' +
+            '        "score_estimado": <float>\n' +
+            '      }\n' +
+            '    ],\n' +
+            '    "criterios_avaliacao": {\n' +
+            '      "correspondencia_tipo": "<string>",\n' +
+            '      "especificacoes": "<string>",\n' +
+            '      "custo_beneficio": "<string>",\n' +
+            '      "disponibilidade": "<string>"\n' +
+            '    }\n' +
+            '  }\n' +
+            "}\n\n" +
+            "--- FORMATO DE SAÍDA (FALHA TOTAL) ---\n" +
+            "{\n" +
+            '  "index": -1,\n' +
+            '  "relatorio": {\n' +
+            '    ...            \n' +
+            '    "erro": "Produto não encontrado"\n' +
+            '  }\n' +
+            "}\n\n" +
+            "--- REGRAS DE DECISÃO HIERÁRQUICAS ---\n" +
+            "**PASSO 1: VERIFICAÇÃO DE ELEGIBILIDADE (REGRAS NÃO NEGOCIÁVEIS)**\n" +
+            "   - Para CADA candidato, verifique o seguinte:\n" +
+            "     1. **Tipo de Produto:** O tipo fundamental do produto corresponde à QUERY? (Ex: a query pede 'router', o candidato não pode ser um 'switch').\n" +
+            "     2. **Validade dos Dados:** O produto tem um `nome` e uma `url` válidos e não vazios?\n" +
+            "   - **SE NENHUM candidato passar nestas verificações:** Você DEVE parar imediatamente e retornar o JSON no `Formato de FALHA TOTAL`.\n" +
+            "   - **SE HOUVER candidatos que passam:** Prossiga para o Passo 2 apenas com a lista de candidatos que passaram nesta verificação.\n\n" +
+            "**PASSO 2: INTERPRETAÇÃO DO PARÂMETRO 'RIGOR'**\n" +
+            "   - O 'rigor' (0-5) define  o quão estritamente as especificações da QUERY e dos FILTROS devem ser seguidas.\n" +
+            "   - `rigor=0` (genérico): Foque-se no custo-benefício e na relevância geral. As especificações são flexíveis.\n" +
+            "   - `rigor=5` (rígido): As especificações são OBRIGATÓRIAS. Um candidato que não cumpra uma especificação explícita do cliente deve ser desqualificado da posição de `index` principal.\n\n" +
+            "**PASSO 3: ANÁLISE E GERAÇÃO DO RELATÓRIO**\n" +
+            "   - **Cenário A (SUCESSO):** Se existe PELO MENOS UM candidato que cumpre os requisitos do 'rigor'.\n" +
+            "     - Escolha o melhor entre os elegíveis e defina o seu `index`.\n" +
+            "     - Gere o relatório completo no `Formato de SUCESSO`.\n" +
+            "   - **Cenário B (FALHA PARCIAL):** Se existem candidatos do tipo correto, MAS NENHUM cumpre as especificações com o 'rigor' exigido.\n" +
+            "     - Você DEVE definir `index: -1` e `escolha_principal: null`.\n" +
+            "     - No `top_ranking`, liste os candidatos mais próximos, mas na `justificativa` de cada um, explique CLARAMENTE qual especificação obrigatória falhou.\n" +
+            "   - **`top_ranking`:**\n" +
+            "     - Não force um ranking. Liste apenas os candidatos que são genuinamente relevantes (máximo de 5).\n" +
+            "     - Para cada candidato, liste os `pontos_fortes` (ex: 'Preço competitivo', 'Descrição detalhada') e `pontos_fracos` (ex: 'Estoque não informado', 'Especificação inferior à ideal').\n" +
+            "   - **`criterios_avaliacao`:** Forneça uma análise honesta e técnica para cada critério.");
         const userMsg = `TERMO DE BUSCA: ${termoBusca}\n` +
             `QUANTIDADE: ${quantidade || 1}\n` +
             `CUSTO-BENEFÍCIO: ${JSON.stringify(custo_beneficio || {})}\n` +
             `RIGOR: ${rigor || 0}\n` +
             `CANDIDATOS: ${JSON.stringify(candidatos)}\n` +
-            "Escolha o melhor índice ou -1.";
+            "Analise e retorne o ranking completo com justificativas.";
         const client = new Groq({ apiKey });
         const resp = await client.chat.completions.create({
-            model: "llama-3.1-8b-instant",
+            model: "llama-3.3-70b-versatile",
             messages: [
-                { role: "system", content: promptSistema },
+                { role: "system", content: prompt_sistema },
                 { role: "user", content: userMsg }
             ],
             temperature: 0,
-            max_tokens: 50,
+            max_tokens: 8000, // Aumentado para acomodar o relatório
             stream: false
         });
         const content = (resp.choices[0].message.content || '').trim();
         log(`🧠 [LLM-FILTER] Resposta bruta: ${content}`);
-        // Tentar extrair JSON {"index": X}
+        // Tentar extrair JSON completo
         let idx = -1;
+        let relatorio = {};
         try {
-            const jsonMatch = content.match(/\{\s*"index"\s*:\s*(-?\d+)\s*\}/);
-            if (jsonMatch) {
-                idx = parseInt(jsonMatch[1], 10);
-                log(`🧠 [LLM-FILTER] Índice extraído via regex JSON: ${idx}`);
-            }
-            else {
-                // Se não achou padrão JSON, tentar parse direto
-                let cleanedContent = content;
-                if (/^-?\d+$/.test(content)) {
-                    cleanedContent = `{"index": ${content}}`;
-                }
-                const data = JSON.parse(cleanedContent);
-                const val = data.index;
-                if (typeof val === 'number') {
-                    idx = val;
-                    log(`🧠 [LLM-FILTER] Índice extraído via JSON parse: ${idx}`);
+            // Limpar a resposta se necessário
+            let cleanedContent = content;
+            if (!content.startsWith('{')) {
+                // Buscar por JSON na resposta
+                const jsonMatch = content.match(/\{.*\}/s);
+                if (jsonMatch) {
+                    cleanedContent = jsonMatch[0];
+                    log(`🧠 [LLM-FILTER] JSON extraído da resposta: ${cleanedContent.substring(0, 200)}...`);
                 }
             }
+            const data = JSON.parse(cleanedContent);
+            idx = data.index;
+            relatorio = data.relatorio || data.report || {};
+            //prencher o campo url de cada cdato com o url do candidato
+            log(`🧠 [LLM-FILTER] Índice extraído via JSON parse: ${idx}`);
+            log(`🧠 [LLM-FILTER] Relatório extraído: ${JSON.stringify(relatorio).substring(0, 300)}...`);
         }
         catch (e) {
             log(`🧠 [LLM-FILTER] Erro ao fazer parse do JSON: ${e}`);
-            // fallback: buscar qualquer número na resposta
+            log(`🧠 [LLM-FILTER] Conteúdo que falhou no parse: ${content.substring(0, 500)}...`);
+            // Fallback: tentar extrair apenas o índice
             const numberMatch = content.match(/-?\d+/);
             if (numberMatch) {
                 try {
                     idx = parseInt(numberMatch[0], 10);
                     log(`🧠 [LLM-FILTER] Índice extraído via regex numérica: ${idx}`);
+                    // Tentar extrair relatório manualmente se o JSON falhou
+                    const reportMatch = content.match(/"relatorio":\s*\{[^}]*\}/);
+                    if (reportMatch) {
+                        try {
+                            const reportJson = `{${reportMatch[0]}}`;
+                            const reportData = JSON.parse(reportJson);
+                            relatorio = reportData.relatorio || {};
+                            log(`🧠 [LLM-FILTER] Relatório extraído via regex: ${JSON.stringify(relatorio)}`);
+                        }
+                        catch (reportError) {
+                            log(`🧠 [LLM-FILTER] Erro ao extrair relatório via regex: ${reportError}`);
+                        }
+                    }
                 }
                 catch {
                     idx = -1;
@@ -153,20 +198,22 @@ async function filtrarProdutosComLLM(produtos, termoBusca, quantidade, custo_ben
         if (typeof idx !== 'number' || idx < 0 || idx >= produtosValidos.length) {
             if (idx === -1) {
                 log(`🧠 [LLM-FILTER] LLM rejeitou todos os produtos (índice: -1)`);
-                return []; // Nenhum produto selecionado pelo LLM
+                return { produtos: [], relatorio: relatorio };
             }
             log(`🧠 [LLM-FILTER] Índice inválido: ${idx}`);
-            return []; // Não fazer fallback, apenas retornar vazio
+            return { produtos: [], relatorio: { erro: `Índice inválido: ${idx}` } };
         }
         const produtoSelecionado = produtosValidos[idx];
         log(`🧠 [LLM-FILTER] Produto selecionado: ${produtoSelecionado.name || produtoSelecionado.nome}`);
-        return [produtoSelecionado];
+        // Adicionar o relatório ao produto selecionado
+        produtoSelecionado.llm_relatorio = relatorio;
+        return { produtos: [produtoSelecionado], relatorio: relatorio };
     }
     catch (error) {
         log(`❌ [LLM-FILTER] Erro no filtro LLM (Groq): ${error}`);
         // Em caso de erro, não salvar nenhum produto
         log(`🧠 [LLM-FILTER] Erro no LLM - nenhum produto será salvo`);
-        return [];
+        return { produtos: [], relatorio: { erro: `Erro no LLM: ${error}` } };
     }
 }
 // Escutar mensagens via stdin
@@ -240,6 +287,7 @@ async function processarJob(message) {
             log(`Produtos após filtro de preço: ${todosProdutos.length}`);
         }
         // 4. Aplicar refinamento LLM se solicitado
+        let relatorioLLM = null;
         if (refinamento && todosProdutos.length > 0) {
             enviarMensagem({
                 progresso: {
@@ -248,7 +296,9 @@ async function processarJob(message) {
                 }
             });
             const produtosAntesLLM = todosProdutos.length;
-            todosProdutos = await filtrarProdutosComLLM(todosProdutos, termo, quantidade, custo_beneficio, rigor);
+            const resultadoLLM = await filtrarProdutosComLLM(todosProdutos, termo, quantidade, custo_beneficio, rigor);
+            todosProdutos = resultadoLLM.produtos;
+            relatorioLLM = resultadoLLM.relatorio; // Capturar o relatório
             log(`Produtos após refinamento LLM: ${todosProdutos.length} de ${produtosAntesLLM}`);
             if (todosProdutos.length === 0) {
                 log(`🧠 [LLM-FILTER] Nenhum produto aprovado pelo LLM para salvamento`);
@@ -319,6 +369,7 @@ async function processarJob(message) {
                 status: 'sucesso',
                 produtos: todosProdutos,
                 quantidade: quantidade,
+                relatorio: relatorioLLM, // Incluir relatório do LLM
                 salvamento: {
                     salvos: totalSalvos,
                     erros: totalErros,
@@ -334,6 +385,7 @@ async function processarJob(message) {
             enviarMensagem({
                 status: 'sucesso',
                 produtos: [],
+                relatorio: relatorioLLM, // Incluir relatório do LLM mesmo sem produtos
                 salvamento: {
                     salvos: 0,
                     erros: 0,

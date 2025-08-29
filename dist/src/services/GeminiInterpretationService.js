@@ -12,6 +12,7 @@ const PythonInterpretationProcessor_1 = require("./PythonInterpretationProcessor
 const WebBuscaJobService_1 = __importDefault(require("./WebBuscaJobService"));
 const PromptsService_1 = __importDefault(require("./PromptsService"));
 const CotacoesService_1 = __importDefault(require("./CotacoesService"));
+const RelatorioService_1 = __importDefault(require("./RelatorioService"));
 class GeminiInterpretationService {
     genAI;
     model;
@@ -208,10 +209,10 @@ DADOS DO EMAIL:
                     console.log(`📄 [PYTHON-RESULT]`, result.result);
                     // 🌐 Fluxo adicional: buscar na web itens faltantes e inserir na cotação principal
                     (async () => {
+                        const payload = result.result || {};
+                        let cotacaoPrincipalId = payload?.cotacoes?.principal_id ?? null;
                         try {
-                            const payload = result.result || {};
                             const faltantes = Array.isArray(payload.faltantes) ? payload.faltantes : [];
-                            let cotacaoPrincipalId = payload?.cotacoes?.principal_id ?? null;
                             const svc = new WebBuscaJobService_1.default();
                             const statusUrls = await svc.createJobsForFaltantes(faltantes, interpretation.solicitacao);
                             const { resultadosCompletos, produtosWeb } = await svc.waitJobs(statusUrls);
@@ -264,6 +265,7 @@ DADOS DO EMAIL:
                         catch (e) {
                             console.error('❌ [BUSCA-WEB] Falha no fluxo pós-Python:', e?.message || e);
                         }
+                        await RelatorioService_1.default.verificarEgerarRelatorio(Number(cotacaoPrincipalId));
                     })();
                 }
                 else {

@@ -319,6 +319,21 @@ class AutoEmailMonitorService {
                     saveAsJSON: true,
                     includeRawData: false
                 });
+                // Criar notificação informando que um pedido por email foi detectado
+                try {
+                    const NotificationService = require('../services/NotificationService').NotificationService;
+                    const notificationService = new NotificationService();
+                    await notificationService.create({
+                        title: 'Pedido por Email Detectado',
+                        subject: `Novo pedido detectado por email: ${emailData.subject}`,
+                        type: 'pedido_email',
+                        url_redir: '/emails/' + emailData.emailId
+                    });
+                    console.log(`🔔 Notificação criada: Pedido por email detectado (${emailData.subject})`);
+                }
+                catch (err) {
+                    console.error('Erro ao criar notificação de pedido por email:', err);
+                }
                 console.log(`💾 [AUTO-SAVED] Email ${emailData.emailId} salvo como pedido`);
                 this.addMessage(`💾 📋 Pedido salvo: ${emailData.subject.substring(0, 50)}... (${interpretation.confianca}% confiança)`);
             }

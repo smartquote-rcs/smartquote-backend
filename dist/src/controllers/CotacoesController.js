@@ -123,6 +123,75 @@ class CotacoesController {
             if (updates.status && ['pendente', 'aceite', 'recusado'].includes(updates.status)) {
                 updates.status = updates.status === 'aceite' ? 'completa' : 'incompleta';
             }
+            // Lógica de aprovação baseada em boolean "aprovacao" com regra de permissões por perfil
+            if (Object.prototype.hasOwnProperty.call(updates, 'aprovacao')) {
+                const aprov = updates.aprovacao === true || updates.aprovacao === 'true';
+                // Capturar usuário logado (enviado pelo frontend via aprovado_por ou em middleware futuro)
+                const usuarioId = updates.aprovado_por || req.user?.id || req.userId;
+                let usuarioRole = req.user?.role || req.userRole || updates.user_role;
+                const usuarioPosition = req.user?.position;
+                // fallback adicional: se não veio role, tentar extrair de posição/position enviada ou armazenada
+                if (!usuarioRole) {
+                    usuarioRole = updates.position || updates.posicao || updates.perfil;
+                }
+                // Se ainda não temos role e temos usuarioId, tentar buscar usuário (best-effort, sem quebrar se falhar)
+                if (!usuarioRole && usuarioId) {
+                    try {
+                        // lazy import para evitar ciclo
+                        const userSvc = require('../services/UserService').default;
+                        const u = await userSvc.getById(String(usuarioId));
+                        usuarioRole = u?.position || u?.role || u?.function;
+                    }
+                    catch { }
+                }
+                const LIMITE_MANAGER = 50_000_000;
+                // Obter valor referência da cotação (para qualquer decisão) se necessário
+                let valorReferencia = updates.orcamento_geral;
+                if (valorReferencia == null) {
+                    try {
+                        const atual = await CotacoesService_1.default.getById(Number(id));
+                        valorReferencia = atual?.orcamento_geral ?? atual?.valor;
+                    }
+                    catch { }
+                }
+                const numeroValor = Number(valorReferencia) || 0;
+                const acao = aprov ? 'aprovar' : 'rejeitar';
+                let permitido = false;
+                if (usuarioRole === 'admin') {
+                    permitido = true;
+                }
+                else if (usuarioRole === 'manager') {
+                    permitido = numeroValor < LIMITE_MANAGER;
+                }
+                else {
+                    permitido = false;
+                }
+                console.log('[CotacoesController.patch] decisão de aprovação/rejeição', { id, usuarioId, usuarioRole, usuarioPosition, numeroValor, aprov });
+                if (!permitido) {
+                    console.warn('Permissão negada aprovação/rejeição', {
+                        cotacaoId: id,
+                        usuarioId,
+                        usuarioRole,
+                        usuarioPosition,
+                        numeroValor,
+                        limite: LIMITE_MANAGER,
+                        acao
+                    });
+                    return res.status(403).json({ error: `Usuário sem permissão para ${acao} esta cotação (perfil ou valor excede limite para manager).` });
+                }
+                if (aprov) {
+                    updates.status = 'completa';
+                    updates.data_aprovacao = new Date().toISOString();
+                    if (usuarioId)
+                        updates.aprovado_por = usuarioId;
+                }
+                else {
+                    updates.status = 'incompleta';
+                    updates.data_aprovacao = null;
+                    if (usuarioId && !updates.aprovado_por)
+                        updates.aprovado_por = usuarioId;
+                }
+            }
             // Buscar cotação antes de atualizar para comparação
             let cotacaoAnterior;
             try {

@@ -12,6 +12,7 @@ export interface Cotacao {
     status?: 'completa' | 'incompleta';
     orcamento_geral?: number;
     faltantes?: any;
+    relatorios_web?: any[];
     observacao?: string;
     observacoes?: string;
     condicoes?: any;

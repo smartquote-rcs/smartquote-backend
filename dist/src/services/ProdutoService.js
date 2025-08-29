@@ -134,7 +134,7 @@ class ProdutosService {
             descricao: produto.description || 'Produto encontrado via busca automática',
             preco: this.converterPrecoParaCentavos(produto.price),
             unidade: 'un',
-            estoque: 0, // produtos da busca começam com estoque 0
+            estoque: 200, // produtos da busca começam com estoque 200
             origem: 'externo',
             image_url: produto.image_url || undefined, // URL da imagem do produto
             produto_url: produto.product_url || undefined, // URL da fonte/página do produto

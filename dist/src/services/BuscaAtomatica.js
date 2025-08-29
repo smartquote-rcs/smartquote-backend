@@ -8,6 +8,7 @@ const firecrawl_js_1 = __importDefault(require("@mendable/firecrawl-js"));
 const zod_1 = require("zod");
 const dotenv_1 = __importDefault(require("dotenv"));
 dotenv_1.default.config();
+const app = new firecrawl_js_1.default({ apiKey: process.env.FIRECRAWL_API_KEY });
 // Schema para validação dos produtos extraídos
 const ProductSchema = zod_1.z.object({
     name: zod_1.z.string(),
@@ -61,13 +62,18 @@ class BuscaAutomatica {
         try {
             const { searchTerm, website, numResults } = params;
             console.log(`Iniciando busca por "${searchTerm}" em ${website} (${numResults} resultados)`);
-            const scrapeResult = await this.firecrawlApp.extract([website], {
-                prompt: `Extract EXACTLY ${numResults} ${searchTerm} products from this website. 
-                IMPORTANT: Return ONLY ${numResults} products, no more, no less. 
-                Select the best ${numResults} products that match "${searchTerm}".
-                Each product must have: name, price, image_url, description, and product_url.
-                Return them in a 'products' array with exactly ${numResults} items.`,
-                schema: this.getProductSchema()
+            const scrapeResult = await this.firecrawlApp.extract({
+                urls: [website],
+                // A tarefa específica
+                prompt: `Extract EXACTLY ${numResults} products that match "${searchTerm}".`,
+                // O "contrato" de saída
+                schema: this.getProductSchema(),
+                // As regras não negociáveis e o "código de conduta" da IA
+                systemPrompt: `You are a precise data extraction agent.
+                      If you cannot find the requested information, you MUST return an empty 'products' array. 
+                      DO NOT invent or fabricate data.`,
+                // A "válvula de segurança" para evitar contaminação externa
+                enableWebSearch: false,
             });
             if (!scrapeResult.success) {
                 return {

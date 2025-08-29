@@ -5,6 +5,7 @@ const router = Router();
 
 router.get('/', CotacoesItensController.list);
 router.get('/:id', CotacoesItensController.get);
+router.put('/replace-product', CotacoesItensController.replaceProduct);
 
 
 export default router;

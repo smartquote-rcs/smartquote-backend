@@ -433,6 +433,7 @@ def main():
     parser.add_argument("--limite", type=int, default=LIMITE_PADRAO_RESULTADOS, help="Limite de resultados por query")
     parser.add_argument("--no-multilingue", dest="no_multilingue", action="store_true", help="Desativa vetor multilingue")
     parser.add_argument("--criar-cotacao", action="store_true", help="Cria cotações automaticamente quando houver resultados")
+    parser.add_argument("--only-buscar_hibrido_ponderado", action="store_true", help="Busca apenas híbrido ponderado")
     args = parser.parse_args()
 
     limite = args.limite
@@ -519,6 +520,69 @@ def main():
                 usar_multilingue=usar_multilingue,
                 criar_cotacao=args.criar_cotacao,
             )
+
+        if args.only_buscar_hibrido_ponderado:
+            print("🔍 [PYTHON] Buscando apenas híbrido ponderado", file=sys.stderr)
+            modelos = weaviate_manager.get_models()
+            espacos = ["vetor_portugues"] + (["vetor_multilingue"] if modelos.get("vetor_multilingue") is not None and usar_multilingue else [])
+            def executar_busca_hibrida(payload):
+                query = payload.get("pesquisa", "").strip()
+                filtros = payload.get("filtros", {})
+                if not query:
+                    print(json.dumps({"status": "error", "error": "Nenhuma pesquisa informada."}))
+                    return
+                limite_busca = limite
+                resultados = []
+                for espaco in espacos:
+                    r = buscar_hibrido_ponderado(
+                        weaviate_manager.client,
+                        modelos,
+                        query,
+                        espaco,
+                        limite=limite_busca,
+                        filtros=filtros,
+                    )
+                    resultados.extend(r)
+                if not resultados:
+                    print("[RESULTADO_JSON]" + json.dumps({"status": "empty", "resultados": []}), flush=True)
+                else:
+                    saida = []
+                    for res in resultados:
+                        saida.append({
+                            "produto_id": res.get("produto_id"),
+                            "nome": res.get("nome"),
+                            "score": res.get("score"),
+                            "estoque": res.get("estoque"),
+                            "descricao": res.get("descricao"),
+                            "preco": res.get("preco"),
+                            "categoria": res.get("categoria", res.get("modelo", "")),
+                        })
+                    print("[RESULTADO_JSON]" + json.dumps({"status": "success", "resultados": saida}, ensure_ascii=False), flush=True)
+            if args.server:
+                print("🐍 [PYTHON] Servidor busca híbrida (linha por tarefa)", file=sys.stderr)
+                for line in sys.stdin:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        payload = json.loads(line)
+                        executar_busca_hibrida(payload)
+                    except Exception as e:
+                        print(f"❌ Erro ao processar linha: {e}", file=sys.stderr)
+                return
+            else:
+                input_data = sys.stdin.read().strip()
+                if not input_data:
+                    print("❌ [PYTHON] Nenhum dado recebido via stdin", file=sys.stderr)
+                    sys.exit(1)
+                try:
+                    payload = json.loads(input_data)
+                except Exception as e:
+                    print(f"❌ [PYTHON] Erro ao fazer parse do JSON: {e}", file=sys.stderr)
+                    sys.exit(1)
+                executar_busca_hibrida(payload)
+                return
+           
 
         if args.server:
             print("🐍 [PYTHON] Servidor iniciado (linha por tarefa)", file=sys.stderr)

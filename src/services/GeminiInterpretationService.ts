@@ -28,6 +28,13 @@ export interface EmailInterpretation {
   dados_bruto?: any;
 }
 
+export interface BuscaLocal {
+  pesquisa: string;
+  filtro?: string;
+  args?: any[];
+  resultados?: any[];
+}
+
 export interface ProductInfo {
   nome: string;
   descricao?: string;

@@ -1,0 +1,7 @@
+{
+    "pesquisa": "impressora laser colorida", 
+    "filtros": {
+        "categoria": ["impressora", "laser"],
+        "estoque_minimo": 1
+    }
+}

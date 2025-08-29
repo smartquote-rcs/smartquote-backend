@@ -1,6 +1,8 @@
 import PDFDocument from 'pdfkit';
 import { RelatorioData } from '../types';
 
+const API_BASE_URL = process.env.API_BASE_URL;
+
 export class EmailRenderer {
   private doc: PDFKit.PDFDocument;
   private margin: number;
@@ -27,18 +29,18 @@ export class EmailRenderer {
   /**
    * Adiciona template de email com design contínuo
    */
-  public render(data: RelatorioData) {
+  public async render(data: RelatorioData) {
     const margin = this.margin;
     const pageWidth = this.doc.page.width;
     const contentWidth = pageWidth - (margin * 2);
     
-    // Gerar template de email
-    const emailTemplate = this.gerarTemplateEmailTexto(data);
-    const emailHeaderHeight = 45;
-    const padding = 20;
+  // Gerar template de email
+  const emailTemplate = await this.gerarTemplateEmailTexto(data, true);
+  const emailHeaderHeight = 45;
+  const padding = 20;
     
-    // Dividir o texto em linhas para controle manual de quebra
-    const lines = emailTemplate.split('\n');
+  // Dividir o texto em linhas para controle manual de quebra
+  const lines = emailTemplate.split('\n');
     
     // Função para desenhar header do email
     const drawEmailHeader = (y: number, isContinuation = false) => {
@@ -169,61 +171,88 @@ export class EmailRenderer {
   /**
    * Gera template de email em texto
    */
-  private gerarTemplateEmailTexto(data: RelatorioData): string {
+  private async gerarTemplateEmailTexto(data: RelatorioData, updateInDb: boolean):  Promise<string> {
     const totalAnalises = data.analiseLocal.length + data.analiseWeb.length;
     const valorTotal = data.orcamentoGeral.toLocaleString('pt-AO', { 
       style: 'currency', 
       currency: 'AOA',
       minimumFractionDigits: 2 
     });
+ 
+  const response = await fetch(`${API_BASE_URL}/api/relatorios/proposta-email/${data.cotacaoId}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+  if (!response.ok) {
+  const text = await response.text();
+  throw new Error(`Erro na requisição: ${response.status} - ${text}`);
+}
 
-    return `Prezado(a) Cliente,
+  const result = await response.json() as { success?: boolean; data?: { propostaEmail?: string }; };
+  if (result.success && result.data && result.data.propostaEmail) {
+    const emailTemplate = result.data.propostaEmail;
+    return emailTemplate;
+  } else {
+    const emailTemplate = `Prezado(a) ${data.cliente?.nome},
 
-Espero que esta mensagem o(a) encontre bem.
+    Espero que esta mensagem o(a) encontre bem.
 
-Tenho o prazer de apresentar nossa proposta comercial detalhada para sua solicitação de cotação #${data.cotacaoId}.
+    Tenho o prazer de apresentar nossa proposta comercial detalhada para sua solicitação de cotação #${data.cotacaoId}.
 
-=== RESUMO DA PROPOSTA ===
+    === RESUMO DA PROPOSTA ===
 
-• Investimento Total: ${valorTotal}
-• Total de Análises Realizadas: ${totalAnalises}
-• Prazo de Entrega: 5-10 dias úteis
-• Validade da Proposta: 30 dias
+    • Investimento Total: ${valorTotal}
+    • Total de Análises Realizadas: ${totalAnalises}
+    • Prazo de Entrega: 5-10 dias úteis
+    • Validade da Proposta: 30 dias
 
-=== NOSSA METODOLOGIA ===
+    === NOSSA METODOLOGIA ===
 
-Utilizamos tecnologia de ponta com análise inteligente para garantir:
-✓ Melhor custo-benefício do mercado
-✓ Produtos de qualidade comprovada
-✓ Análise comparativa detalhada
-✓ Recomendações personalizadas
+    Utilizamos tecnologia de ponta com análise inteligente para garantir:
+    ✓ Melhor custo-benefício do mercado
+    ✓ Produtos de qualidade comprovada
+    ✓ Análise comparativa detalhada
+    ✓ Recomendações personalizadas
 
-=== PRÓXIMOS PASSOS ===
+    === PRÓXIMOS PASSOS ===
 
-1. Análise da proposta apresentada
-2. Esclarecimento de dúvidas (se necessário)
-3. Aprovação e formalização do pedido
-4. Início da execução conforme cronograma
+    1. Análise da proposta apresentada
+    2. Esclarecimento de dúvidas (se necessário)
+    3. Aprovação e formalização do pedido
+    4. Início da execução conforme cronograma
 
-=== INFORMAÇÕES IMPORTANTES ===
+    === INFORMAÇÕES IMPORTANTES ===
 
-• Todos os preços incluem impostos aplicáveis
-• Condições de pagamento: A combinar
-• Garantia: Conforme especificação de cada produto
-• Suporte técnico: Incluído no primeiro ano
+    • Todos os preços incluem impostos aplicáveis
+    • Condições de pagamento: A combinar
+    • Garantia: Conforme especificação de cada produto
+    • Suporte técnico: Incluído no primeiro ano
 
-Estamos à disposição para esclarecer qualquer dúvida e ajustar a proposta conforme suas necessidades específicas.
+    Estamos à disposição para esclarecer qualquer dúvida e ajustar a proposta conforme suas necessidades específicas.
 
-Aguardamos seu retorno e esperamos iniciar esta parceria em breve.
+    Aguardamos seu retorno e esperamos iniciar esta parceria em breve.
 
-Atenciosamente,
+    Atenciosamente,
 
-Equipe SmartQuote
-E-mail: contato@smartquote.ao
-Telefone: +244 XXX XXX XXX
+    Equipe SmartQuote
+    E-mail: contato@smartquote.ao
+    Telefone: +244 XXX XXX XXX
 
----
-Este é um relatório gerado automaticamente pelo sistema SmartQuote.
-Para mais informações, visite: www.smartquote.ao`;
+    ---
+    Este é um relatório gerado automaticamente pelo sistema SmartQuote.
+    Para mais informações, visite: www.smartquote.ao`;
+
+    if (updateInDb) {
+      await fetch(`${API_BASE_URL}/api/relatorios/proposta-email/${data.cotacaoId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ propostaEmail: emailTemplate })
+      });
+    }
+  
+    return emailTemplate;
   }
+}
 }

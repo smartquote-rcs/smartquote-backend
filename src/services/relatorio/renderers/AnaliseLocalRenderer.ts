@@ -14,7 +14,7 @@ export class AnaliseLocalRenderer {
     const contentWidth = pageWidth - (margin * 2);
     
     // Verificar espaço para a seção
-    this.verificarEspacoPagina(doc, 100);
+    this.verificarEspacoPagina(doc, 400);
     
     // Título da seção com gradiente visual
     doc

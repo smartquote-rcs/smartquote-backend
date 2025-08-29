@@ -268,14 +268,14 @@ router.get('/listar/:cotacaoId', authMiddleware, async (req, res) => {
 
     if (!relatoriosError && relatoriosData && relatoriosData.length > 0) {
       const ultimoRelatorio = relatoriosData[0];
-      const analiseLocal = Array.isArray(ultimoRelatorio.analise_local) ? ultimoRelatorio.analise_local : [];
-      const analiseWeb = Array.isArray(ultimoRelatorio.analise_web) ? ultimoRelatorio.analise_web : [];
+      const analiseLocal = Array.isArray(ultimoRelatorio?.analise_local) ? ultimoRelatorio.analise_local : [];
+      const analiseWeb = Array.isArray(ultimoRelatorio?.analise_web) ? ultimoRelatorio.analise_web : [];
       
       analisesSummary = {
         totalAnalises: analiseLocal.length + analiseWeb.length,
         analiseLocal: analiseLocal.length,
         analiseWeb: analiseWeb.length,
-        ultimaAtualizacao: ultimoRelatorio.atualizado_em
+        ultimaAtualizacao: ultimoRelatorio?.atualizado_em
       };
     }
 
@@ -311,6 +311,206 @@ router.get('/listar/:cotacaoId', authMiddleware, async (req, res) => {
       error: error.message
     });
   }
+});
+
+/**
+ * @route PUT /api/relatorios/proposta-email/:cotacaoId
+ * @desc Atualiza ou cria o conteúdo da proposta de email para uma cotação
+ * @access public
+ */
+router.put('/proposta-email/:cotacaoId', async (req, res) => {
+  try {
+    const { cotacaoId } = req.params;
+    const { propostaEmail } = req.body;
+
+    if (!cotacaoId) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID da cotação é obrigatório'
+      });
+    }
+
+    if (!propostaEmail) {
+      return res.status(400).json({
+        success: false,
+        message: 'Conteúdo da proposta de email é obrigatório'
+      });
+    }
+
+    const cotacaoIdNum = parseInt(cotacaoId);
+
+    if (isNaN(cotacaoIdNum)) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID da cotação deve ser um número válido'
+      });
+    }
+
+    console.log(`📧 [RELATORIO] Atualizando proposta de email para cotação ${cotacaoIdNum}`);
+
+    // Verificar se a cotação existe
+    const { data: cotacao, error: cotacaoError } = await supabase
+      .from('cotacoes')
+      .select('id')
+      .eq('id', cotacaoIdNum)
+      .single();
+
+    if (cotacaoError || !cotacao) {
+      return res.status(404).json({
+        success: false,
+        message: 'Cotação não encontrada'
+      });
+    }
+
+    // Verificar se já existe um relatório para esta cotação
+    const { data: relatorioExistente, error: buscaError } = await supabase
+      .from('relatorios')
+      .select('id, versao')
+      .eq('cotacao_id', cotacaoIdNum)
+      .order('id', { ascending: false })
+      .limit(1)
+      .single();
+
+    let resultado;
+
+    if (buscaError && buscaError.code === 'PGRST116') {
+      // Não existe relatório, criar um novo
+      const { data, error } = await supabase
+        .from('relatorios')
+        .insert({
+          cotacao_id: cotacaoIdNum,
+          proposta_email: propostaEmail,
+          status: 'rascunho',
+          versao: 1
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('❌ [RELATORIO] Erro ao criar relatório:', error);
+        return res.status(500).json({
+          success: false,
+          message: 'Erro ao criar relatório com proposta de email',
+          error: error.message
+        });
+      }
+
+      resultado = data;
+      console.log(`✅ [RELATORIO] Novo relatório criado com proposta de email para cotação ${cotacaoIdNum}`);
+
+    } else if (relatorioExistente) {
+      // Existe relatório, atualizar a proposta_email
+      const { data, error } = await supabase
+        .from('relatorios')
+        .update({
+          proposta_email: propostaEmail,
+          atualizado_em: new Date().toISOString()
+        })
+        .eq('id', relatorioExistente.id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('❌ [RELATORIO] Erro ao atualizar proposta de email:', error);
+        return res.status(500).json({
+          success: false,
+          message: 'Erro ao atualizar proposta de email',
+          error: error.message
+        });
+      }
+
+      resultado = data;
+      console.log(`✅ [RELATORIO] Proposta de email atualizada para cotação ${cotacaoIdNum}`);
+
+    } else {
+      // Erro inesperado na busca
+      console.error('❌ [RELATORIO] Erro ao buscar relatório existente:', buscaError);
+      return res.status(500).json({
+        success: false,
+        message: 'Erro ao verificar relatório existente',
+        error: buscaError.message
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Proposta de email atualizada com sucesso',
+      data: {
+        relatorioId: resultado.id,
+        cotacaoId: cotacaoIdNum,
+        versao: resultado.versao,
+        status: resultado.status,
+        atualizadoEm: resultado.atualizado_em
+      }
+    });
+
+  } catch (error: any) {
+    console.error('❌ [RELATORIO] Erro ao atualizar proposta de email:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * @route GET /api/relatorios/proposta-email/:cotacaoId
+ * @desc obter proposta de email se já tiver sido gerada
+ * @access public
+ */
+router.get('/proposta-email/:cotacaoId', async (req, res) => {
+  const { cotacaoId } = req.params;
+
+  if (!cotacaoId) {
+    return res.status(400).json({
+      success: false,
+      message: 'ID da cotação é obrigatório'
+    });
+  }
+
+  const cotacaoIdNum = parseInt(cotacaoId);
+
+  if (isNaN(cotacaoIdNum)) {
+    return res.status(400).json({
+      success: false,
+      message: 'ID da cotação deve ser um número válido'
+    });
+  }
+
+  console.log(`📧 [RELATORIO] Obtendo proposta de email para cotação ${cotacaoIdNum}`);
+
+  // Buscar relatório existente
+  const { data: relatorio, error: buscaError } = await supabase
+    .from('relatorios')
+    .select('id, proposta_email')
+    .eq('cotacao_id', cotacaoIdNum)
+    .single();
+
+  if (buscaError) {
+    console.error('❌ [RELATORIO] Erro ao buscar proposta de email:', buscaError);
+    return res.status(500).json({
+      success: false,
+      message: 'Erro ao buscar proposta de email',
+      error: buscaError.message
+    });
+  }
+
+  if (!relatorio) {
+    return res.status(404).json({
+      success: false,
+      message: 'Proposta de email não encontrada'
+    });
+  }
+
+  res.json({
+    success: true,
+    message: 'Proposta de email obtida com sucesso',
+    data: {
+      relatorioId: relatorio.id,
+      propostaEmail: relatorio.proposta_email
+    }
+  });
 });
 
 export default router;

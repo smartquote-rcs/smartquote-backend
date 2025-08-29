@@ -10,7 +10,7 @@ O sistema de relatórios foi implementado para gerar automaticamente documentos 
 ## 🔄 Fluxo Automático
 
 ### 1. Geração Automática
-- Quando `POST /api/busca-local` é executado
+- Quando `POST /api/busca` é executado
 - Se a cotação ficar com status "completa"
 - O sistema gera automaticamente o relatório
 - O caminho do PDF é salvo na tabela `cotacoes`
@@ -130,7 +130,7 @@ Os PDFs são salvos em `./temp/` (criado automaticamente)
 
 ### 1. Executar Busca Local
 ```bash
-POST /api/busca-local
+POST /api/busca
 {
   "solicitacao": "Preciso de um computador para desenvolvimento",
   "searchWeb": true

@@ -37,7 +37,7 @@ routers.use('/cotacoes-itens', cotacoesItensRouter);
 routers.use('/busca-automatica', buscaRouter);
 routers.use('/email', emailRouter);
 routers.use('/gemini', geminiRouter);
-routers.use('/busca-local', buscaLocalRouter);
+routers.use('/busca', buscaLocalRouter);
 routers.use('/notifications', authMiddleware, notificationsRouter);
 routers.use('/prompts', promptsRouter);
 routers.use('/relatorios', relatorioRouter);

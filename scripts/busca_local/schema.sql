@@ -17,7 +17,6 @@ CREATE TABLE public.cotacoes (
   condicoes jsonb DEFAULT '{}'::jsonb,
   faltantes jsonb DEFAULT '[]'::jsonb,
   orcamento_geral numeric NOT NULL DEFAULT 0,
-  relatorios_web jsonb DEFAULT '[]'::jsonb,
   CONSTRAINT cotacoes_pkey PRIMARY KEY (id),
   CONSTRAINT cotacoes_prompt_id_fkey FOREIGN KEY (prompt_id) REFERENCES public.prompts(id)
 );
@@ -115,6 +114,7 @@ CREATE TABLE public.prompts (
   origem json NOT NULL,
   status character varying NOT NULL DEFAULT 'recebido'::character varying CHECK (status::text = ANY (ARRAY['recebido'::character varying, 'pendente'::character varying, 'analizado'::character varying, 'enviado'::character varying]::text[])),
   dados_bruto json,
+  cliente jsonb,
   CONSTRAINT prompts_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.relatorios (
@@ -127,6 +127,7 @@ CREATE TABLE public.relatorios (
   criado_por bigint,
   analise_local ARRAY,
   analise_web ARRAY,
+  proposta_email jsonb,
   CONSTRAINT relatorios_pkey PRIMARY KEY (id),
   CONSTRAINT relatorios_criado_por_fkey FOREIGN KEY (criado_por) REFERENCES public.users(id),
   CONSTRAINT relatorios_cotacao_id_fkey FOREIGN KEY (cotacao_id) REFERENCES public.cotacoes(id)

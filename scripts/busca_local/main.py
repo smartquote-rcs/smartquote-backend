@@ -256,6 +256,7 @@ def processar_interpretacao(
         "prioridade": interpretation.get("prioridade"),
         "confianca": interpretation.get("confianca"),
         "dados_extraidos": brief,  # Incluir o JSON estruturado do LLM
+        "cliente": interpretation.get("cliente"),
         "dados_bruto": interpretation.get("dados_bruto"),
         "faltantes": tarefas_web,
         "resultado_resumo": _resumo_resultados(resultados, limite_resultados),
@@ -269,6 +270,7 @@ def processar_interpretacao(
         prompt_id = cotacao_manager.insert_prompt(
             texto_original=solicitacao,
             dados_extraidos=brief,
+            cliente=interpretation.get("cliente"),
             dados_bruto=interpretation.get("dados_bruto"),
             origem={"tipo": "servico", "fonte": "stdin"},
             status="analizado",
@@ -329,7 +331,7 @@ def processar_interpretacao(
                     "score": top_resultado.get("score"), 
                     "alternativa": False
                 }
-                
+                 
                 # Se o produto foi aprovado pelo LLM, incluir o relatório
                 if top_resultado.get('llm_relatorio'):
                     payload["llm_relatorio"] = top_resultado.get('llm_relatorio')
@@ -337,6 +339,15 @@ def processar_interpretacao(
                 else:
                     print(f"⚠️ [COTACAO] Nenhum relatório LLM encontrado para {qid}")
                 
+               
+                
+                #inserir relatorio local, se já existe adionar apenas o payload no array
+                relatorio_id = cotacao_manager.insert_relatorio(
+                    cotacao_id=cotacao1_id,
+                    analise_local=[payload],
+                    criado_por=interpretation.get("criado_por"),
+                )
+
                 item_id = cotacao_manager.insert_cotacao_item_from_result(
                     cotacao_id=cotacao1_id,
                     resultado_produto=top_resultado,
@@ -393,7 +404,11 @@ def processar_interpretacao(
                 print(f"🧠 [COTACAO-ALT] Adicionando relatório LLM para alternativa {qid}: {len(top_resultado.get('llm_relatorio', {}))} campos")
             else:
                 print(f"⚠️ [COTACAO-ALT] Nenhum relatório LLM encontrado para alternativa {qid}")
-            
+            relatorio_id = cotacao_manager.insert_relatorio(
+                cotacao_id=cotacao1_id,
+                analise_local=[payload],
+                criado_por=interpretation.get("criado_por"),
+            )
             item_id = cotacao_manager.insert_cotacao_item_from_result(
                 cotacao_id=cotacao_alt_id,
                 resultado_produto=top_resultado,

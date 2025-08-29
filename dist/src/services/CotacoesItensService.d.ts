@@ -15,6 +15,14 @@ declare class CotacoesItensService {
      * Insere itens de um job completo na cotação, aproveitando os IDs salvos
      */
     insertJobResultItems(cotacaoId: number, jobResult: any): Promise<number>;
+    /**
+     * Lista itens de cotação, podendo filtrar por cotacao_id
+     */
+    list(cotacao_id?: number): Promise<any[]>;
+    /**
+     * Busca item de cotação por id
+     */
+    getById(id: number): Promise<any>;
 }
 declare const _default: CotacoesItensService;
 export default _default;

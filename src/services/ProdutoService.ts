@@ -213,10 +213,11 @@ export class ProdutosService {
 
         if (produtoExistente) {
           console.log(`⚠️  Produto já existe: ${produto.name}`);
+          resultado.salvos++;
           resultado.detalhes.push({
             produto: produto.name,
             status: 'existe',
-            id_existente: produtoExistente.id
+            id: produtoExistente.id
           });
           continue;
         }

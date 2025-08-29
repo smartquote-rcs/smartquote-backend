@@ -16,9 +16,9 @@ const app = new Firecrawl({ apiKey: process.env.FIRECRAWL_API_KEY! });
 // Schema para validação dos produtos extraídos
 const ProductSchema = z.object({
   name: z.string(),
-  price: z.string(),
-  image_url: z.string(),
-  description: z.string(),
+  price: z.string().nullable().transform(val => val || "Preço não disponível"),
+  image_url: z.string().nullable().transform(val => val || ""),
+  description: z.string().nullable().transform(val => val || "Descrição não disponível"),
   product_url: z.string()
 });
 
@@ -50,12 +50,12 @@ export class BuscaAutomatica {
             type: "object",
             properties: {
               name: { type: "string" },
-              price: { type: "string" },
-              image_url: { type: "string" },
-              description: { type: "string" },
+              price: { type: ["string", "null"] },
+              image_url: { type: ["string", "null"] },
+              description: { type: ["string", "null"] },
               product_url: { type: "string" }
             },
-            required: ["name", "price", "image_url", "description", "product_url"]
+            required: ["name", "product_url"]
           }
         }
       },
@@ -100,6 +100,7 @@ export class BuscaAutomatica {
       }
 
       // Validar os dados usando Zod
+      console.log("Validando dados extraídos...");
       const validatedData = ProductsResponseSchema.parse(scrapeResult.data);
       
       // FORÇAR o limite de produtos aqui também

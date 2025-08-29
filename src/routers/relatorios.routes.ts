@@ -140,18 +140,43 @@ router.get('/status/:cotacaoId', authMiddleware, async (req, res) => {
       });
     }
 
+    // Buscar dados dos relatórios na tabela relatorios
+    const { data: relatoriosData, error: relatoriosError } = await supabase
+      .from('relatorios')
+      .select('status, versao, analise_local, analise_web, criado_em')
+      .eq('cotacao_id', cotacaoIdNum)
+      .order('id', { ascending: false })
+      .limit(1)
+      .single();
+
+    let temAnalises = false;
+    let statusAnalises = 'sem_dados';
+    
+    if (!relatoriosError && relatoriosData) {
+      const analiseLocal = Array.isArray(relatoriosData.analise_local) ? relatoriosData.analise_local : [];
+      const analiseWeb = Array.isArray(relatoriosData.analise_web) ? relatoriosData.analise_web : [];
+      temAnalises = analiseLocal.length > 0 || analiseWeb.length > 0;
+      statusAnalises = relatoriosData.status || 'rascunho';
+    }
+
     // Verificar se está pronta para relatório
     const estaPronta = cotacao.status === 'completa' || cotacao.status === 'incompleta';
-    const temItens = cotacao.orcamento_geral > 0;
+    const temOrcamento = cotacao.orcamento_geral > 0;
     const temRelatorio = cotacao.relatorio_path && cotacao.relatorio_gerado_em;
+    const prontaParaRelatorio = estaPronta && (temOrcamento || temAnalises);
 
     res.json({
       success: true,
       data: {
         cotacaoId: cotacaoIdNum,
         status: cotacao.status,
-        estaProntaParaRelatorio: estaPronta && temItens,
+        estaProntaParaRelatorio: prontaParaRelatorio,
         orcamentoGeral: cotacao.orcamento_geral,
+        analises: {
+          existem: temAnalises,
+          status: statusAnalises,
+          ultimaAtualizacao: relatoriosData?.criado_em || null
+        },
         relatorio: {
           existe: temRelatorio,
           path: cotacao.relatorio_path,
@@ -227,6 +252,33 @@ router.get('/listar/:cotacaoId', authMiddleware, async (req, res) => {
       prompt = promptData;
     }
 
+    // Buscar dados dos relatórios na tabela relatorios
+    const { data: relatoriosData, error: relatoriosError } = await supabase
+      .from('relatorios')
+      .select('id, status, versao, criado_em, atualizado_em, analise_local, analise_web')
+      .eq('cotacao_id', cotacaoIdNum)
+      .order('id', { ascending: false });
+
+    let analisesSummary = {
+      totalAnalises: 0,
+      analiseLocal: 0,
+      analiseWeb: 0,
+      ultimaAtualizacao: null
+    };
+
+    if (!relatoriosError && relatoriosData && relatoriosData.length > 0) {
+      const ultimoRelatorio = relatoriosData[0];
+      const analiseLocal = Array.isArray(ultimoRelatorio.analise_local) ? ultimoRelatorio.analise_local : [];
+      const analiseWeb = Array.isArray(ultimoRelatorio.analise_web) ? ultimoRelatorio.analise_web : [];
+      
+      analisesSummary = {
+        totalAnalises: analiseLocal.length + analiseWeb.length,
+        analiseLocal: analiseLocal.length,
+        analiseWeb: analiseWeb.length,
+        ultimaAtualizacao: ultimoRelatorio.atualizado_em
+      };
+    }
+
     res.json({
       success: true,
       data: {
@@ -245,7 +297,9 @@ router.get('/listar/:cotacaoId', authMiddleware, async (req, res) => {
           path: cotacao.relatorio_path,
           geradoEm: cotacao.relatorio_gerado_em,
           downloadUrl: cotacao.relatorio_path ? `/api/relatorios/download/${encodeURIComponent(cotacao.relatorio_path)}` : null
-        }
+        },
+        analises: analisesSummary,
+        relatoriosDisponiveis: relatoriosData || []
       }
     });
 

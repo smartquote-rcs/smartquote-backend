@@ -2,6 +2,7 @@
  * Serviço de interpretação de emails usando Google Gemini AI
  * Analisa o conteúdo dos emails e extrai informações estruturadas
  */
+import type { RelatorioData } from './relatorio/types';
 export interface EmailInterpretation {
     id: string;
     emailId: string;
@@ -38,6 +39,14 @@ export interface EmailData {
     subject: string;
     content: string;
     date: string;
+}
+export interface EmailReformulationResult {
+    originalEmail: string;
+    reformulatedEmail: string;
+    prompt: string;
+    confidence: number;
+    processedAt: string;
+    rawGeminiResponse?: string;
 }
 declare class GeminiInterpretationService {
     private genAI;
@@ -76,6 +85,34 @@ declare class GeminiInterpretationService {
      * Busca interpretação por email ID
      */
     getInterpretationByEmailId(emailId: string): Promise<EmailInterpretation | null>;
+    /**
+     * Reformula um email usando Gemini AI com base em um prompt de modificação
+     */
+    gerarTemplateEmailTextoIA(relatorioData: RelatorioData, emailOriginal: string, promptModificacao: string): Promise<EmailReformulationResult>;
+    /**
+     * Constrói o prompt para reformulação de email
+     */
+    private buildEmailReformulationPrompt;
+    /**
+     * Constrói o contexto para reformulação de email
+     */
+    private buildEmailReformulationContext;
+    /**
+     * Extrai os itens principais escolhidos das análises
+     */
+    private extractSelectedItems;
+    /**
+     * Formata os dados do cliente de forma estruturada
+     */
+    private formatClientData;
+    /**
+     * Parse da resposta de reformulação do Gemini AI
+     */
+    private parseEmailReformulationResponse;
+    /**
+     * Cria resultado de reformulação básico em caso de erro
+     */
+    private createFallbackEmailReformulation;
 }
 export default GeminiInterpretationService;
 //# sourceMappingURL=GeminiInterpretationService.d.ts.map

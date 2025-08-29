@@ -136,7 +136,8 @@ def _llm_escolher_indice(query: str, filtros: dict | None, custo_beneficio: dict
         client = Groq(api_key=api_key)
         resp = client.chat.completions.create(
             # Usar um modelo mais recente e robusto, se disponível
-            model="llama-3.3-70b-versatile", 
+            #model="llama-3.3-70b-versatile", 
+            model="llama-3.1-8b-instant",
             messages=[
                 {"role": "system", "content": prompt_sistema},
                 {"role": "user", "content": user_msg},

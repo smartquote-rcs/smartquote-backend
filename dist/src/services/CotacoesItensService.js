@@ -120,8 +120,10 @@ class CotacoesItensService {
                 if (produtoId) {
                     // Usar o ID do produto salvo
                     const idItem = await this.insertWebItemById(cotacaoId, produtoId, produto, quantidade);
-                    if (idItem)
+                    if (idItem) {
+                        jobResult.relatorio.id_item_cotacao = idItem; // Adiciona o ID do item de cotação ao relatório
                         inseridos++;
+                    }
                 }
             }
             catch (e) {
@@ -129,6 +131,31 @@ class CotacoesItensService {
             }
         }
         return inseridos;
+    }
+    /**
+     * Lista itens de cotação, podendo filtrar por cotacao_id
+     */
+    async list(cotacao_id) {
+        let query = connect_1.default.from('cotacoes_itens').select('*');
+        if (cotacao_id) {
+            query = query.eq('cotacao_id', cotacao_id);
+        }
+        console.log('[CotacoesItensService.list] Query:', query);
+        const { data, error } = await query;
+        console.log('[CotacoesItensService.list] Data:', data);
+        console.log('[CotacoesItensService.list] Error:', error);
+        if (error)
+            throw new Error(error.message);
+        return data;
+    }
+    /**
+     * Busca item de cotação por id
+     */
+    async getById(id) {
+        const { data, error } = await connect_1.default.from('cotacoes_itens').select('*').eq('id', id).single();
+        if (error)
+            throw new Error(error.message);
+        return data;
     }
 }
 exports.default = new CotacoesItensService();

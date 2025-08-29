@@ -19,7 +19,6 @@ export interface Cotacao {
   status?: 'completa' | 'incompleta';
   orcamento_geral?: number; // numeric no BD
   faltantes?: any; // jsonb no BD (lista/objeto)
-  relatorios_web?: any[]; // jsonb no BD (relatórios das buscas web)
 
   // campos diversos (se existirem na tabela)
   observacao?: string;

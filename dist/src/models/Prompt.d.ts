@@ -2,6 +2,7 @@ export interface Prompt {
     id?: number;
     texto_original: string;
     dados_extraidos?: any;
+    cliente?: any;
     dados_bruto?: any;
     origem?: any;
     status?: string;

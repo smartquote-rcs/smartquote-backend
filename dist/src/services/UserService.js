@@ -69,13 +69,7 @@ class UserService {
     async getById(id) {
         const { data, error } = await connect_1.default
             .from(this.table)
-            .select(`
-        id,
-        name,
-        email,
-        function
-        created_at
-      `)
+            .select(`id, name, email, position, created_at`)
             .eq('id', id)
             .single();
         if (error) {

@@ -186,7 +186,8 @@ async function filtrarProdutosComLLM(produtos: any[], termoBusca: string, quanti
 
     const client = new Groq({ apiKey });
     const resp = await client.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
+      //model: "llama-3.3-70b-versatile",
+      model: "llama-3.1-8b-instant",
       messages: [
         { role: "system", content: prompt_sistema },
         { role: "user", content: userMsg }

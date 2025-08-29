@@ -13,6 +13,7 @@ import PromptsService from './PromptsService';
 import CotacoesService from './CotacoesService';
 import type { Cotacao } from '../models/Cotacao';
 import RelatorioService from './RelatorioService';
+import type { RelatorioData } from './relatorio/types';
 
 export interface EmailInterpretation {
   id: string;
@@ -53,6 +54,15 @@ export interface EmailData {
   subject: string;
   content: string;
   date: string;
+}
+
+export interface EmailReformulationResult {
+  originalEmail: string;
+  reformulatedEmail: string;
+  prompt: string;
+  confidence: number;
+  processedAt: string;
+  rawGeminiResponse?: string;
 }
 
 class GeminiInterpretationService {
@@ -306,6 +316,7 @@ DADOS DO EMAIL:
                   const prompt = await PromptsService.create({
                     texto_original: interpretation.solicitacao,
                     dados_extraidos: dadosExtraidos,
+                    cliente: interpretation.cliente || {},
                     dados_bruto: interpretation.dados_bruto || {},
                     origem: { tipo: 'servico', fonte: 'email' },
                     status: 'analizado',
@@ -409,6 +420,255 @@ DADOS DO EMAIL:
       console.error('❌ [GEMINI] Erro ao buscar interpretação:', error);
       return null;
     }
+  }
+
+  /**
+   * Reformula um email usando Gemini AI com base em um prompt de modificação
+   */
+  async gerarTemplateEmailTextoIA(
+    relatorioData: RelatorioData,
+    emailOriginal: string,
+    promptModificacao: string
+  ): Promise<EmailReformulationResult> {
+    const maxRetries = 5;
+    let delay = 1000; // 1s inicial
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`🧠 [GEMINI-EMAIL] Reformulando email (tentativa ${attempt}/${maxRetries})`);
+
+        const prompt = this.buildEmailReformulationPrompt(promptModificacao);
+        const context = this.buildEmailReformulationContext(relatorioData, emailOriginal);
+
+        const result = await this.model.generateContent({
+          contents: [
+            { role: "user", parts: [{ text: context }, { text: prompt }] }
+          ],
+          generationConfig: {
+            temperature: 0.3,   // Um pouco mais criativo que interpretação
+            topP: 0.9,
+            maxOutputTokens: 3000
+          }
+        });
+
+        const response = await result.response;
+        const text = response.text();
+
+        console.log(`🧠 [GEMINI-EMAIL] Resposta recebida para reformulação`);
+
+        // Parse da resposta do Gemini
+        const reformulationResult = this.parseEmailReformulationResponse(
+          text, 
+          emailOriginal, 
+          promptModificacao
+        );
+
+        console.log(`✅ [GEMINI-EMAIL] Email reformulado com sucesso`);
+        return reformulationResult;
+
+      } catch (error: any) {
+        console.error(`❌ [GEMINI-EMAIL] Erro na tentativa ${attempt}:`, error.message);
+
+        // Se for erro 503 (sobrecarga), tenta de novo com backoff
+        if (error.message.includes("503") && attempt < maxRetries) {
+          console.warn(`⚠️ [GEMINI-EMAIL] Modelo sobrecarregado. Retentando em ${delay}ms...`);
+          await new Promise(res => setTimeout(res, delay));
+          delay *= 2; // aumenta o tempo (backoff exponencial)
+          continue;
+        }
+
+        // Se for erro diferente OU acabou as tentativas → retorna fallback
+        return this.createFallbackEmailReformulation(emailOriginal, promptModificacao, error.message);
+      }
+    }
+
+    // Se sair do loop sem sucesso, retorna fallback genérico
+    return this.createFallbackEmailReformulation(emailOriginal, promptModificacao, "Máximo de tentativas excedido.");
+  }
+
+  /**
+   * Constrói o prompt para reformulação de email
+   */
+  private buildEmailReformulationPrompt(promptModificacao: string): string {
+    return `
+Você é um assistente especializado em reformulação de emails comerciais. Sua tarefa é modificar o email fornecido seguindo as instruções específicas do usuário.
+
+---
+
+INSTRUÇÕES DE REFORMULAÇÃO:
+${promptModificacao}
+
+---
+
+DIRETRIZES GERAIS:
+1. Mantenha o tom profissional e comercial
+2. Preserve informações técnicas importantes (valores, prazos, especificações)
+3. Adapte o estilo conforme solicitado, mas mantenha a clareza
+4. Se necessário, reorganize a estrutura do email para melhor fluxo
+5. Mantenha a assinatura e informações de contato
+6. Preserve formatação essencial (listas, seções, etc.)
+
+---
+
+RESPOSTA:
+Retorne APENAS o email reformulado, sem comentários adicionais ou formatação Markdown.
+Mantenha toda a estrutura necessária do email original, aplicando apenas as modificações solicitadas.
+`;
+  }
+
+  /**
+   * Constrói o contexto para reformulação de email
+   */
+  private buildEmailReformulationContext(relatorioData: RelatorioData, emailOriginal: string): string {
+    const totalAnalises = relatorioData.analiseLocal.length + relatorioData.analiseWeb.length;
+    const valorTotal = relatorioData.orcamentoGeral.toLocaleString('pt-AO', { 
+      style: 'currency', 
+      currency: 'AOA',
+      minimumFractionDigits: 2 
+    });
+
+    // Extrair informações dos itens escolhidos
+    const itensEscolhidos = this.extractSelectedItems(relatorioData);
+    
+    // Extrair dados do cliente de forma estruturada
+    const dadosCliente = this.formatClientData(relatorioData.cliente);
+
+    return `
+DADOS DO RELATÓRIO:
+- ID da Cotação: ${relatorioData.cotacaoId}
+- Valor Total: ${valorTotal}
+- Total de Análises: ${totalAnalises}
+- Análises Locais: ${relatorioData.analiseLocal.length}
+- Análises Web: ${relatorioData.analiseWeb.length}
+
+SOLICITAÇÃO ORIGINAL:
+${relatorioData.solicitacao}
+
+DADOS DO CLIENTE:
+${dadosCliente}
+
+ITENS PRINCIPAIS ESCOLHIDOS:
+${itensEscolhidos}
+
+---
+
+EMAIL ORIGINAL A SER REFORMULADO:
+${emailOriginal}
+
+---
+`;
+  }
+
+  /**
+   * Extrai os itens principais escolhidos das análises
+   */
+  private extractSelectedItems(relatorioData: RelatorioData): string {
+    const itens: string[] = [];
+
+    // Itens das análises locais
+    relatorioData.analiseLocal.forEach((analise, index) => {
+      if (analise.llm_relatorio?.escolha_principal) {
+        const topItem = analise.llm_relatorio.top_ranking?.[0];
+        if (topItem) {
+          itens.push(`• ${analise.llm_relatorio.escolha_principal} - ${topItem.preco} (Análise Local ${index + 1})`);
+        } else {
+          itens.push(`• ${analise.llm_relatorio.escolha_principal} (Análise Local ${index + 1})`);
+        }
+      }
+    });
+
+    // Itens das análises web
+    relatorioData.analiseWeb.forEach((analise, index) => {
+      if (analise.escolha_principal) {
+        const topItem = analise.top_ranking?.[0];
+        if (topItem) {
+          itens.push(`• ${analise.escolha_principal} - ${topItem.preco} (Busca Web: ${analise.query.nome})`);
+        } else {
+          itens.push(`• ${analise.escolha_principal} (Busca Web: ${analise.query.nome})`);
+        }
+      } else if (analise.top_ranking?.[0]) {
+        const topItem = analise.top_ranking[0];
+        itens.push(`• ${topItem.nome} - ${topItem.preco} (Busca Web: ${analise.query.nome})`);
+      }
+    });
+
+    return itens.length > 0 ? itens.join('\n') : '• Nenhum item específico selecionado';
+  }
+
+  /**
+   * Formata os dados do cliente de forma estruturada
+   */
+  private formatClientData(cliente: any): string {
+    if (!cliente || typeof cliente !== 'object') {
+      return '• Dados do cliente não disponíveis';
+    }
+
+    const dados: string[] = [];
+    
+    if (cliente.nome) dados.push(`• Nome: ${cliente.nome}`);
+    if (cliente.empresa) dados.push(`• Empresa: ${cliente.empresa}`);
+    if (cliente.email) dados.push(`• Email: ${cliente.email}`);
+    if (cliente.telefone) dados.push(`• Telefone: ${cliente.telefone}`);
+    if (cliente.localizacao) dados.push(`• Localização: ${cliente.localizacao}`);
+    if (cliente.website) dados.push(`• Website: ${cliente.website}`);
+
+    return dados.length > 0 ? dados.join('\n') : '• Dados do cliente não especificados';
+  }
+
+  /**
+   * Parse da resposta de reformulação do Gemini AI
+   */
+  private parseEmailReformulationResponse(
+    response: string, 
+    emailOriginal: string, 
+    prompt: string
+  ): EmailReformulationResult {
+    try {
+      // Limpar resposta removendo possível formatação markdown
+      const cleanedResponse = response
+        .replace(/```[\s\S]*?\n/g, '') // Remove abertura de code blocks
+        .replace(/\n```/g, '') // Remove fechamento de code blocks
+        .trim();
+
+      // Calcular confiança baseada no tamanho e qualidade da resposta
+      let confidence = 85;
+      if (cleanedResponse.length < emailOriginal.length * 0.5) {
+        confidence = 60; // Resposta muito curta
+      } else if (cleanedResponse.length > emailOriginal.length * 2) {
+        confidence = 70; // Resposta muito longa
+      }
+
+      return {
+        originalEmail: emailOriginal,
+        reformulatedEmail: cleanedResponse,
+        prompt: prompt,
+        confidence: confidence,
+        processedAt: new Date().toISOString(),
+        rawGeminiResponse: response
+      };
+
+    } catch (error) {
+      console.error('❌ [GEMINI-EMAIL] Erro ao fazer parse da resposta:', error);
+      return this.createFallbackEmailReformulation(emailOriginal, prompt, `Parse error: ${error}`);
+    }
+  }
+
+  /**
+   * Cria resultado de reformulação básico em caso de erro
+   */
+  private createFallbackEmailReformulation(
+    emailOriginal: string, 
+    prompt: string, 
+    errorMessage: string
+  ): EmailReformulationResult {
+    return {
+      originalEmail: emailOriginal,
+      reformulatedEmail: emailOriginal, // Retorna o email original em caso de erro
+      prompt: prompt,
+      confidence: 0,
+      processedAt: new Date().toISOString(),
+      rawGeminiResponse: `ERROR: ${errorMessage}`
+    };
   }
 }
 

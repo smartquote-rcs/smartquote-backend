@@ -131,7 +131,10 @@ class CotacoesItensService {
         if (produtoId) {
           // Usar o ID do produto salvo
           const idItem = await this.insertWebItemById(cotacaoId, produtoId, produto, quantidade);
-          if (idItem) inseridos++;
+          if (idItem){ 
+            jobResult.relatorio.id_item_cotacao = idItem; // Adiciona o ID do item de cotação ao relatório
+            inseridos++;
+          }
         }
       } catch (e) {
         console.error('❌ [COTACAO-ITEM] Erro ao inserir item do job:', (e as any)?.message || e);

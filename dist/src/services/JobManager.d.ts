@@ -25,6 +25,7 @@ interface JobStatus {
         detalhes?: string;
     };
     resultado?: {
+        relatorio?: any;
         produtos?: any[];
         salvamento?: {
             salvos: number;

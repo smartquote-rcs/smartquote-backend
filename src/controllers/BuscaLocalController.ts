@@ -115,6 +115,7 @@ export class BuscaLocalController {
         const prompt = await PromptsService.create({
           texto_original: solicitacao,
           dados_extraidos: dadosExtraidos,
+          cliente: payload?.cliente || {},
           dados_bruto: payload?.dados_bruto || {},
           origem: { tipo: 'servico', fonte: 'api' },
           status: 'analizado'

@@ -354,7 +354,7 @@ DADOS DO EMAIL:
               } catch (e: any) {
                 console.error('❌ [BUSCA-WEB] Falha no fluxo pós-Python:', e?.message || e);
               }
-              await RelatorioService.verificarEgerarRelatorio(Number(cotacaoPrincipalId));
+        
             })();
                         
           } else {

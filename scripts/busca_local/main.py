@@ -8,7 +8,7 @@ import os
 import sys
 import json
 import argparse
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # Adicionar o diretório pai ao path para permitir imports relativos
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -294,6 +294,7 @@ def processar_interpretacao(
             prompt_id=prompt_id,
             faltantes=tarefas_web if tarefas_web else None,
             observacoes="Cotação principal (automática).",
+            prazo_validade=datetime.now() + timedelta(days=10),
         )
 
         itens_adicionados = 0

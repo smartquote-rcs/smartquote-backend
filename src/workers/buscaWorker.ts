@@ -11,7 +11,9 @@ import { Product } from '../types/BuscaTypes';
 interface JobMessage {
   id: string;
   termo: string;
+  urls_add?: string[]; // URLs adicionais para busca
   numResultados: number;
+  salvamento: boolean;
   fornecedores: number[];
   usuarioId?: number;
   quantidade?: number; // Quantidade opcional para busca
@@ -74,14 +76,7 @@ async function filtrarProdutosComLLM(produtos: any[], termoBusca: string, quanti
     log(`🧠 [LLM-FILTER] Iniciando filtro LLM (Groq) para ${produtos.length} produtos`);
 
     // Filtrar produtos inadequados antes de enviar para o LLM
-    const produtosValidos = produtos.filter(p => {
-      const temNome = p.name && p.name.trim().length > 0;
-      const temUrl = p.product_url && p.product_url.trim().length > 0;
-      const temDescricao = p.description && p.description.trim().length > 10;
-  
-      return true;
-    });
-
+    const produtosValidos = produtos;
     if (produtosValidos.length === 0) {
       log(`🧠 [LLM-FILTER] Nenhum produto válido encontrado após filtro`);
       return { produtos: [], relatorio: {} };
@@ -297,7 +292,7 @@ process.stdin.on('data', async (data: string) => {
 
 // Função principal que processa o job
 async function processarJob(message: JobMessage) {
-  const { id, termo, numResultados, fornecedores, usuarioId, quantidade, custo_beneficio, rigor, refinamento, faltante_id } = message;
+  const { id, termo, numResultados, fornecedores, usuarioId, quantidade, custo_beneficio, rigor, refinamento, salvamento, faltante_id, urls_add } = message;
 
   log(`Worker iniciado para job ${id} - busca: "${termo}"${refinamento ? ' (com refinamento LLM)' : ''}${faltante_id ? ` - Faltante ID: ${faltante_id}` : ''}`);
   
@@ -323,8 +318,24 @@ async function processarJob(message: JobMessage) {
       throw new Error('Nenhum fornecedor válido encontrado');
     }
 
-    const sitesParaBusca = fornecedoresFiltrados.map(f => f.url);
+    let sitesParaBusca: string[] = [];
 
+    if (urls_add && Array.isArray(urls_add)) {
+      // adicionar em todas as urls * no final, se não tem / adiconar /*
+      urls_add.forEach(url => {
+        if (!url.endsWith('/')) {
+          url += '/*';
+        }
+        else {
+          url += '*';
+        }
+        sitesParaBusca.push(url);
+      });
+    }
+    else {
+      sitesParaBusca = fornecedoresFiltrados.map(f => f.url);
+    
+    }
     enviarMensagem({
       progresso: {
         etapa: 'busca',
@@ -381,21 +392,19 @@ async function processarJob(message: JobMessage) {
           detalhes: 'Aplicando refinamento LLM...'
         }
       });
-
       const produtosAntesLLM = todosProdutos.length;
       const resultadoLLM = await filtrarProdutosComLLM(todosProdutos, termo, quantidade, custo_beneficio, rigor);
       todosProdutos = resultadoLLM.produtos;
       relatorioLLM = resultadoLLM.relatorio; // Capturar o relatório
-      
       log(`Produtos após refinamento LLM: ${todosProdutos.length} de ${produtosAntesLLM}`);
-      
+
       if (todosProdutos.length === 0) {
         log(`🧠 [LLM-FILTER] Nenhum produto aprovado pelo LLM para salvamento`);
       }
     }
 
     // 5. Salvar produtos na base de dados (se houver produtos)
-    if (todosProdutos.length > 0) {
+    if (todosProdutos.length > 0 && salvamento) {
       enviarMensagem({
         progresso: {
           etapa: 'salvamento',
@@ -486,7 +495,27 @@ async function processarJob(message: JobMessage) {
       
       log(`Worker concluído - Job ${id}: ${totalSalvos} produtos salvos em ${tempoTotal}ms`);
       
-    } else {
+    }
+    else if(!salvamento && todosProdutos.length > 0){
+      // Se não for para salvar, apenas retornar os produtos encontrados
+      const tempoTotal = Date.now() - inicioTempo;
+      
+      enviarMensagem({
+        status: 'sucesso',
+        produtos: todosProdutos,
+        quantidade: quantidade,
+        relatorio: relatorioLLM, // Incluir relatório do LLM mesmo sem salvamento
+        salvamento: {
+          salvos: 0,
+          erros: 0,
+          detalhes: []
+        },
+        tempoExecucao: tempoTotal
+      });
+      
+      log(`Worker concluído - Job ${id}: ${todosProdutos.length} produtos encontrados (sem salvamento) em ${tempoTotal}ms`);
+    }
+    else {
       // Nenhum produto encontrado
       const tempoTotal = Date.now() - inicioTempo;
       

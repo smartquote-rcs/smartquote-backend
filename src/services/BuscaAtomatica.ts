@@ -19,7 +19,9 @@ const ProductSchema = z.object({
   price: z.string().nullable().transform(val => val || "Preço não disponível"),
   image_url: z.string().nullable().transform(val => val || ""),
   description: z.string().nullable().transform(val => val || "Descrição não disponível"),
-  product_url: z.string()
+  product_url: z.string(),
+  currency_unit: z.string().nullable().transform(val => val || "AOA"),
+  delivery_to_Angola: z.string().nullable().transform(val => val || "Entrega não disponível")
 });
 
 const ProductsResponseSchema = z.object({
@@ -51,9 +53,11 @@ export class BuscaAutomatica {
             properties: {
               name: { type: "string" },
               price: { type: ["string", "null"] },
+              currency_unit: { type: ["string", "null"] },
               image_url: { type: ["string", "null"] },
               description: { type: ["string", "null"] },
-              product_url: { type: "string" }
+              product_url: { type: "string" },
+              delivery_to_Angola: { type: ["string", "null"] } 
             },
             required: ["name", "product_url"]
           }
@@ -86,7 +90,8 @@ export class BuscaAutomatica {
         // As regras não negociáveis e o "código de conduta" da IA
         systemPrompt: `You are a precise data extraction agent.
                       If you cannot find the requested information, you MUST return an empty 'products' array. 
-                      DO NOT invent or fabricate data.`,
+                      DO NOT invent or fabricate data.
+                     currency_unit must be included in the format ISO 4217 currency codes (e.g., USD, EUR, AOA).`,
 
         // A "válvula de segurança" para evitar contaminação externa
         enableWebSearch: false,
@@ -105,15 +110,41 @@ export class BuscaAutomatica {
       
       // FORÇAR o limite de produtos aqui também
       const produtosLimitados = validatedData.products.slice(0, numResults);
-      
-      console.log(`Busca concluída. ${produtosLimitados.length} produtos encontrados (limitado a ${numResults})`);
-      
-      return {
-        success: true,
-        data: {
-          products: produtosLimitados
-        }
-      };
+      // para todos os produtos com o preço diferente de "Preço não disponível" e currency diferente de AOA
+        let cacheConversao: Record<string, number> = {};
+        const produtosFiltrados = await Promise.all(produtosLimitados.map(async produto => {
+          const precoValido = produto.price !== "Preço não disponível";
+          const currencyValida = produto.currency_unit !== "AOA";
+          if(precoValido && currencyValida && produto.currency_unit) {
+            let taxaConversao: number;
+            if (typeof cacheConversao[produto.currency_unit] === "number") {
+              taxaConversao = cacheConversao[produto.currency_unit] as number;
+            } else {
+              try {
+                const response = await fetch(`https://v6.exchangerate-api.com/v6/ffa32c5a056d7f5f27b5911e/latest/${produto.currency_unit}`);
+                const data = await response.json() as { conversion_rates?: Record<string, number> };
+                taxaConversao = data.conversion_rates?.["AOA"] ?? 1;
+                cacheConversao[produto.currency_unit] = taxaConversao;
+              } catch (e) {
+                taxaConversao = 1; // fallback: não converte
+              }
+            }
+            const precoNumerico = this.extrairPrecoNumerico(produto.price);
+            if (precoNumerico !== null && taxaConversao) {
+              produto.price = (precoNumerico * taxaConversao).toFixed(2) + " AOA";
+              produto.currency_unit = "AOA";
+            }
+          }
+          return produto;
+        }));
+        console.log(`Busca concluída. ${produtosFiltrados.length} produtos encontrados (limitado a ${numResults})`);
+
+        return {
+          success: true,
+          data: {
+            products: produtosFiltrados
+          }
+        };
 
     } catch (error) {
       console.error("Erro durante a busca automática:", error);

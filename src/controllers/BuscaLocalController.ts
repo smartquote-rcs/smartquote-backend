@@ -36,6 +36,7 @@ export class BuscaLocalController {
     }
     return args;
   }
+
   async searchLocal(req: Request, res: Response) {
     try {
       const pesquisa: string = (req.body?.pesquisa || '').toString().trim();
@@ -255,9 +256,6 @@ export class BuscaLocalController {
 
       // Relatório será gerado automaticamente pelo WebBuscaJobService quando a cotação estiver completa
       
-    // Verificar e gerar relatório automaticamente
-    await RelatorioService.verificarEgerarRelatorio(Number(cotacaoPrincipalId));
-    
       return res.status(200).json({
         success: true,
         message: 'Busca híbrida concluída',

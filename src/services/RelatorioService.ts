@@ -18,22 +18,22 @@ export class RelatorioService {
   /**
    * Verifica se a cotação está completa e gera relatório automaticamente
    */
-  public async verificarEgerarRelatorio(cotacaoId: number) {
+  public async verificarEgerarRelatorio(cotacaoId: number): Promise<string> {
     try {
       // Buscar status atual da cotação
       const { data: cotacao, error } = await supabase
         .from('cotacoes')
-        .select('status, orcamento_geral')
+        .select('status, orcamento_geral, aprovacao')
         .eq('id', cotacaoId)
         .single();
 
       if (error || !cotacao) {
         console.error('❌ [RELATORIO] Erro ao buscar status da cotação:', error);
-        return;
+        return "";
       }
 
       // Verificar se está completa
-      if (cotacao.status === 'completa' && cotacao.orcamento_geral > 0) {
+      if (cotacao.status === 'completa' && cotacao.orcamento_geral > 0 && cotacao.aprovacao == true) {
         console.log(`📊 [RELATORIO] Cotação ${cotacaoId} está completa. Gerando relatório automaticamente...`);
         
         try {
@@ -42,29 +42,28 @@ export class RelatorioService {
           
           // Atualizar a cotação com o caminho do relatório
           await supabase
-            .from('cotacoes')
+            .from('relatorios')
             .update({ 
-              relatorio_path: pdfPath,
-              relatorio_gerado_em: new Date().toISOString()
+              relatorio_path: pdfPath
             })
-            .eq('id', cotacaoId);
-
+            .eq('cotacao_id', cotacaoId);
+          return pdfPath;
         } catch (reportError) {
           console.error('❌ [RELATORIO] Erro ao gerar relatório automaticamente:', reportError);
+          return "";
         }
       }
+      return "";
     } catch (error) {
       console.error('❌ [RELATORIO] Erro geral na verificação:', error);
+      return "";
     }
   }
-
   /**
-   * Gera relatório completo em PDF
+   * Gera dados de relatorio
    */
-  public async gerarRelatorioCompleto(cotacaoId: number): Promise<string> {
-    console.log(`📊 [RELATORIO] Iniciando geração de relatório para cotação ${cotacaoId}`);
-
-    try {
+  public async gerarDadosRelatorio(cotacaoId: number): Promise<RelatorioData> {
+       try {
       // Buscar dados do relatório da tabela relatorios
       const { data: relatorio, error } = await supabase
         .from('relatorios')
@@ -115,6 +114,20 @@ export class RelatorioService {
       };
 
       console.log(`📋 [RELATORIO] Dados processados - Local: ${analiseLocal.length}, Web: ${analiseWeb.length}`);
+      return data;
+    } catch {
+        console.error('❌ [RELATORIO] Erro ao gerar dados do relatório');
+        return 
+    }
+  }
+
+  /**
+   * Gera relatório completo em PDF
+   */
+  public async gerarRelatorioCompleto(cotacaoId: number): Promise<string> {
+    console.log(`📊 [RELATORIO] Iniciando geração de relatório para cotação ${cotacaoId}`);
+    try{
+      const data = await this.gerarDadosRelatorio(cotacaoId);
 
       // Gerar PDF
       const pdfPath = await this.gerarPDF(data);

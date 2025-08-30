@@ -69,6 +69,7 @@ export default class WebBuscaJobService {
               quantidade: f.quantidade,
               custo_beneficio: f.custo_beneficio,
               vigor: f.vigor,
+              salvamento: true,
               refinamento: true
             })
           });

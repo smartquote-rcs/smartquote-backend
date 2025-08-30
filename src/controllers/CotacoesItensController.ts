@@ -183,7 +183,54 @@ class CotacoesItensController {
       });
     }
   }
+  async add(req: Request, res: Response){
+    try
+    {
+      const { cotacao_id, produto_id, quantidade } = req.body;
+      if(!cotacao_id || !produto_id || !quantidade){
+        return res.status(400).json({ error: 'cotacao_id, produto_id e quantidade são obrigatórios' });
+      }
+      // 2. Buscar dados do novo produto
+      const { data: newProduct, error: productError } = await supabase
+        .from('produtos')
+        .select('*')
+        .eq('id', produto_id)
+        .single();
 
+      if (productError || !newProduct) {
+        return res.status(404).json({ error: 'Produto não encontrado' });
+      }
+
+      // 3. criar o item da cotação com os dados do novo produto
+      const { data: newItem, error: insertError } = await supabase
+        .from('cotacoes_itens')
+        .insert({
+          cotacao_id,
+          produto_id,
+          item_nome: newProduct.nome,
+          item_descricao: newProduct.descricao || newProduct.nome,
+          item_preco: newProduct.preco,
+          quantidade,
+          external_url: newProduct.url || null,
+          provider: newProduct.origem || null
+        })
+        .select()
+        .single();
+
+      if (insertError || !newItem) {
+        return res.status(500).json({ error: 'Erro ao criar item da cotação', details: insertError?.message });
+      }
+
+      res.status(201).json({ success: true, item: newItem });
+
+    } catch (error) {
+      console.error('Erro ao adicionar item:', error);
+      res.status(500).json({
+        error: 'Erro ao adicionar item',
+        details: error instanceof Error ? error.message : error
+      });
+    }
+  }
   private parsePrice(priceStr?: string): number | null {
     if (!priceStr) return null;
     try {

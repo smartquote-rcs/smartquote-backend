@@ -121,7 +121,8 @@ export class BuscaAutomatica {
               taxaConversao = cacheConversao[produto.currency_unit] as number;
             } else {
               try {
-                const response = await fetch(`https://v6.exchangerate-api.com/v6/ffa32c5a056d7f5f27b5911e/latest/${produto.currency_unit}`);
+                const apiKey = process.env.APP_EXCHANGERATE_API_KEY;
+                const response = await fetch(`https://v6.exchangerate-api.com/v6/${apiKey}/latest/${produto.currency_unit}`);
                 const data = await response.json() as { conversion_rates?: Record<string, number> };
                 taxaConversao = data.conversion_rates?.["AOA"] ?? 1;
                 cacheConversao[produto.currency_unit] = taxaConversao;

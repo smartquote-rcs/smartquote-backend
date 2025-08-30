@@ -272,7 +272,8 @@ def processar_interpretacao(
             dados_extraidos=brief,
             cliente=interpretation.get("cliente"),
             dados_bruto=interpretation.get("dados_bruto"),
-            origem={"tipo": "servico", "fonte": "stdin"},
+
+            origem={"tipo": "local", "interpretation_id": interpretation.get("id")},
             status="analizado",
         )
         if not prompt_id:
@@ -294,7 +295,7 @@ def processar_interpretacao(
             prompt_id=prompt_id,
             faltantes=tarefas_web if tarefas_web else None,
             observacoes="Cotação principal (automática).",
-            prazo_validade=datetime.now() + timedelta(days=10),
+            prazo_validade=(datetime.now() + timedelta(days=10)).date(),
         )
 
         itens_adicionados = 0

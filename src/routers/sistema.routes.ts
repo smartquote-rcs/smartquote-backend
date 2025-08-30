@@ -19,7 +19,7 @@ const sistemaRouter = Router();
  *       500:
  *         description: Erro interno do servidor
  */
-sistemaRouter.get('/', authMiddleware, SistemaController.getSistema);
+sistemaRouter.get('/', SistemaController.getSistema);
 
 /**
  * @swagger

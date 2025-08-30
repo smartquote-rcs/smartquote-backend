@@ -39,7 +39,7 @@ routers.use('/busca-automatica', buscaRouter);
 routers.use('/email', emailRouter);
 routers.use('/gemini', geminiRouter);
 routers.use('/busca', buscaLocalRouter);
-routers.use('/notifications', authMiddleware, notificationsRouter);
+routers.use('/notifications', notificationsRouter);
 routers.use('/prompts', promptsRouter);
 routers.use('/relatorios', relatorioRouter);
 routers.use('/users-public', usersUpsertRouter); // rota pública para upsert mínimo

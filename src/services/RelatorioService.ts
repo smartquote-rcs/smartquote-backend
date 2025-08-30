@@ -117,7 +117,7 @@ export class RelatorioService {
       return data;
     } catch {
         console.error('❌ [RELATORIO] Erro ao gerar dados do relatório');
-        return 
+        return null as any;
     }
   }
 

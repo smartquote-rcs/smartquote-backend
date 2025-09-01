@@ -9,6 +9,7 @@ import PromptsService from '../services/PromptsService';
 import CotacoesService from '../services/CotacoesService';
 import type { Cotacao } from '../models/Cotacao';
 import RelatorioService from '../services/RelatorioService';
+import { number } from 'zod';
 
 type BuscaLocalOptions = {
   limite?: number;
@@ -125,6 +126,7 @@ export class BuscaLocalController {
       const multilingue = req.body?.multilingue !== undefined ? Boolean(req.body.multilingue) : true;
       const criarCotacao = req.body?.criarCotacao ? Boolean(req.body.criarCotacao) : false;
       const searchWeb = req.body?.searchWeb !== undefined ? Boolean(req.body.searchWeb) : true;
+      const ponderacaoWeb_LLM = req.body?.ponderacao_busca_externa !== undefined ? Boolean(req.body.ponderacao_busca_externa) : false;
       if (!solicitacao) {
         return res.status(400).json({ success: false, message: 'Campo "solicitacao" é obrigatório' });
       }
@@ -142,7 +144,7 @@ export class BuscaLocalController {
       } as any);
 
       if (!result.success || !result.result) {
-        return res.status(500).json({ success: false, message: 'Falha na busca local', error: result.error });
+        return res.status(500).json({ success: false, message: 'Falha na busca local', error: result });
       }
 
   const payload = result.result || {};
@@ -160,7 +162,7 @@ export class BuscaLocalController {
   if (faltantes.length > 0) {
     console.log(`🌐 [BUSCA-LOCAL] Iniciando busca web para ${faltantes.length} faltantes`);
     const svc = new WebBuscaJobService();
-    const statusUrls = await svc.createJobsForFaltantes(faltantes, solicitacao);
+    const statusUrls = await svc.createJobsForFaltantes(faltantes, solicitacao, ponderacaoWeb_LLM);
     console.log(`🚀 [BUSCA-LOCAL] Jobs criados: ${statusUrls.length}`);
     
     const { resultadosCompletos: resultados, produtosWeb: aprovados } = await svc.waitJobs(statusUrls);

@@ -122,7 +122,6 @@ class CotacaoManager:
         """
         Cria uma cotação mínima via API REST. Não exige produto_id e suporta salvar ids de queries faltantes.
         """
-        
         payload: Dict[str, Any] = {"prompt_id": prompt_id}
         if status is None:
             status = "incompleta" if (faltantes and len(faltantes) > 0) else "completa"

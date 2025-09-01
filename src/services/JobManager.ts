@@ -20,10 +20,11 @@ interface  JobStatus {
     quantidade?: number; // Nova propriedade para quantidade
     custo_beneficio?: any; // Nova propriedade para custo-benefício
     rigor?: number; // Novo parâmetro para rigor
+    ponderacao_web_llm?: number; 
     refinamento?: boolean; // Nova flag para indicar se deve fazer refinamento LLM
     salvamento?: boolean; // Nova flag para indicar se deve fazer salvamento
     faltante_id?: string; // ID do faltante para rastreamento
-    urls_add?: string[]; // URLs adicionais para busca
+    urls_add?: {url: string, escala_mercado: string}[]; // URLs adicionais para busca
   };
   progresso?: {
     etapa: 'busca' | 'salvamento';
@@ -58,11 +59,12 @@ class JobManager {
     usuarioId?: number,
     quantidade?: number,
     custo_beneficio?: any,
-    rigor?: number, // Novo parâmetro para rigor
+    rigor?: number,
     refinamento?: boolean,
     salvamento?: boolean,
     faltante_id?: string,
-    urls_add?: string[]
+    urls_add?: {url: string, escala_mercado: string}[],
+    ponderacao_web_llm?: number
   ): string {
     const jobId = uuidv4();
     
@@ -78,6 +80,7 @@ class JobManager {
         quantidade: quantidade || 1,
         custo_beneficio: custo_beneficio || {},
         rigor: rigor || 0,
+        ponderacao_web_llm,
         refinamento,
         salvamento,
         faltante_id,
@@ -167,6 +170,7 @@ class JobManager {
       quantidade: job.parametros.quantidade,
       custo_beneficio: job.parametros.custo_beneficio,
       rigor: job.parametros.rigor,
+      ponderacao_web_llm: job.parametros.ponderacao_web_llm,
       refinamento: job.parametros.refinamento,
       salvamento: job.parametros.salvamento,
       faltante_id: job.parametros.faltante_id,

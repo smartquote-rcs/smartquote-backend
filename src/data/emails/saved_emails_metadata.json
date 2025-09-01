@@ -468,35 +468,5 @@
     "filePaths": [
       "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\src\\data\\emails\\json\\2025-08-30T10-26-20-242Z_198fa83624599145_Computador_Dell.json"
     ]
-  },
-  {
-    "id": "1990548cddbe760e",
-    "savedAt": "2025-09-01T12:38:05.742Z",
-    "formats": [
-      "json"
-    ],
-    "filePaths": [
-      "C:\\Users\\HP Probook\\Documents\\Smartquote\\smartquote-backend\\src\\data\\emails\\json\\2025-09-01T12-38-05-737Z_1990548cddbe760e_Computador_DELL_da_12.json"
-    ]
-  },
-  {
-    "id": "1990548e3c899ede",
-    "savedAt": "2025-09-01T12:38:17.093Z",
-    "formats": [
-      "json"
-    ],
-    "filePaths": [
-      "C:\\Users\\HP Probook\\Documents\\Smartquote\\smartquote-backend\\src\\data\\emails\\json\\2025-09-01T12-38-17-093Z_1990548e3c899ede_Computador_Dell.json"
-    ]
-  },
-  {
-    "id": "199054bbfb82f03b",
-    "savedAt": "2025-09-01T12:41:26.838Z",
-    "formats": [
-      "json"
-    ],
-    "filePaths": [
-      "C:\\Users\\HP Probook\\Documents\\Smartquote\\smartquote-backend\\src\\data\\emails\\json\\2025-09-01T12-41-26-836Z_199054bbfb82f03b_Pedido_de_Cotacao.json"
-    ]
   }
 ]

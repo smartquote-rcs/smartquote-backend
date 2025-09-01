@@ -21,7 +21,8 @@ const ProductSchema = z.object({
   description: z.string().nullable().transform(val => val || "Descrição não disponível"),
   product_url: z.string(),
   currency_unit: z.string().nullable().transform(val => val || "AOA"),
-  delivery_to_Angola: z.string().nullable().transform(val => val || "Entrega")
+  delivery_to_Angola: z.string().nullable().transform(val => val || "Entrega"),
+  escala_mercado: z.string().nullable().transform(val => val || "Nacional")
 });
 
 const ProductsResponseSchema = z.object({
@@ -97,10 +98,15 @@ export class BuscaAutomatica {
     try {
       const { searchTerm, website, numResults } = params;
       
-      console.log(`Iniciando busca por "${searchTerm}" em ${website} (${numResults} resultados)`);
-      
+      console.log(`Iniciando busca por "${searchTerm}" em ${website.url} (${numResults} resultados)`);
+      if (!website.url) {
+        return {
+          success: false,
+          error: "URL do website não fornecida"
+        };
+      }
       const scrapeResult = await this.firecrawlApp.extract({
-        urls: [website],
+        urls: [website.url],
         
         // A tarefa específica
         prompt: `Extract EXACTLY ${numResults} products that match "${searchTerm}". 
@@ -151,7 +157,10 @@ export class BuscaAutomatica {
       // Validar os dados usando Zod
       console.log("Validando dados extraídos...");
       console.log("Dados brutos extraídos:", JSON.stringify(scrapeResult.data, null, 2));
-      
+      //Adicionar escala_mercado em cada produto
+      (scrapeResult.data as ProductsResponse).products.forEach((product: Product) => {
+        product.escala_mercado = website?.escala_mercado || "";
+      });
       const validatedData = ProductsResponseSchema.parse(scrapeResult.data);
       
       // Debug: verificar quantos produtos têm preço
@@ -217,7 +226,7 @@ export class BuscaAutomatica {
    */
   async buscarProdutosMultiplosSites(
     searchTerm: string, 
-    websites: string[], 
+    websites: {url?: string, escala_mercado?: string}[], 
     numResultsPerSite: number = 5
   ): Promise<SearchResult[]> {
     const promises = websites.map(website => 
@@ -280,18 +289,32 @@ export class BuscaAutomatica {
    */
   private extrairPrecoNumerico(precoString: string): number | null {
     try {
-      // Remove símbolos de moeda e espaços, mantém apenas números, vírgulas e pontos
+      // Remove símbolos que não são dígitos, ponto ou vírgula
       let numeroLimpo = precoString.replace(/[^\d.,]/g, '');
-      
-      //se dois digitos antes do final tem virgula ou ponto arredondar mas tirar a parte decimal
-      if (numeroLimpo.length > 2 && (numeroLimpo[numeroLimpo.length - 3] === ',' || numeroLimpo[numeroLimpo.length - 3] === '.')) {
-          numeroLimpo = numeroLimpo.slice(0, -2);
+  
+      // Verifica se existe separador decimal na antepenúltima posição
+      const temDecimal =
+        numeroLimpo.length > 2 &&
+        (numeroLimpo[numeroLimpo.length - 3] === '.' ||
+         numeroLimpo[numeroLimpo.length - 3] === ',');
+  
+      if (temDecimal) {
+        // Converte vírgula em ponto (para parseFloat funcionar)
+        numeroLimpo = numeroLimpo.replace(',', '.');
+  
+        // Se houver mais de um ponto, todos exceto o último são separadores de milhar → remove
+        const partes = numeroLimpo.split('.');
+        if (partes.length > 2) {
+          const decimal = partes.pop(); // última parte é decimal
+          numeroLimpo = partes.join('') + '.' + decimal;
+        }
+  
+        return Math.round(parseFloat(numeroLimpo));
+      } else {
+        // Sem decimais → remove todos os separadores e retorna número inteiro direto
+        numeroLimpo = numeroLimpo.replace(/[.,]/g, '');
+        return parseInt(numeroLimpo, 10);
       }
-      //remover pontos ou virgula
-      numeroLimpo = numeroLimpo.replace('.', '').replace(',', '.');
-      const numero = parseFloat(numeroLimpo);
-      
-      return isNaN(numero) ? null : numero;
     } catch {
       return null;
     }

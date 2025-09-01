@@ -10,6 +10,8 @@ export const buscaSchema = z.object({
   custo_beneficio: z.any().optional(),
   rigor: z.number().int().min(0).max(5).optional().default(0),
   refinamento: z.boolean().optional().default(false),
+  salvamento: z.boolean().optional().default(false),
+  urls_add: z.array(z.string()).optional().default([]),
   faltante_id: z.string().optional() // ID do faltante para rastreamento
 });
 

@@ -256,6 +256,7 @@ def processar_interpretacao(
         "prioridade": interpretation.get("prioridade"),
         "confianca": interpretation.get("confianca"),
         "dados_extraidos": brief,  # Incluir o JSON estruturado do LLM
+        "cliente": interpretation.get("cliente"),
         "dados_bruto": interpretation.get("dados_bruto"),
         "faltantes": tarefas_web,
         "resultado_resumo": _resumo_resultados(resultados, limite_resultados),
@@ -269,8 +270,10 @@ def processar_interpretacao(
         prompt_id = cotacao_manager.insert_prompt(
             texto_original=solicitacao,
             dados_extraidos=brief,
+            cliente=interpretation.get("cliente"),
             dados_bruto=interpretation.get("dados_bruto"),
-            origem={"tipo": "servico", "fonte": "stdin"},
+
+            origem={"tipo": "local", "interpretation_id": interpretation.get("id")},
             status="analizado",
         )
         if not prompt_id:
@@ -291,7 +294,7 @@ def processar_interpretacao(
         cotacao1_id = cotacao_manager.insert_cotacao(
             prompt_id=prompt_id,
             faltantes=tarefas_web if tarefas_web else None,
-            observacoes="Cotação principal (automática).",
+            observacoes="Cotação principal (automática)."
         )
 
         itens_adicionados = 0
@@ -329,7 +332,7 @@ def processar_interpretacao(
                     "score": top_resultado.get("score"), 
                     "alternativa": False
                 }
-                
+                 
                 # Se o produto foi aprovado pelo LLM, incluir o relatório
                 if top_resultado.get('llm_relatorio'):
                     payload["llm_relatorio"] = top_resultado.get('llm_relatorio')
@@ -337,6 +340,15 @@ def processar_interpretacao(
                 else:
                     print(f"⚠️ [COTACAO] Nenhum relatório LLM encontrado para {qid}")
                 
+               
+                
+                #inserir relatorio local, se já existe adionar apenas o payload no array
+                relatorio_id = cotacao_manager.insert_relatorio(
+                    cotacao_id=cotacao1_id,
+                    analise_local=[payload],
+                    criado_por=interpretation.get("criado_por"),
+                )
+
                 item_id = cotacao_manager.insert_cotacao_item_from_result(
                     cotacao_id=cotacao1_id,
                     resultado_produto=top_resultado,
@@ -393,7 +405,11 @@ def processar_interpretacao(
                 print(f"🧠 [COTACAO-ALT] Adicionando relatório LLM para alternativa {qid}: {len(top_resultado.get('llm_relatorio', {}))} campos")
             else:
                 print(f"⚠️ [COTACAO-ALT] Nenhum relatório LLM encontrado para alternativa {qid}")
-            
+            relatorio_id = cotacao_manager.insert_relatorio(
+                cotacao_id=cotacao1_id,
+                analise_local=[payload],
+                criado_por=interpretation.get("criado_por"),
+            )
             item_id = cotacao_manager.insert_cotacao_item_from_result(
                 cotacao_id=cotacao_alt_id,
                 resultado_produto=top_resultado,
@@ -418,6 +434,7 @@ def main():
     parser.add_argument("--limite", type=int, default=LIMITE_PADRAO_RESULTADOS, help="Limite de resultados por query")
     parser.add_argument("--no-multilingue", dest="no_multilingue", action="store_true", help="Desativa vetor multilingue")
     parser.add_argument("--criar-cotacao", action="store_true", help="Cria cotações automaticamente quando houver resultados")
+    parser.add_argument("--only-buscar_hibrido_ponderado", action="store_true", help="Busca apenas híbrido ponderado")
     args = parser.parse_args()
 
     limite = args.limite
@@ -504,6 +521,69 @@ def main():
                 usar_multilingue=usar_multilingue,
                 criar_cotacao=args.criar_cotacao,
             )
+
+        if args.only_buscar_hibrido_ponderado:
+            print("🔍 [PYTHON] Buscando apenas híbrido ponderado", file=sys.stderr)
+            modelos = weaviate_manager.get_models()
+            espacos = ["vetor_portugues"] + (["vetor_multilingue"] if modelos.get("vetor_multilingue") is not None and usar_multilingue else [])
+            def executar_busca_hibrida(payload):
+                query = payload.get("pesquisa", "").strip()
+                filtros = payload.get("filtros", {})
+                if not query:
+                    print(json.dumps({"status": "error", "error": "Nenhuma pesquisa informada."}))
+                    return
+                limite_busca = limite
+                resultados = []
+                for espaco in espacos:
+                    r = buscar_hibrido_ponderado(
+                        weaviate_manager.client,
+                        modelos,
+                        query,
+                        espaco,
+                        limite=limite_busca,
+                        filtros=filtros,
+                    )
+                    resultados.extend(r)
+                if not resultados:
+                    print("[RESULTADO_JSON]" + json.dumps({"status": "empty", "resultados": []}), flush=True)
+                else:
+                    saida = []
+                    for res in resultados:
+                        saida.append({
+                            "produto_id": res.get("produto_id"),
+                            "nome": res.get("nome"),
+                            "score": res.get("score"),
+                            "estoque": res.get("estoque"),
+                            "descricao": res.get("descricao"),
+                            "preco": res.get("preco"),
+                            "categoria": res.get("categoria", res.get("modelo", "")),
+                        })
+                    print("[RESULTADO_JSON]" + json.dumps({"status": "success", "resultados": saida}, ensure_ascii=False), flush=True)
+            if args.server:
+                print("🐍 [PYTHON] Servidor busca híbrida (linha por tarefa)", file=sys.stderr)
+                for line in sys.stdin:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        payload = json.loads(line)
+                        executar_busca_hibrida(payload)
+                    except Exception as e:
+                        print(f"❌ Erro ao processar linha: {e}", file=sys.stderr)
+                return
+            else:
+                input_data = sys.stdin.read().strip()
+                if not input_data:
+                    print("❌ [PYTHON] Nenhum dado recebido via stdin", file=sys.stderr)
+                    sys.exit(1)
+                try:
+                    payload = json.loads(input_data)
+                except Exception as e:
+                    print(f"❌ [PYTHON] Erro ao fazer parse do JSON: {e}", file=sys.stderr)
+                    sys.exit(1)
+                executar_busca_hibrida(payload)
+                return
+           
 
         if args.server:
             print("🐍 [PYTHON] Servidor iniciado (linha por tarefa)", file=sys.stderr)

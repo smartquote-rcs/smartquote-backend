@@ -28,6 +28,8 @@ Realiza busca automática de produtos. O usuário envia apenas o produto, todas 
         "image_url": "https://...",
         "description": "Notebook HP ProBook...",
         "product_url": "https://..."
+        currency_unit: "R$"
+      },
       }
     ],
     "total": 15,

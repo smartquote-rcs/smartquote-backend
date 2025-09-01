@@ -10,10 +10,55 @@ class CotacaoManager:
         """Verifica se o cliente Supabase está disponível."""
         return self.supabase.is_available()
 
+
+    def insert_relatorio(self, cotacao_id: int, analise_local: List[Dict[str, Any]], criado_por: int = None):
+        """
+        Insere um relatório na tabela 'relatorios' e retorna o id criado, se já existir adiciona apenas o payload no array.
+        """
+        if not self._is_available():
+            print("⚠️ Supabase indisponível: não foi possível criar relatório.")
+            return None
+
+        try:
+            # Verifica se já existe relatorio para a cotação
+            resp = self.supabase.supabase.table("relatorios").select("id, analise_local").eq("cotacao_id", cotacao_id).order("id", desc=True).limit(1).execute()
+            data = getattr(resp, "data", None) or []
+            if data:
+                relatorio = data[0]
+                relatorio_id = relatorio["id"]
+                # Adiciona o novo payload ao array analise_local
+                analise_atual = relatorio.get("analise_local") or []
+                novo_analise = analise_atual + analise_local
+                self.supabase.supabase.table("relatorios").update({"analise_local": novo_analise, "atualizado_em": "now()"}).eq("id", relatorio_id).execute()
+                print(f"📝 Relatório atualizado: id={relatorio_id}")
+                return relatorio_id
+            else:
+                # Cria novo relatorio
+                body = {
+                    "cotacao_id": cotacao_id,
+                    "analise_local": analise_local,
+                    "criado_por": criado_por,
+                    "versao": 1,
+                    "status": "rascunho"
+                }
+                resp = self.supabase.supabase.table("relatorios").insert(body).execute()
+                data = getattr(resp, "data", None) or []
+                if data and "id" in data[0]:
+                    relatorio_id = data[0]["id"]
+                    print(f"📝 Relatório criado: id={relatorio_id}")
+                    return relatorio_id
+                print(f"⚠️ Falha ao obter id do relatório criado. Resposta: {resp}")
+        except Exception as e:
+            print(f"❌ Erro ao criar/atualizar relatório: {e}")
+        return None
+
+
+        
     def insert_prompt(
         self,
         texto_original: str,
         dados_extraidos: Dict[str, Any],
+        cliente: Dict[str, Any],
         *,
         origem: Optional[Dict[str, Any]] = None,
         status: Optional[str] = "analizado",
@@ -25,6 +70,7 @@ class CotacaoManager:
         body: Dict[str, Any] = {
             "texto_original": texto_original or "",
             "dados_extraidos": dados_extraidos or {},
+            "cliente": cliente or {},
             "origem": origem or {"tipo": "interativo", "fonte": "nlp_parser"},
             "dados_bruto": dados_bruto or {}
         }

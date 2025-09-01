@@ -209,7 +209,7 @@ class BuscaController {
     }
 
     try {
-      const { produto, quantidade, custo_beneficio, rigor, refinamento, faltante_id } = parsed.data;
+      const { produto, quantidade, custo_beneficio, rigor, refinamento, faltante_id, salvamento, urls_add } = parsed.data;
 
       // Buscar fornecedores ativos para validar que existem sites para buscar
       const sitesFromDB = await FornecedorService.getFornecedoresAtivos();
@@ -235,7 +235,9 @@ class BuscaController {
         custo_beneficio,
         rigor || 0, // Usar rigor se fornecido, senão padrão 0
         refinamento,
-        faltante_id // Passar o ID do faltante
+        salvamento,
+        faltante_id, // Passar o ID do faltante
+        urls_add
       );
 
       // Responder imediatamente com o job ID

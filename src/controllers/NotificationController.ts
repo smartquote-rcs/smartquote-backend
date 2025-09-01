@@ -4,11 +4,25 @@ import { ProdutosService } from '../services/ProdutoService';
 import { Notification } from '../models/Notification';
 
 class NotificationController {
-  private notificationService = new NotificationService();
-  private produtosService = new ProdutosService();
 
-  // Limiar padrão para considerar estoque baixo
+  private notificationService: NotificationService;
+  private produtosService: ProdutosService;
   private readonly ESTOQUE_MINIMO_PADRAO = 10;
+
+  constructor() {
+    this.notificationService = new NotificationService();
+    this.produtosService = new ProdutosService();
+
+    // Bind dos métodos para manter o contexto correto
+    this.create = this.create.bind(this);
+    this.getAll = this.getAll.bind(this);
+    this.getById = this.getById.bind(this);
+    this.delete = this.delete.bind(this);
+    this.update = this.update.bind(this);
+    this.verificarEstoqueBaixo = this.verificarEstoqueBaixo.bind(this);
+    this.verificacaoAutomatica = this.verificacaoAutomatica.bind(this);
+    this.limparNotificacoesObsoletas = this.limparNotificacoesObsoletas.bind(this);
+  }
 
   async create(req: Request, res: Response): Promise<Response> {
     try {

@@ -137,6 +137,7 @@ def _llm_escolher_indice(query: str, filtros: dict | None, custo_beneficio: dict
         resp = client.chat.completions.create(
             # Usar um modelo mais recente e robusto, se disponível
             model="llama-3.3-70b-versatile", 
+            #model="llama-3.1-8b-instant",
             messages=[
                 {"role": "system", "content": prompt_sistema},
                 {"role": "user", "content": user_msg},
@@ -320,11 +321,11 @@ def buscar_hibrido_ponderado(client: weaviate.WeaviateClient, modelos: dict, que
     """Busca híbrida com ponderação (união de candidatos semânticos + BM25 e reranqueamento)."""
     # Monta descrição apenas para logs (filtros serão ponderados, não aplicados na query)
     filtro_desc = f" com filtros ponderados: {filtros}" if filtros else ""
-    print(f"\n--- BUSCA HÍBRIDA PONDERADA '{query}' em {espaco}{filtro_desc} ---")
+    print(f"\n--- BUSCA HÍBRIDA PONDERADA '{query}' em {espaco}{filtro_desc} ---", file=sys.stderr)
     
     modelo_ativo = modelos.get(espaco)
     if not modelo_ativo:
-        print(f"ERRO: Modelo para o espaço '{espaco}' não está carregado.")
+        print(f"ERRO: Modelo para o espaço '{espaco}' não está carregado.", file=sys.stderr)
         return []
 
     # 0. Preparos
@@ -342,7 +343,7 @@ def buscar_hibrido_ponderado(client: weaviate.WeaviateClient, modelos: dict, que
             return_metadata=wvc.query.MetadataQuery(distance=True)
         )
     except Exception as e:
-        print(f"Erro na busca semântica: {e}")
+        print(f"Erro na busca semântica: {e}", file=sys.stderr)
         res_semantica = None
 
     try:
@@ -354,14 +355,14 @@ def buscar_hibrido_ponderado(client: weaviate.WeaviateClient, modelos: dict, que
             return_metadata=wvc.query.MetadataQuery(score=True)
         )
     except Exception as e:
-        print(f"Erro na busca BM25: {e}")
+        print(f"Erro na busca BM25: {e}", file=sys.stderr)
         res_bm25 = None
 
     objs_sem = res_semantica.objects if res_semantica and getattr(res_semantica, 'objects', None) else []
     objs_bm = res_bm25.objects if res_bm25 and getattr(res_bm25, 'objects', None) else []
 
     if not objs_sem and not objs_bm:
-        print("Nenhum resultado encontrado.")
+        print("Nenhum resultado encontrado.", file=sys.stderr)
         return []
     
     # 2. Ponderação por especialistas
@@ -429,7 +430,7 @@ def buscar_hibrido_ponderado(client: weaviate.WeaviateClient, modelos: dict, que
     lista_final = lista_final[:limite]
 
     # 4. Exibir resultados
-    print(f"\n📊 Encontrados {len(lista_final)} produtos candidatos no banco de dados:")
+    print(f"\n📊 Encontrados {len(lista_final)} produtos candidatos no banco de dados:", file=sys.stderr)
     for i, r in enumerate(lista_final, 1):
         preco_info = f" |AOA$ {r.get('preco', 0):.2f}" if r.get('preco') else ""
         sem_pct = int(r['score_semantico'] * 100)
@@ -438,8 +439,8 @@ def buscar_hibrido_ponderado(client: weaviate.WeaviateClient, modelos: dict, que
         flt_pct = int(r.get('score_filtro', 0.0) * 100)
         final_pct = int(r['score'] * 100)
         categoria_display = r.get('categoria', '') or r.get('modelo', '')
-        print(f"{i:2d}. {r['nome']}")
-        print(f"    📈 Score: {final_pct}% (Sem: {sem_pct}% + Txt: {txt_pct}% + PC: {pc_pct}% + Flt: {flt_pct}%)")
+        print(f"{i:2d}. {r['nome']}", file=sys.stderr)
+        print(f"    📈 Score: {final_pct}% (Sem: {sem_pct}% + Txt: {txt_pct}% + PC: {pc_pct}% + Flt: {flt_pct}%)", file=sys.stderr)
     
-    print(f"\n🔍 Estes produtos serão enviados para análise LLM para verificar se atendem aos critérios específicos da solicitação.")
+    print(f"\n🔍 Estes produtos serão enviados para análise LLM para verificar se atendem aos critérios específicos da solicitação.", file=sys.stderr)
     return lista_final

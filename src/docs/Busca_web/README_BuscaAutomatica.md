@@ -115,6 +115,7 @@ interface Product {
   image_url: string;
   description: string;
   product_url: string;
+  currency_unit
 }
 ```
 

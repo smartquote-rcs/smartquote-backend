@@ -20,7 +20,7 @@ class PromptsService {
     const { data, error } = await supabase
       .from('prompts')
       .select('*')
-      .order('cadastrado_em', { ascending: false });
+      .order('id', { ascending: false });
 
     if (error) {
       throw new Error(`Failed to list prompts: ${error.message}`);
@@ -67,6 +67,46 @@ class PromptsService {
     if (error) {
       throw new Error(`Failed to delete prompt: ${error.message}`);
     }
+  }
+
+  async getAllWithDadosBruto(): Promise<Prompt[]> {
+    const { data, error } = await supabase
+      .from('prompts')
+      .select('*')
+      .not('dados_bruto', 'is', null)
+      .order('id', { ascending: false });
+
+    if (error) {
+      throw new Error(`Failed to list prompts with dados_bruto: ${error.message}`);
+    }
+
+    // Filter out empty JSON objects and arrays in JavaScript
+    const filteredData = data?.filter(prompt => {
+      if (!prompt.dados_bruto) return false;
+      
+      // If it's a string, try to parse it
+      let jsonData = prompt.dados_bruto;
+      if (typeof jsonData === 'string') {
+        try {
+          jsonData = JSON.parse(jsonData);
+        } catch {
+          return false;
+        }
+      }
+      
+      // Check if it's an empty object or array
+      if (Array.isArray(jsonData)) {
+        return jsonData.length > 0;
+      }
+      
+      if (typeof jsonData === 'object') {
+        return Object.keys(jsonData).length > 0;
+      }
+      
+      return true;
+    }) || [];
+
+    return filteredData as Prompt[];
   }
 }
 

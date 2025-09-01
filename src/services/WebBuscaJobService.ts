@@ -69,6 +69,7 @@ export default class WebBuscaJobService {
               quantidade: f.quantidade,
               custo_beneficio: f.custo_beneficio,
               vigor: f.vigor,
+              salvamento: true,
               refinamento: true
             })
           });
@@ -122,40 +123,26 @@ export default class WebBuscaJobService {
 
   async insertJobResultsInCotacao(cotacaoId: number, resultadosCompletos: JobResultado[]): Promise<number> {
     let inseridos = 0;
-    const relatoriosWeb: any[] = []; // Coletar relatórios das buscas web
-    
     // Buscar a cotação atual para obter os faltantes
     const { data: cotacao, error: cotacaoError } = await supabase
       .from('cotacoes')
-      .select('faltantes, status, relatorios_web')
+      .select('faltantes, status')
       .eq('id', Number(cotacaoId))
       .single();
-    
+
     if (cotacaoError) {
       console.error('❌ [COTACAO] Erro ao buscar cotação:', cotacaoError);
       return 0;
     }
-    
+
     const faltantesAtuais = Array.isArray(cotacao.faltantes) ? cotacao.faltantes : [];
     const novosFaltantes = [...faltantesAtuais];
-    const relatoriosWebExistentes = Array.isArray(cotacao.relatorios_web) ? cotacao.relatorios_web : [];
-    
+
     for (const resultadoJob of resultadosCompletos) {
       try {
         const adicionados = await CotacoesItensService.insertJobResultItems(Number(cotacaoId), resultadoJob as any);
         inseridos += adicionados;
-        
-        // Coletar relatório da busca web se disponível
-        if (resultadoJob.relatorio) {
-          relatoriosWeb.push({
-            timestamp: new Date().toISOString(),
-            produtos_analisados: resultadoJob.produtos?.length || 0,
-            produtos_selecionados: adicionados,
-            relatorio: resultadoJob.relatorio
-          });
-          console.log(`📊 [WEB-REPORT] Relatório coletado da busca web: ${adicionados} produtos selecionados`);
-        }
-        
+
         // Remover os itens faltantes correspondentes aos produtos inseridos
         if (adicionados > 0 && resultadoJob.produtos) {
           for (const produto of resultadoJob.produtos) {
@@ -164,9 +151,10 @@ export default class WebBuscaJobService {
               const indexToRemove = novosFaltantes.findIndex((faltante: any) => 
                 faltante.id === produto.faltante_id
               );
-              
+
               if (indexToRemove !== -1) {
                 const faltanteRemovido = novosFaltantes.splice(indexToRemove, 1)[0];
+                resultadoJob.relatorio.query = faltanteRemovido;
                 console.log(`🗑️ [FALTANTES] Removido item faltante ID ${produto.faltante_id} para produto: ${produto.name}`);
               }
             } else {
@@ -177,42 +165,80 @@ export default class WebBuscaJobService {
                        (faltante.query_sugerida && produto.name && 
                         produto.name.toLowerCase().includes(faltante.query_sugerida.toLowerCase()));
               });
-              
+
               if (indexToRemove !== -1) {
                 const faltanteRemovido = novosFaltantes.splice(indexToRemove, 1)[0];
+                resultadoJob.relatorio.query = faltanteRemovido;
                 console.log(`🗑️ [FALTANTES] Removido item faltante (fallback) para produto: ${produto.name}`);
               }
             }
           }
         }
+        // Inserir ou atualizar relatório na tabela relatorios se disponível
+        if (resultadoJob.relatorio) {
+          // Verifica se já existe relatorio rascunho para essa cotação
+          const { data: relatorioExistente, error: relatorioError } = await supabase
+            .from('relatorios')
+            .select('id, analise_web')
+            .eq('cotacao_id', Number(cotacaoId))
+            .eq('status', 'rascunho')
+            .single();
+
+          if (relatorioExistente && relatorioExistente.id) {
+            // Atualiza o campo analise_web acumulando no array
+            const analiseWebAtual = Array.isArray(relatorioExistente.analise_web) ? relatorioExistente.analise_web : [];
+            const novoAnaliseWeb = [...analiseWebAtual, resultadoJob.relatorio];
+            await supabase
+              .from('relatorios')
+              .update({
+                analise_web: novoAnaliseWeb,
+                atualizado_em: new Date().toISOString()
+              })
+              .eq('id', relatorioExistente.id);
+            console.log(`📊 [WEB-REPORT] Relatório atualizado (analise_web ARRAY) na tabela relatorios para cotação ${cotacaoId}`);
+          } else {
+            // Cria novo registro com analise_web como array
+            const relatorioPayload = {
+              cotacao_id: Number(cotacaoId),
+              versao: 1,
+              status: 'rascunho',
+              analise_local: null, // Se houver análise local, preencher
+              analise_web: [resultadoJob.relatorio],
+              criado_em: new Date().toISOString(),
+              atualizado_em: new Date().toISOString(),
+              criado_por: null // Se houver usuário logado, preencher
+            };
+            await supabase.from('relatorios').insert([relatorioPayload]);
+            console.log(`📊 [WEB-REPORT] Relatório inserido (analise_web ARRAY) na tabela relatorios para cotação ${cotacaoId}`);
+          }
+        }
+
       } catch (e) {
         console.error('❌ [COTACAO-ITEM] Erro ao inserir itens do job:', (e as any)?.message || e);
       }
     }
-    
-    // Atualizar os faltantes e relatórios web na cotação
-    const todosRelatoriosWeb = [...relatoriosWebExistentes, ...relatoriosWeb];
-    const precisaAtualizar = JSON.stringify(faltantesAtuais) !== JSON.stringify(novosFaltantes) || relatoriosWeb.length > 0;
-    
+
+    // Atualizar os faltantes na cotação
+    const precisaAtualizar = JSON.stringify(faltantesAtuais) !== JSON.stringify(novosFaltantes);
+
     if (precisaAtualizar) {
       const novoStatus = novosFaltantes.length === 0 ? 'completa' : 'incompleta';
-        
+
       const { error: updateError } = await supabase
         .from('cotacoes')
         .update({ 
             faltantes: novosFaltantes,
-            status: novoStatus,
-            relatorios_web: todosRelatoriosWeb
+            status: novoStatus
           })
           .eq('id', Number(cotacaoId));
-        
+
       if (updateError) {
         console.error('❌ [COTACAO] Erro ao atualizar cotação:', updateError);
       } else {
-        console.log(`✅ [COTACAO] Cotação atualizada: ${novosFaltantes.length} faltantes, ${todosRelatoriosWeb.length} relatórios web`);
+        console.log(`✅ [COTACAO] Cotação atualizada: ${novosFaltantes.length} faltantes`);
         if (novoStatus === 'completa') {
           console.log(`🎉 [COTACAO] Cotação ${cotacaoId} marcada como completa`);
-            
+
             // Se a cotação está completa, verificar se há itens para calcular orçamento
             if (novosFaltantes.length === 0) {
               console.log(`💰 [COTACAO] Recalculando orçamento final da cotação ${cotacaoId}`);
@@ -221,11 +247,7 @@ export default class WebBuscaJobService {
         }
       }
     }
-    
-    if (relatoriosWeb.length > 0) {
-      console.log(`📊 [WEB-REPORTS] ${relatoriosWeb.length} relatórios de busca web coletados para cotação ${cotacaoId}`);
-    }
-    
+
     return inseridos;
   }
 

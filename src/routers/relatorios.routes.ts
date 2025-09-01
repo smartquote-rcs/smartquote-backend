@@ -2,6 +2,7 @@ import { Router } from 'express';
 import RelatorioService from '../services/RelatorioService';
 import { authMiddleware } from '../middleware/authMiddleware';
 import supabase from '../infra/supabase/connect';
+import RelatoriosController from '../controllers/RelatoriosController'
 import fs from 'fs';
 import path from 'path';
 
@@ -12,251 +13,42 @@ const router = Router();
  * @desc Gera relatório completo em PDF para uma cotação
  * @access Private
  */
-router.post('/gerar/:cotacaoId', authMiddleware, async (req, res) => {
-  try {
-    const { cotacaoId } = req.params;
-    if (!cotacaoId) {
-      return res.status(400).json({
-        success: false,
-        message: 'ID da cotação é obrigatório'
-      });
-    }
-    const cotacaoIdNum = parseInt(cotacaoId);
-
-    if (isNaN(cotacaoIdNum)) {
-      return res.status(400).json({
-        success: false,
-        message: 'ID da cotação deve ser um número válido'
-      });
-    }
-
-    console.log(`📊 [RELATORIO] Gerando relatório para cotação ${cotacaoIdNum}`);
-
-    // Gerar relatório
-    const pdfPath = await RelatorioService.gerarRelatorioCompleto(cotacaoIdNum);
-
-    console.log(`✅ [RELATORIO] Relatório gerado com sucesso: ${pdfPath}`);
-
-    // Retornar caminho do arquivo
-    res.json({
-      success: true,
-      message: 'Relatório gerado com sucesso',
-      data: {
-        pdfPath,
-        filename: pdfPath.split('/').pop(),
-        downloadUrl: `/api/relatorios/download/${encodeURIComponent(pdfPath)}`
-      }
-    });
-
-  } catch (error: any) {
-    console.error('❌ [RELATORIO] Erro ao gerar relatório:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao gerar relatório',
-      error: error.message
-    });
-  }
-});
+router.post('/gerar/:cotacaoId', authMiddleware, RelatoriosController.gerarRelatorio);
 
 /**
  * @route GET /api/relatorios/download/:filename
  * @desc Download do arquivo PDF gerado
  * @access Private
  */
-router.get('/download/:filename', authMiddleware, async (req, res) => {
-  try {
-    const { filename } = req.params;
-    if (!filename) {
-      return res.status(400).json({
-        success: false,
-        message: 'Nome do arquivo é obrigatório'
-      });
-    }
-    const decodedFilename = decodeURIComponent(filename);
-    
-    // Construir caminho completo
-    const filePath = path.join(process.cwd(), 'temp', decodedFilename);
-    
-    // Verificar se arquivo existe
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({
-        success: false,
-        message: 'Arquivo não encontrado'
-      });
-    }
-
-    // Configurar headers para download
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${decodedFilename}"`);
-    
-    // Enviar arquivo
-    const fileStream = fs.createReadStream(filePath);
-    fileStream.pipe(res);
-
-  } catch (error: any) {
-    console.error('❌ [RELATORIO] Erro ao fazer download:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao fazer download',
-      error: error.message
-    });
-  }
-});
+router.get('/download/:filename', authMiddleware, RelatoriosController.downloadRelatorio);
 
 /**
  * @route GET /api/relatorios/status/:cotacaoId
  * @desc Verifica se uma cotação está pronta para relatório
  * @access Private
  */
-router.get('/status/:cotacaoId', authMiddleware, async (req, res) => {
-  try {
-    const { cotacaoId } = req.params;
-    if (!cotacaoId) {
-      return res.status(400).json({
-        success: false,
-        message: 'ID da cotação é obrigatório'
-      });
-    }
-    const cotacaoIdNum = parseInt(cotacaoId);
-
-    if (isNaN(cotacaoIdNum)) {
-      return res.status(400).json({
-        success: false,
-        message: 'ID da cotação deve ser um número válido'
-      });
-    }
-
-    // Buscar status da cotação e informações do relatório
-    const { data: cotacao, error } = await supabase
-      .from('cotacoes')
-      .select('status, orcamento_geral, relatorio_path, relatorio_gerado_em')
-      .eq('id', cotacaoIdNum)
-      .single();
-
-    if (error || !cotacao) {
-      return res.status(404).json({
-        success: false,
-        message: 'Cotação não encontrada'
-      });
-    }
-
-    // Verificar se está pronta para relatório
-    const estaPronta = cotacao.status === 'completa' || cotacao.status === 'incompleta';
-    const temItens = cotacao.orcamento_geral > 0;
-    const temRelatorio = cotacao.relatorio_path && cotacao.relatorio_gerado_em;
-
-    res.json({
-      success: true,
-      data: {
-        cotacaoId: cotacaoIdNum,
-        status: cotacao.status,
-        estaProntaParaRelatorio: estaPronta && temItens,
-        orcamentoGeral: cotacao.orcamento_geral,
-        relatorio: {
-          existe: temRelatorio,
-          path: cotacao.relatorio_path,
-          geradoEm: cotacao.relatorio_gerado_em,
-          downloadUrl: temRelatorio ? `/api/relatorios/download/${encodeURIComponent(cotacao.relatorio_path)}` : null
-        }
-      }
-    });
-
-  } catch (error: any) {
-    console.error('❌ [RELATORIO] Erro ao verificar status:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao verificar status',
-      error: error.message
-    });
-  }
-});
+router.get('/status/:cotacaoId', authMiddleware, RelatoriosController.statusRelatorio);
 
 /**
  * @route GET /api/relatorios/listar/:cotacaoId
  * @desc Lista todos os relatórios disponíveis para uma cotação
  * @access Private
  */
-router.get('/listar/:cotacaoId', authMiddleware, async (req, res) => {
-  try {
-    const { cotacaoId } = req.params;
-    if (!cotacaoId) {
-      return res.status(400).json({
-        success: false,
-        message: 'ID da cotação é obrigatório'
-      });
-    }
-    const cotacaoIdNum = parseInt(cotacaoId);
+router.get('/listar/:cotacaoId', authMiddleware, RelatoriosController.listarRelatorios);
 
-    if (isNaN(cotacaoIdNum)) {
-      return res.status(400).json({
-        success: false,
-        message: 'ID da cotação deve ser um número válido'
-      });
-    }
+/**
+ * @route PUT /api/relatorios/proposta-email/:cotacaoId
+ * @desc Atualiza ou cria o conteúdo da proposta de email para uma cotação
+ * @access public
+ */
+router.put('/proposta-email/:cotacaoId', RelatoriosController.atualizarPropostaEmail);
 
-    // Buscar cotação e seus relatórios
-    const { data: cotacao, error } = await supabase
-      .from('cotacoes')
-      .select(`
-        id,
-        status,
-        orcamento_geral,
-        relatorio_path,
-        relatorio_gerado_em,
-        prompt_id,
-        created_at
-      `)
-      .eq('id', cotacaoIdNum)
-      .single();
+/**
+ * @route GET /api/relatorios/proposta-email/:cotacaoId
+ * @desc obter proposta de email se já tiver sido gerada
+ * @access public
+ */
+router.get('/proposta-email/:cotacaoId', RelatoriosController.obterPropostaEmail);
 
-    if (error || !cotacao) {
-      return res.status(404).json({
-        success: false,
-        message: 'Cotação não encontrada'
-      });
-    }
-
-    // Buscar prompt relacionado
-    let prompt = null;
-    if (cotacao.prompt_id) {
-      const { data: promptData } = await supabase
-        .from('prompts')
-        .select('texto_original, dados_extraidos')
-        .eq('id', cotacao.prompt_id)
-        .single();
-      prompt = promptData;
-    }
-
-    res.json({
-      success: true,
-      data: {
-        cotacao: {
-          id: cotacao.id,
-          status: cotacao.status,
-          orcamentoGeral: cotacao.orcamento_geral,
-          createdAt: cotacao.created_at
-        },
-        prompt: prompt ? {
-          textoOriginal: prompt.texto_original,
-          dadosExtraidos: prompt.dados_extraidos
-        } : null,
-        relatorio: {
-          existe: !!(cotacao.relatorio_path && cotacao.relatorio_gerado_em),
-          path: cotacao.relatorio_path,
-          geradoEm: cotacao.relatorio_gerado_em,
-          downloadUrl: cotacao.relatorio_path ? `/api/relatorios/download/${encodeURIComponent(cotacao.relatorio_path)}` : null
-        }
-      }
-    });
-
-  } catch (error: any) {
-    console.error('❌ [RELATORIO] Erro ao listar relatórios:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao listar relatórios',
-      error: error.message
-    });
-  }
-});
-
+router.post
 export default router;

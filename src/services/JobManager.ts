@@ -6,7 +6,7 @@ import { fork, ChildProcess, spawn } from 'child_process';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 
-interface JobStatus {
+interface  JobStatus {
   id: string;
   status: 'pendente' | 'executando' | 'concluido' | 'erro';
   criadoEm: Date;
@@ -21,7 +21,9 @@ interface JobStatus {
     custo_beneficio?: any; // Nova propriedade para custo-benefício
     rigor?: number; // Novo parâmetro para rigor
     refinamento?: boolean; // Nova flag para indicar se deve fazer refinamento LLM
+    salvamento?: boolean; // Nova flag para indicar se deve fazer salvamento
     faltante_id?: string; // ID do faltante para rastreamento
+    urls_add?: string[]; // URLs adicionais para busca
   };
   progresso?: {
     etapa: 'busca' | 'salvamento';
@@ -58,7 +60,9 @@ class JobManager {
     custo_beneficio?: any,
     rigor?: number, // Novo parâmetro para rigor
     refinamento?: boolean,
-    faltante_id?: string // ID do faltante para rastreamento
+    salvamento?: boolean,
+    faltante_id?: string,
+    urls_add?: string[]
   ): string {
     const jobId = uuidv4();
     
@@ -75,7 +79,9 @@ class JobManager {
         custo_beneficio: custo_beneficio || {},
         rigor: rigor || 0,
         refinamento,
-        faltante_id
+        salvamento,
+        faltante_id,
+        urls_add
       }
     };
     
@@ -162,7 +168,9 @@ class JobManager {
       custo_beneficio: job.parametros.custo_beneficio,
       rigor: job.parametros.rigor,
       refinamento: job.parametros.refinamento,
-      faltante_id: job.parametros.faltante_id
+      salvamento: job.parametros.salvamento,
+      faltante_id: job.parametros.faltante_id,
+      urls_add: job.parametros.urls_add
     };
     
     childProcess.stdin?.write(JSON.stringify(jobData) + '\n');

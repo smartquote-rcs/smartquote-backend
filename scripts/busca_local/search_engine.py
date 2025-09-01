@@ -155,7 +155,7 @@ def _llm_escolher_indice(query: str, filtros: dict | None, custo_beneficio: dict
         
         # A lógica de validação pode ser mantida, pois é robusta
         idx = data.get("index", -1)
-        idx = -1
+        #idx = -1
         relatorio = data.get("relatorio", {})
         if not isinstance(idx, int):
              return {"index": -1, "relatorio": {"erro": f"Índice inválido: {idx}"}}

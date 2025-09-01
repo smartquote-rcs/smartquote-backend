@@ -2,6 +2,25 @@ import supabase from '../infra/supabase/connect';
 import { Cotacao, CotacaoDTO } from '../models/Cotacao';
 
 class CotacoesService {
+  /**
+   * Remove todas as cotações cujo prazo_validade já expirou (menor que hoje)
+   */
+  async deleteExpired(): Promise<number> {
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const todayStr = today.toISOString().slice(0, 10); // yyyy-mm-dd
+    const { data, error } = await supabase
+      .from('cotacoes')
+      .delete()
+      .lt('prazo_validade', todayStr);
+    if (error) {
+      throw new Error(`Failed to delete expired cotacoes: ${error.message}`);
+    }
+    if (Array.isArray(data)) {
+      return data.length;
+    }
+    return 0;
+  }
   async create( CotacaoData: Cotacao): Promise<CotacaoDTO> {
     const { data, error } = await supabase
       .from('cotacoes')

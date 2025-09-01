@@ -10,7 +10,6 @@ import testRouter from "./test.routes";
 import emailRouter from "./email.routes";
 import geminiRouter from "./gemini.routes";
 import notificationsRouter from "./notifications.routes";
-import sistemaRouter from "./sistema.routes";
 import { ProdutosService } from '../services/ProdutoService';
 import supabase from '../infra/supabase/connect';
 import buscaLocalRouter from './buscaLocal.routes';

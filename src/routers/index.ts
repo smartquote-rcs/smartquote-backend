@@ -10,6 +10,7 @@ import testRouter from "./test.routes";
 import emailRouter from "./email.routes";
 import geminiRouter from "./gemini.routes";
 import notificationsRouter from "./notifications.routes";
+import sistemaRouter from "./sistema.routes";
 import { ProdutosService } from '../services/ProdutoService';
 import supabase from '../infra/supabase/connect';
 import buscaLocalRouter from './buscaLocal.routes';
@@ -39,6 +40,7 @@ routers.use('/email', emailRouter);
 routers.use('/gemini', geminiRouter);
 routers.use('/busca-local', buscaLocalRouter);
 routers.use('/notifications', authMiddleware, notificationsRouter);
+routers.use('/sistema', sistemaRouter);
 routers.use('/prompts', promptsRouter);
 routers.use('/relatorios', relatorioRouter);
 routers.use('/users-public', usersUpsertRouter); // rota pública para upsert mínimo

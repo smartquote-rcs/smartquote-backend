@@ -4,6 +4,7 @@ import { buscaSchema, BuscaData } from '../schemas/BuscaSchema';
 import FornecedorService from '../services/FornecedorService';
 import { ProdutosService } from '../services/ProdutoService';
 import { jobManager } from '../services/JobManager';
+import { LinkFilterService } from '../services/LinkFilterService';
 
 interface BuscaRequest {
   produto: string;
@@ -43,7 +44,7 @@ class BuscaController {
       }
 
       // Extrair URLs para busca
-      const sitesParaBusca: string[] = sitesFromDB.map(site => site.url);
+      const sitesParaBusca: {url: string, escala_mercado: string}[] = sitesFromDB.map(site => ({url: site.url, escala_mercado: site.escala_mercado}));
 
       // Buscar configurações do sistema
       const configuracoes = await FornecedorService.getConfiguracoesSistema();
@@ -146,7 +147,7 @@ class BuscaController {
       // Criar resposta estruturada
       const resposta = buscaService.criarRespostaBusca(
         todosProdutos,
-        sitesParaBusca,
+        sitesParaBusca.map(site => site.url),
         {
           precoMin: precoMin || undefined,
           precoMax: precoMax || undefined
@@ -209,7 +210,7 @@ class BuscaController {
     }
 
     try {
-      const { produto, quantidade, custo_beneficio, rigor, refinamento, faltante_id, salvamento, urls_add } = parsed.data;
+      const { produto, quantidade, custo_beneficio, rigor, refinamento, faltante_id, salvamento, urls_add, ponderacao_web_llm } = parsed.data;
 
       // Buscar fornecedores ativos para validar que existem sites para buscar
       const sitesFromDB = await FornecedorService.getFornecedoresAtivos();
@@ -237,7 +238,8 @@ class BuscaController {
         refinamento,
         salvamento,
         faltante_id, // Passar o ID do faltante
-        urls_add
+        urls_add,
+        ponderacao_web_llm
       );
 
       // Responder imediatamente com o job ID
@@ -265,6 +267,96 @@ class BuscaController {
       });
     }
   }
+  
+  async getSitesSugeridos(req: Request, res: Response): Promise<Response> {
+    try {
+      const rawQuery = req.query.q as string || req.params.q as string || '';
+      const query = decodeURIComponent(rawQuery.trim());
+      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : req.params.limit ? parseInt(req.params.limit as string, 10) : 10;
+      const location = req.query.location as string || req.params.location as string || undefined;
+      const is_mixed: boolean = req.query.is_mixed ? req.query.is_mixed === 'true' : false;
+
+      if (!rawQuery.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: "Parâmetro 'q' (query) é obrigatório"
+        });
+      }
+
+      console.log(`Buscando sites sugeridos para: "${query}" (limite: ${limit}, localização: ${location})`);
+
+      // Usar Firecrawl search para encontrar sites relevantes
+      const buscaService = new BuscaAutomatica();
+      const firecrawlApp = (buscaService as any).firecrawlApp;
+
+      if (!firecrawlApp) {
+        throw new Error("Firecrawl não está disponível");
+      }
+
+      // Construir query de busca otimizada
+      let searchQuery = `${query} loja online comprar`;
+      if (location) {
+        searchQuery += ` ${location}`;
+      }
+
+      const searchResult = await firecrawlApp.search(searchQuery, {
+        limit: Math.min(limit, 10), // Buscar mais para filtrar depois
+        location: location || undefined,
+      });
+      // Para cada elemento searchResult.web, adicionar escala_mercado=Nacional se location existir
+      if (location) {
+        searchResult.web = searchResult.web.map((item: any) => ({
+          ...item,
+          escala_mercado: 'Nacional'
+        }));
+      } 
+    
+      //juntar nacional e internacional
+      if(is_mixed){
+        const searchResult2 = await firecrawlApp.search(searchQuery, {
+          limit: Math.min(limit, 10), // Buscar mais para filtrar depois
+        });
+        searchResult2.web = searchResult.web.map((item: any) => ({
+          ...item,
+          escala_mercado: 'Internacional'
+        }));
+        searchResult.web = searchResult.web.concat(searchResult2.web);
+      }
+
+
+      // Limpar e filtrar resultados usando LLM
+      const linksLimpos = await LinkFilterService.filtrarLinksComLLM(searchResult.web, query, limit);
+      
+      const sitesSugeridos = linksLimpos
+        .map((result: any) => ({
+          title: result.title || 'Site sem título',
+          url: result.url,
+          description: result.description || 'Descrição não disponível'
+        }))
+      console.log(`${sitesSugeridos.length} sites sugeridos encontrados`);
+
+      return res.status(200).json({
+        success: true,
+        message: `${sitesSugeridos.length} sites sugeridos encontrados`,
+        data: {
+          sites: sitesSugeridos,
+          total: sitesSugeridos.length,
+          query_original: query,
+          query_utilizada: searchQuery,
+          limite_aplicado: limit
+        }
+      });
+
+    } catch (error) {
+      console.error("Erro ao buscar sites sugeridos:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Erro ao buscar sites sugeridos",
+        error: error instanceof Error ? error.message : "Erro desconhecido"
+      });
+    }
+  }
+
 
   /**
    * Retorna o status de um job
@@ -474,6 +566,8 @@ class BuscaController {
       });
     }
   }
+  
+
 }
 
 export default new BuscaController();

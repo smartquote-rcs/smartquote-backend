@@ -107,7 +107,6 @@ O SmartQuote é um sistema híbrido que combina busca local (em base de dados pr
     "solucao_principal": "API KYC-AML para verificação bancária",
     "tipo_de_solucao": "produto",
     "itens_a_comprar": [...],
-    "alternativas_viaveis": [...],
   }
   ```
 
@@ -325,7 +324,6 @@ graph TD
       "quantidade": 1
     }
   ],
-  "alternativas_viaveis": [...],
   "prazo_implementacao_dias": 30
 }
 ```

@@ -1,6 +1,7 @@
 import supabase from '../infra/supabase/connect';
 import CotacoesItensService from './CotacoesItensService';
 import RelatorioService from './RelatorioService';
+import PonderacaoWebService from './PonderacaoWebService';
 
 
 type Faltante = {
@@ -10,7 +11,8 @@ type Faltante = {
   categoria?: string;
   quantidade?: number;
   custo_beneficio?: any;
-  vigor?: any;
+  rigor?: any;
+  ponderacao_busca_externa?: number;
 };
 
 type BackgroundBuscaResponse = {
@@ -53,13 +55,21 @@ export default class WebBuscaJobService {
   private sleep(ms: number) {
     return new Promise(res => setTimeout(res, ms));
   }
-
-  async createJobsForFaltantes(faltantes: Faltante[], solicitacaoFallback: string): Promise<string[]> {
+  async createJobsForFaltantes(faltantes: Faltante[], solicitacaoFallback: string, ponderacaoWeb_LLM: Boolean): Promise<string[]> {
     const statusUrls: string[] = [];
+    
+    // Aplicar ponderação LLM se solicitado
+    let faltantesProcessados = faltantes;
+    if (ponderacaoWeb_LLM) {
+      faltantesProcessados = await PonderacaoWebService.ponderarWebLLM(faltantes);
+      console.log(`🧠 [PONDERACAO-WEB] Ponderação aplicada a ${faltantesProcessados.length} faltantes`);
+    }
+    
     await Promise.all(
-      (faltantes || []).map(async (f) => {
+      (faltantesProcessados || []).map(async (f) => {
         const termo = f.query_sugerida || solicitacaoFallback;
         try {
+          
           const resp = await fetch(`${this.apiBaseUrl}/api/busca-automatica/background`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -68,9 +78,11 @@ export default class WebBuscaJobService {
               produto: termo,
               quantidade: f.quantidade,
               custo_beneficio: f.custo_beneficio,
-              vigor: f.vigor,
+              rigor: f.rigor,
+              ponderacao_web_llm: f.ponderacao_busca_externa,
               salvamento: true,
-              refinamento: true
+              refinamento: true,
+
             })
           });
           const data = (await resp.json()) as BackgroundBuscaResponse;

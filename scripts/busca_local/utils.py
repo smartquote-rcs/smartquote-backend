@@ -1,7 +1,7 @@
 from typing import Dict, List, Any
 from .models import (
     DecompositionResult, ComponenteParaAquisicao,
-    AlternativaViavel, ComponentPriority
+    ComponentPriority
 )
 
 def build_filters(specs: Dict[str, Any]) -> List[Dict]:
@@ -33,19 +33,7 @@ def validate_and_fix_result(result: DecompositionResult) -> DecompositionResult:
                 justificativa="Componente básico identificado"
             )
         ]
-    
-    # Garante que existe pelo menos uma alternativa viável
-    if not result.alternativas_viaveis:
-        result.alternativas_viaveis = [
-            AlternativaViavel(
-                nome="alternativa_padrao",
-                tipo="substituto",
-                vantagens=["Disponibilidade garantida", "Menor risco"],
-                limitacoes=["Especificações a definir"],
-                cenario_recomendado="Quando solução principal não estiver disponível",
-            )
-        ]
-    
+     
   
     # Garante que campos obrigatórios têm valores válidos
     if not hasattr(result, 'tipo_de_solucao') or not result.tipo_de_solucao:
@@ -70,15 +58,6 @@ def create_fallback_decomposition(main_request: str) -> DecompositionResult:
                 categoria="Hardware de Servidores e Storage",
                 especificacoes_minimas={"tipo": "a_definir"},
                 justificativa="Componente identificado por fallback"
-            )
-        ],
-        alternativas_viaveis=[
-            AlternativaViavel(
-                nome="alternativa_generica",
-                tipo="substituto",
-                vantagens=["Menor custo"],
-                limitacoes=["Especificações a definir"],
-                cenario_recomendado="Quando solução principal não disponível"
             )
         ],
     )

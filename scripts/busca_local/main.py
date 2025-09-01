@@ -8,7 +8,7 @@ import os
 import sys
 import json
 import argparse
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # Adicionar o diretório pai ao path para permitir imports relativos
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -294,7 +294,8 @@ def processar_interpretacao(
         cotacao1_id = cotacao_manager.insert_cotacao(
             prompt_id=prompt_id,
             faltantes=tarefas_web if tarefas_web else None,
-            observacoes="Cotação principal (automática)."
+            observacoes="Cotação principal (automática).",
+            prazo_validade=(datetime.now() + timedelta(days=15)).isoformat()
         )
 
         itens_adicionados = 0
@@ -361,69 +362,9 @@ def processar_interpretacao(
                     itens_adicionados += 1
                     produtos_principais.add(produto_id_local)  # Adicionar produto ao conjunto
 
-        alternativas_ids: List[str] = []
-        alternativas = [qid for qid, meta in meta_por_id.items() if meta.get("tipo") == "alternativa"]
-        for qid in alternativas:
-            res_list = resultados.get(qid) or []
-            if not res_list:
-                continue
-            top_resultado = res_list[0]
-            produto_id_local = top_resultado.get("produto_id")
-            nome_alt = meta_por_id.get(qid, {}).get("fonte", {}).get("nome") or top_resultado.get("nome", "")
-
-            # Verificar se o produto da alternativa já está na cotação principal
-            if produto_id_local in produtos_principais:
-                print(
-                    f"⚠️ Alternativa '{nome_alt}' com produto '{top_resultado.get('nome')}' já está na cotação principal. Pulando.",
-                    file=sys.stderr,
-                )
-                continue
-
-            cotacao_alt_id = cotacao_manager.insert_cotacao(
-                prompt_id=prompt_id,
-                observacoes=f"Cotação alternativa - {nome_alt}",
-                condicoes={"tipo": "alternativa", "query_id": qid},
-            )
-            if not cotacao_alt_id:
-                print(f"❌ Falha ao criar cotação alternativa para '{nome_alt}'.", file=sys.stderr)
-                continue
-
-            if not produto_id_local:
-                print(f"⚠️ Alternativa '{top_resultado.get('nome')}' sem ID de produto. Pulando.", file=sys.stderr)
-                continue
-
-            # Adicionar relatório LLM ao payload se disponível
-            payload_alt = {
-                "query_id": qid, 
-                "score": top_resultado.get("score"), 
-                "alternativa": True
-            }
-            
-            # Se o produto foi aprovado pelo LLM, incluir o relatório
-            if top_resultado.get('llm_relatorio'):
-                payload_alt["llm_relatorio"] = top_resultado.get('llm_relatorio')
-                print(f"🧠 [COTACAO-ALT] Adicionando relatório LLM para alternativa {qid}: {len(top_resultado.get('llm_relatorio', {}))} campos")
-            else:
-                print(f"⚠️ [COTACAO-ALT] Nenhum relatório LLM encontrado para alternativa {qid}")
-            relatorio_id = cotacao_manager.insert_relatorio(
-                cotacao_id=cotacao1_id,
-                analise_local=[payload],
-                criado_por=interpretation.get("criado_por"),
-            )
-            item_id = cotacao_manager.insert_cotacao_item_from_result(
-                cotacao_id=cotacao_alt_id,
-                resultado_produto=top_resultado,
-                origem="local",
-                produto_id=produto_id_local,
-                payload=payload_alt,
-            )
-            if item_id:
-                alternativas_ids.append(str(cotacao_alt_id))
-
         saida["cotacoes"] = {
             "principal_id": cotacao1_id,
-            "itens_adicionados": itens_adicionados,
-            "alternativas_ids": alternativas_ids,
+            "itens_adicionados": itens_adicionados
         }
 
     return saida

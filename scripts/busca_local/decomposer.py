@@ -70,12 +70,7 @@ class SolutionDecomposer:
             - 3 = moderadamente específico, margem de flexibilidade
             - 4 = quase fechado, pequenas variações possíveis
             - 5 = rígido, modelo exato exigido
-        5. **alternativas_viaveis**: Lista de outras soluções viáveis (nunca vazia) com:
-        - **nome**, **tipo**, 
-        - **vantagens**: lista de pontos positivos
-        - **limitacoes**: lista de desvantagens ou restrições
-        - **cenario_recomendado**: str onde essa alternativa seria preferível
-        6. **prazo_implementacao_dias**: número inteiro com a estimativa de dias (se não especificado: 0)
+        5. **prazo_implementacao_dias**: número inteiro com a estimativa de dias (se não especificado: 0)
        
         ---
 
@@ -120,7 +115,6 @@ class SolutionDecomposer:
                 print(f"📌 Solução Principal: {resposta_validada.solucao_principal}")
                 print(f"🔧 Tipo de Solução: {resposta_validada.tipo_de_solucao}")
                 print(f"📦 Itens a Comprar: {len(resposta_validada.itens_a_comprar)} itens")
-                print(f"🔄 Alternativas Viáveis: {len(resposta_validada.alternativas_viaveis)} alternativas")
                 print("-" * 60 + "\n")
                 
                 return resposta_validada
@@ -179,29 +173,17 @@ class SolutionDecomposer:
                 "rigor": getattr(comp, "rigor", 0) or 0,
             })
         
-        # Mapear alternativas viáveis
-        alternativas = []
-        for alt in result.alternativas_viaveis:
-            alternativas.append({
-                "nome": alt.nome,
-                "tipo": alt.tipo,
-                "vantagens": alt.vantagens,
-                "limitacoes": alt.limitacoes,
-                "cenario_recomendado": alt.cenario_recomendado
-            })
         
         brief = {
             "solucao_principal": result.solucao_principal,
             "tipo_de_solucao": result.tipo_de_solucao,
             "itens_a_comprar": itens,
-            "alternativas_viaveis": alternativas,
             "prazo_implementacao_dias": result.prazo_implementacao_dias,
         }
         
         print("✅ BRIEF GERADO COM SUCESSO!")
         print(f"📊 Resumo do Brief:")
         print(f"   - Itens a comprar: {len(itens)}")
-        print(f"   - Alternativas viáveis: {len(alternativas)}")
         print("-" * 60 + "\n")
         
         return brief

@@ -36,5 +36,4 @@ class DecompositionResult(BaseModel):
     tipo_de_solucao: str = Field(description="Tipo de solução: produto ou sistema")
     complexidade_estimada: str = Field(description="Nível de complexidade: simples, medio, complexo")
     itens_a_comprar: List[ComponenteParaAquisicao] = Field(description="Lista de componentes que precisam ser adquiridos")
-    alternativas_viaveis: List[AlternativaViavel] = Field(description="Alternativas possíveis")
     prazo_implementacao_dias: int = Field(default=0, description="Prazo estimado de implementação")

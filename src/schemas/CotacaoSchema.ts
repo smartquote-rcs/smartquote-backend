@@ -16,4 +16,5 @@ export const cotacaoSchema = z.object({
 
   // observações
   observacao: z.string().optional(),
+  prazo_validade: z.string().optional(),
 });

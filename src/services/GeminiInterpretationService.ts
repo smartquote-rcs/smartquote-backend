@@ -302,7 +302,7 @@ DADOS DO EMAIL:
                 const faltantes = Array.isArray(payload.faltantes) ? payload.faltantes : [];
 
         const svc = new WebBuscaJobService();
-                const statusUrls = await svc.createJobsForFaltantes(faltantes, interpretation.solicitacao);
+                const statusUrls = await svc.createJobsForFaltantes(faltantes, interpretation.solicitacao, true);
                 const { resultadosCompletos, produtosWeb } = await svc.waitJobs(statusUrls);
                 console.log(`🧠 [LLM-FILTER] ${produtosWeb.length} produtos selecionados pelos jobs`);
 

@@ -141,7 +141,6 @@ def _map_tipo_alternativa_para_categoria(tipo: Optional[str]) -> Optional[str]:
     # fallback: retorna próprio 'tipo' como categoria
     return t
 
-# Note: geração de queries alternativas removida intencionalmente. O fluxo agora gera apenas queries para itens.
 
 def gerar_estrutura_de_queries(brief: Dict[str, Any]) -> List[Dict[str, Any]]:
     """

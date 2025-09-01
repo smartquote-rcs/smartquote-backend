@@ -11,8 +11,9 @@ export const buscaSchema = z.object({
   rigor: z.number().int().min(0).max(5).optional().default(0),
   refinamento: z.boolean().optional().default(false),
   salvamento: z.boolean().optional().default(false),
-  urls_add: z.array(z.string()).optional().default([]),
-  faltante_id: z.string().optional() // ID do faltante para rastreamento
+  urls_add: z.array(z.object({url: z.string(), escala_mercado: z.string()})).optional().default([]),
+  faltante_id: z.string().optional(), // ID do faltante para rastreamento
+  ponderacao_web_llm: z.number().min(0).max(1).optional().default(0),
 });
 
 export type BuscaData = z.infer<typeof buscaSchema>;

@@ -7,11 +7,12 @@ import FornecedorService from '../services/FornecedorService';
 import { ProdutosService } from '../services/ProdutoService';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { Product } from '../types/BuscaTypes';
+import axios from 'axios';
 
 interface JobMessage {
   id: string;
   termo: string;
-  urls_add?: string[]; // URLs adicionais para busca
+  urls_add?: {url: string, escala_mercado: string}[]; // URLs adicionais para busca
   numResultados: number;
   salvamento: boolean;
   fornecedores: number[];
@@ -19,6 +20,7 @@ interface JobMessage {
   quantidade?: number; // Quantidade opcional para busca
   custo_beneficio?: any; // Custo-benefício opcional para busca
   rigor?: number; // Novo parâmetro para rigor
+  ponderacao_web_llm?: number;
   refinamento?: boolean; // Nova flag para indicar se deve fazer refinamento LLM
   faltante_id?: string; // ID do faltante para rastreamento
 }
@@ -67,7 +69,7 @@ function log(message: string) {
 }
 
 // Função para filtrar produtos usando LLM
-async function filtrarProdutosComLLM(produtos: any[], termoBusca: string, quantidade?: number, custo_beneficio?: any, rigor?: number): Promise<{produtos: any[], relatorio: any}> {
+async function filtrarProdutosComLLM(produtos: any[], termoBusca: string, quantidade?: number, custo_beneficio?: any, rigor?: number, ponderacao_web_llm?: number): Promise<{produtos: any[], relatorio: any}> {
   if (!produtos || produtos.length === 0) {
     return { produtos: [], relatorio: {} };
   }
@@ -103,79 +105,90 @@ async function filtrarProdutosComLLM(produtos: any[], termoBusca: string, quanti
       descricao: (p.description || p.descricao || '').substring(0, 400),
       preco: p.price || p.preco || null,
       estoque: p.estoque || null,
-      url: p.product_url || p.url || ''
+      url: p.product_url || p.url || '',
+      escala_mercado: p.escala_mercado || 'Nacional',
     }));
 
-    const prompt_sistema = (
-      "Você é um Analista de Soluções de T.I. sénior, agindo como o módulo de decisão final do sistema SmartQuote. A sua análise deve ser lógica, objetiva e implacável na aplicação das regras.\n" +
-      "A sua tarefa é analisar uma lista de produtos candidatos extraídos da web e gerar um relatório de recomendação, seguindo estritamente o formato JSON especificado.\n" +
-      "Responda APENAS com um objeto JSON válido, sem comentários ou texto extra.\n\n" +
-      "--- FORMATO DE SAÍDA (SUCESSO ou FALHA PARCIAL) ---\n" +
-      "{\n" +
-      '  "index": <int>,             // Índice (0, 1, 2...) do melhor candidato ou -1 se nenhum for totalmente elegível\n' +
-      '  "relatorio": {\n' +
-      '    "escolha_principal": "<string_or_null>",\n' +
-      '    "justificativa_escolha": "<string>",\n' +
-      '    "top_ranking": [\n' +
-      '      {\n' +
-      '        "posicao": <int>,\n' +
-      '        "nome": "<string>",\n' +
-      '        "url": "<string>",\n' +
-      '        "preco": "<string_or_null>",\n' +
-      '        "justificativa": "<string>",\n' +
-      '        "pontos_fortes": ["<string>"],\n' +
-      '        "pontos_fracos": ["<string>"],\n' +
-      '        "score_estimado": <float>\n' +
-      '      }\n' +
-      '    ],\n' +
-      '    "criterios_avaliacao": {\n' +
-      '      "correspondencia_tipo": "<string>",\n' +
-      '      "especificacoes": "<string>",\n' +
-      '      "custo_beneficio": "<string>",\n' +
-      '      "disponibilidade": "<string>"\n' +
-      '    }\n' +
-      '  }\n' +
-      "}\n\n" +
-  
-      "--- FORMATO DE SAÍDA (FALHA TOTAL) ---\n" +
-      "{\n" +
-      '  "index": -1,\n' +
-      '  "relatorio": {\n' +
-      '    ...            \n' +
-      '    "erro": "Produto não encontrado"\n' +
-      '  }\n' +
-      "}\n\n" +
-  
-      "--- REGRAS DE DECISÃO HIERÁRQUICAS ---\n" +
-      "**PASSO 1: VERIFICAÇÃO DE ELEGIBILIDADE (REGRAS NÃO NEGOCIÁVEIS)**\n" +
-      "   - Para CADA candidato, verifique o seguinte:\n" +
-      "     1. **Tipo de Produto:** O tipo fundamental do produto corresponde à QUERY? (Ex: a query pede 'router', o candidato não pode ser um 'switch').\n" +
-      "     2. **Validade dos Dados:** O produto tem um `nome` e uma `url` válidos e não vazios?\n" +
-      "   - **SE NENHUM candidato passar nestas verificações:** Você DEVE parar imediatamente e retornar o JSON no `Formato de FALHA TOTAL`.\n" +
-      "   - **SE HOUVER candidatos que passam:** Prossiga para o Passo 2 apenas com a lista de candidatos que passaram nesta verificação.\n\n" +
-  
-      "**PASSO 2: INTERPRETAÇÃO DO PARÂMETRO 'RIGOR'**\n" +
-      "   - O 'rigor' (0-5) define  o quão estritamente as especificações da QUERY e dos FILTROS devem ser seguidas.\n" +
-      "   - `rigor=0` (genérico): Foque-se no custo-benefício e na relevância geral. As especificações são flexíveis.\n" +
-      "   - `rigor=5` (rígido): As especificações são OBRIGATÓRIAS. Um candidato que não cumpra uma especificação explícita do cliente deve ser desqualificado da posição de `index` principal.\n\n" +
-  
-      "**PASSO 3: ANÁLISE E GERAÇÃO DO RELATÓRIO**\n" +
-      "   - **Cenário A (SUCESSO):** Se existe PELO MENOS UM candidato que cumpre os requisitos do 'rigor'.\n" +
-      "     - Escolha o melhor entre os elegíveis e defina o seu `index`.\n" +
-      "     - Gere o relatório completo no `Formato de SUCESSO`.\n" +
-      "   - **Cenário B (FALHA PARCIAL):** Se existem candidatos do tipo correto, MAS NENHUM cumpre as especificações com o 'rigor' exigido.\n" +
-      "     - Você DEVE definir `index: -1` e `escolha_principal: null`.\n" +
-      "     - No `top_ranking`, liste os candidatos mais próximos, mas na `justificativa` de cada um, explique CLARAMENTE qual especificação obrigatória falhou.\n" +
-      "   - **`top_ranking`:**\n" +
-      "     - Não force um ranking. Liste apenas os candidatos que são genuinamente relevantes (máximo de 5).\n" +
-      "     - Para cada candidato, liste os `pontos_fortes` (ex: 'Preço competitivo', 'Descrição detalhada') e `pontos_fracos` (ex: 'Estoque não informado', 'Especificação inferior à ideal').\n" +
-      "   - **`criterios_avaliacao`:** Forneça uma análise honesta e técnica para cada critério."
-    )
+    const prompt_sistema = "Você é um Analista de Soluções de T.I. sénior, agindo como o módulo de decisão final do sistema SmartQuote. A sua análise deve ser lógica, objetiva e implacável na aplicação das regras.\n" +
+    "A sua tarefa é analisar uma lista de produtos candidatos extraídos da web e gerar um relatório de recomendação, seguindo estritamente o formato JSON especificado.\n" +
+    "Responda APENAS com um objeto JSON válido, sem comentários ou texto extra.\n\n" +
+    
+    "--- FORMATO DE SAÍDA (SUCESSO ou FALHA PARCIAL) ---\n" +
+    "{\n" +
+    '  "index": <int>,             // Índice (0, 1, 2...) do melhor candidato ou -1 se nenhum for totalmente elegível\n' +
+    '  "relatorio": {\n' +
+    '    "escolha_principal": "<string_or_null>",\n' +
+    '    "justificativa_escolha": "<string>",\n' +
+    '    "top_ranking": [\n' +
+    '      {\n' +
+    '        "posicao": <int>,\n' +
+    '        "nome": "<string>",\n' +
+    '        "url": "<string>",\n' +
+    '        "preco": "<string_or_null>",\n' +
+    '        "justificativa": "<string>",\n' +
+    '        "pontos_fortes": ["<string>"],\n' +
+    '        "pontos_fracos": ["<string>"],\n' +
+    '        "score_estimado": <float>\n' +
+    '      }\n' +
+    '    ],\n' +
+    '    "criterios_avaliacao": {\n' +
+    '      "correspondencia_tipo": "<string>",\n' +
+    '      "especificacoes": "<string>",\n' +
+    '      "custo_beneficio": "<string>",\n' +
+    '      "disponibilidade": "<string>",\n' +
+    '      "ponderacao_busca_externa": <float> // Valor entre 0.0 e 1.0 indicando prioridade de busca internacional\n' +
+    '    }\n' +
+    '  }\n' +
+    "}\n\n" +
+    
+    "--- FORMATO DE SAÍDA (FALHA TOTAL) ---\n" +
+    "{\n" +
+    '  "index": -1,\n' +
+    '  "relatorio": {\n' +
+    '    ...            \n' +
+    '    "erro": "Produto não encontrado"\n' +
+    '  }\n' +
+    "}\n\n" +
+    
+    "--- REGRAS DE DECISÃO HIERÁRQUICAS ---\n" +
+    "**PASSO 1: VERIFICAÇÃO DE ELEGIBILIDADE (REGRAS NÃO NEGOCIÁVEIS)**\n" +
+    "   - Para CADA candidato, verifique o seguinte:\n" +
+    "     1. **Tipo de Produto:** O tipo fundamental do produto corresponde à QUERY? (Ex: a query pede 'router', o candidato não pode ser um 'switch').\n" +
+    "     2. **Validade dos Dados:** O produto tem um `nome` e uma `url` válidos e não vazios?\n" +
+    "   - **SE NENHUM candidato passar nestas verificações:** Você DEVE parar imediatamente e retornar o JSON no `Formato de FALHA TOTAL`.\n" +
+    "   - **SE HOUVER candidatos que passam:** Prossiga para o Passo 2 apenas com a lista de candidatos que passaram nesta verificação.\n\n" +
+    
+    "**PASSO 2: INTERPRETAÇÃO DO PARÂMETRO 'RIGOR'**\n" +
+    "   - O 'rigor' (0-5) define  o quão estritamente as especificações da QUERY e dos FILTROS devem ser seguidas.\n" +
+    "   - `rigor=0` (genérico): Foque-se no custo-benefício e na relevância geral. As especificações são flexíveis.\n" +
+    "   - `rigor=5` (rígido): As especificações são OBRIGATÓRIAS. Um candidato que não cumpra uma especificação explícita do cliente deve ser desqualificado da posição de `index` principal.\n\n" +
+    
+    "**PASSO 3: ANÁLISE E GERAÇÃO DO RELATÓRIO**\n" +
+    "   - **Cenário A (SUCESSO):** Se existe PELO MENOS UM candidato que cumpre os requisitos do 'rigor'.\n" +
+    "     - Escolha o melhor entre os elegíveis e defina o seu `index`.\n" +
+    "     - Gere o relatório completo no `Formato de SUCESSO`.\n" +
+    "   - **Cenário B (FALHA PARCIAL):** Se existem candidatos do tipo correto, MAS NENHUM cumpre as especificações com o 'rigor' exigido.\n" +
+    "     - Você DEVE definir `index: -1` e `escolha_principal: null`.\n" +
+    "     - No `top_ranking`, liste os melhores candidatos, mas na `justificativa` de cada um, explique CLARAMENTE qual especificação obrigatória falhou.\n" +
+    "   - **`top_ranking`:**\n" +
+    "     - Não force um ranking. Liste apenas os candidatos que são genuinamente relevantes (máximo de 5).\n" +
+    "     - Para cada candidato, liste os `pontos_fortes` (ex: 'Preço competitivo', 'Descrição detalhada') e `pontos_fracos` (ex: 'Estoque não informado', 'Especificação inferior à ideal').\n" +
+    "   - **`criterios_avaliacao`:** Forneça uma análise honesta e técnica para cada critério.\n\n" +
+    
+    "--- USO DE PONDERACAO-WEB ---\n" +
+    "   - Para cada candidato, avalie implicitamente a prioridade de busca internacional e defina `PONDERACAO-WEB` entre 0.0 e 1.0:\n" +
+    "   - cada candidato possui escala_mercado que pode ser 'Nacional' ou 'Internacional'\n" +
+    "   - PONDERACAO-WEB é o quão viável uma opção internacional para o produto\n" +
+    "   - PONDERACAO-WEB = 1.0 se escala_mercado = 'Internacional' é totalmente considerado\n" +
+    "   - PONDERACAO-WEB = 0.0 se escala_mercado = 'Internacional' não é considerado\n" +
+    "   - Considere fatores implícitos: tipo do item (serviço, software, hardware), valor, especialização/nicho, urgência, transportabilidade, fragilidade, suporte local e complexidade de importação.\n";
+    
     const userMsg =
       `TERMO DE BUSCA: ${termoBusca}\n` +
       `QUANTIDADE: ${quantidade || 1}\n` +
       `CUSTO-BENEFÍCIO: ${JSON.stringify(custo_beneficio || {})}\n` +
       `RIGOR: ${rigor || 0}\n` +
+      `PONDERACAO-WEB: ${ponderacao_web_llm || 0}\n` +    
       `CANDIDATOS: ${JSON.stringify(candidatos)}\n` +
       "Analise e retorne o ranking completo com justificativas.";
 
@@ -292,7 +305,7 @@ process.stdin.on('data', async (data: string) => {
 
 // Função principal que processa o job
 async function processarJob(message: JobMessage) {
-  const { id, termo, numResultados, fornecedores, usuarioId, quantidade, custo_beneficio, rigor, refinamento, salvamento, faltante_id, urls_add } = message;
+  const { id, termo, numResultados, fornecedores, usuarioId, quantidade, custo_beneficio, rigor, ponderacao_web_llm, refinamento, salvamento, faltante_id, urls_add } = message;
 
   log(`Worker iniciado para job ${id} - busca: "${termo}"${refinamento ? ' (com refinamento LLM)' : ''}${faltante_id ? ` - Faltante ID: ${faltante_id}` : ''}`);
   
@@ -318,31 +331,36 @@ async function processarJob(message: JobMessage) {
       throw new Error('Nenhum fornecedor válido encontrado');
     }
 
-    let sitesParaBusca: string[] = [];
+    let sitesParaBusca: {url?: string, escala_mercado?: string}[] = [];
 
-    if (urls_add && Array.isArray(urls_add)) {
+    if (urls_add && Array.isArray(urls_add) && urls_add.length > 0) {
       // adicionar em todas as urls * no final, se não tem / adiconar /*
       urls_add.forEach(url => {
-        if (!url.endsWith('/')) {
-          url += '/*';
+        if (!url.url.endsWith('/')) {
+          url.url += '/*';
         }
         else {
-          url += '*';
+          url.url += '*';
         }
-        sitesParaBusca.push(url);
+        sitesParaBusca.push({url: url.url, escala_mercado: url.escala_mercado});
+      });
+      enviarMensagem({
+        progresso: {
+          etapa: 'busca',
+          fornecedores: sitesParaBusca.length,
+          detalhes: `Iniciando busca em ${sitesParaBusca.length} sites externos...`
+        }
+      });
+    } else {
+      sitesParaBusca = fornecedoresFiltrados.map(f => ({url: f.url, escala_mercado: f.escala_mercado}));
+      enviarMensagem({
+        progresso: {
+          etapa: 'busca',
+          fornecedores: sitesParaBusca.length,
+          detalhes: `Iniciando busca em ${sitesParaBusca.length} fornecedores...`
+        }
       });
     }
-    else {
-      sitesParaBusca = fornecedoresFiltrados.map(f => f.url);
-    
-    }
-    enviarMensagem({
-      progresso: {
-        etapa: 'busca',
-        fornecedores: fornecedoresFiltrados.length,
-        detalhes: `Iniciando busca em ${fornecedoresFiltrados.length} fornecedores...`
-      }
-    });
 
     // 2. Executar busca
     const buscaService = new BuscaAutomatica();
@@ -393,13 +411,75 @@ async function processarJob(message: JobMessage) {
         }
       });
       const produtosAntesLLM = todosProdutos.length;
-      const resultadoLLM = await filtrarProdutosComLLM(todosProdutos, termo, quantidade, custo_beneficio, rigor);
+      const resultadoLLM = await filtrarProdutosComLLM(todosProdutos, termo, quantidade, custo_beneficio, rigor, ponderacao_web_llm);
       todosProdutos = resultadoLLM.produtos;
       relatorioLLM = resultadoLLM.relatorio; // Capturar o relatório
       log(`Produtos após refinamento LLM: ${todosProdutos.length} de ${produtosAntesLLM}`);
 
       if (todosProdutos.length === 0) {
         log(`🧠 [LLM-FILTER] Nenhum produto aprovado pelo LLM para salvamento`);
+        if (!(urls_add && Array.isArray(urls_add) && urls_add.length > 0)) {
+          log(`Limite de pesquisa não especificado, iniciando busca na internet`);
+          //aplica RECURCIVIDADE
+          //buscar urls na web para pesquisar
+          try {
+            enviarMensagem({
+              progresso: {
+                etapa: 'busca',
+                detalhes: 'Buscando novos sites na internet...'
+              }
+            });
+
+            // Chamar a rota /busca-automatica/procurarSites para sugerir novos links
+            const baseUrl = process.env.API_BASE_URL || 'http://localhost:2000';
+            const response = await axios.get(`${baseUrl}/api/busca-automatica/procurarSites`, {
+              params: {
+                q: termo,
+                limit: 5, // Limitar a 5 sites sugeridos para evitar recursão excessiva
+                location: 'Angola',
+                is_mixed: true
+              }
+            });
+
+            if (response.data.success && response.data.data.sites.length > 0) {
+              const sitesSugeridos = response.data.data.sites;
+              log(`🔄 [RECURSIVE] Encontrados ${sitesSugeridos.length} sites sugeridos para busca recursiva`);
+
+              // Converter sites sugeridos para formato urls_add
+              const urlsRecursivas = sitesSugeridos.map((site: any) => ({
+                url: site.url,
+                escala_mercado: 'medio' // Definir escala padrão para sites sugeridos
+              }));
+
+              // Criar nova mensagem para chamada recursiva
+              const mensagemRecursiva: JobMessage = {
+                id: `${id}-recursive-${Date.now()}`,
+                termo,
+                urls_add: urlsRecursivas,
+                numResultados,
+                salvamento,
+                fornecedores,
+                usuarioId,
+                quantidade,
+                custo_beneficio,
+                rigor,
+                ponderacao_web_llm,
+                refinamento,
+                faltante_id
+              };
+
+              log(`🔄 [RECURSIVE] Iniciando busca recursiva com ${urlsRecursivas.length} URLs sugeridas`);
+              
+              // Chamada recursiva do processarJob com as novas URLs
+              await processarJob(mensagemRecursiva);
+              return; // Sair da função atual após a chamada recursiva
+            } else {
+              log(`⚠️ [RECURSIVE] Nenhum site sugerido encontrado para busca recursiva`);
+            }
+          } catch (error) {
+            log(`❌ [RECURSIVE] Erro ao buscar sites sugeridos: ${error}`);
+          }
+        }
       }
     }
 

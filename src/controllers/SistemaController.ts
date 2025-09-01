@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { sistemaSchema, sistemaUpdateSchema } from '../schemas/SistemaSchema';
 import SistemaService from '../services/SistemaService';
+import { LogService } from '../services/LogService';
 
 class SistemaController {
 
@@ -54,7 +55,12 @@ class SistemaController {
 
     try {
       const sistema = await SistemaService.upsertSistema(parsed.data);
-
+       (new LogService()).create({
+            type: "update",  
+            titulo: "atualização de Sistema",
+            assunto: `Atualização da Contação: ${sistema}`,
+            path_file: "null"
+      });
       return res.status(200).json({
         success: true,
         message: 'Configurações do sistema salvas com sucesso',
@@ -88,7 +94,12 @@ class SistemaController {
 
     try {
       const sistema = await SistemaService.updateSistema(parsed.data);
-
+       (new LogService()).create({
+            type: "update",  
+            titulo: "atualização de Sistema",
+            assunto: `Atualização da Contação: ${sistema}`,
+            path_file: "null"
+      });
       return res.status(200).json({
         success: true,
         message: 'Configurações do sistema atualizadas com sucesso',

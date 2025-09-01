@@ -18,6 +18,7 @@ import cotacoesItensRouter from './cotacoesItens.routes';
 import relatorioRouter from './relatorios.routes';
 import usersUpsertRouter from './usersUpsert.routes';
 import sistemaRouter from './sistema.routes';
+import LogRouter from "./logs.route";
 const routers = Router();
 const produtosService = new ProdutosService();
 
@@ -27,6 +28,7 @@ routers.get("/",(req, res)=>{
 routers.use("/test", testRouter);
 routers.use("/auth", authRouter);
 routers.use("/sistema", sistemaRouter);
+routers.use("/logs", LogRouter);
 routers.use("/users",authMiddleware, userRouter);
 routers.use('/produtos',authMiddleware, produtosRoutes);
 routers.use('/fornecedores', fornecedoresRoutes);

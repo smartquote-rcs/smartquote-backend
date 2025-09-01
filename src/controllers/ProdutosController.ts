@@ -3,6 +3,7 @@ import { ProdutosService } from '../services/ProdutoService';
 import { produtoSchema } from '../schemas/ProdutoSchema';
 import { Produto } from '../models/Produto';
 import supabase from '../infra/supabase/connect';
+import { LogService } from '../services/LogService';
 
 // Tipos auxiliares para upload
 interface MulterRequest extends Request {
@@ -24,7 +25,13 @@ class ProdutosController {
     }
 
     try {
-  const produto = await produtosService.create(parsed.data as unknown as Produto);
+      const produto = await produtosService.create(parsed.data as unknown as Produto);
+      (new LogService()).create({
+          type: "create",  
+          titulo: "cadastro de produto",
+          assunto: `cadastro de produto: ${produto}`,
+          path_file: "null"
+    });
       return res.status(201).json({
         message: 'Produto cadastrado com sucesso.',
         data: produto,
@@ -63,6 +70,7 @@ class ProdutosController {
     try {
       const { id } = req.params;
       await produtosService.delete(Number(id));
+      
       return res.status(200).json({ message: 'Produto deletado com sucesso.' });
     } catch (err: any) {
       return res.status(500).json({ error: err.message });

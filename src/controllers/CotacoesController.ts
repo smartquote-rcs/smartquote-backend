@@ -3,6 +3,7 @@ import CotacoesService from '../services/CotacoesService';
 import { cotacaoSchema } from '../schemas/CotacaoSchema';
 import { Cotacao } from '../models/Cotacao';
 import CotacaoNotificationService from '../services/CotacaoNotificationService';
+import { LogService } from '../services/LogService';
 
 class CotacoesController {
   async create(req: Request, res: Response): Promise<Response> {
@@ -27,7 +28,13 @@ class CotacoesController {
 
     try {
       const cotacao = await CotacoesService.create(parsed.data as unknown as Cotacao);
-      
+    
+     (new LogService()).create({
+            type: "create",  
+            titulo: "Criação de Contação",
+            assunto: `${cotacao}`,
+            path_file: "null"
+      });
       // Criar notificação para nova cotação
       try {
         await CotacaoNotificationService.processarNotificacaoCotacao(cotacao, 'criada');
@@ -84,11 +91,17 @@ class CotacoesController {
       }
       
       await CotacoesService.delete(Number(id));
-      
+           (new LogService()).create({
+            type: "delete",  
+            titulo: "Eliminado a Contação",
+            assunto: `Contação ${id} Eliminado`,
+            path_file: "null"
+      });
       // Criar notificação de deleção se conseguiu buscar a cotação
       if (cotacaoParaDeletar) {
         try {
           await CotacaoNotificationService.processarNotificacaoCotacao(cotacaoParaDeletar, 'deletada');
+          
         } catch (notifError) {
           console.error('Erro ao criar notificação de cotação deletada:', notifError);
           // Não quebra o fluxo principal, apenas loga o erro

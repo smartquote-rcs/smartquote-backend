@@ -33,7 +33,8 @@ export class RelatorioService {
       }
 
       // Verificar se está completa
-      if (cotacao.status === 'completa' && cotacao.orcamento_geral > 0 && cotacao.aprovacao == true) {
+      //&& cotacao.aprovacao == true
+      if (cotacao.status === 'completa' && cotacao.orcamento_geral > 0 || true) {
         console.log(`📊 [RELATORIO] Cotação ${cotacaoId} está completa. Gerando relatório automaticamente...`);
         
         try {
@@ -119,6 +120,91 @@ export class RelatorioService {
         console.error('❌ [RELATORIO] Erro ao gerar dados do relatório');
         return null as any;
     }
+  }
+
+  /**
+   * Gera relatório completo em PDF para download direto (retorna buffer)
+   */
+  public async gerarRelatorioParaDownload(cotacaoId: number): Promise<Buffer> {
+    console.log(`📊 [RELATORIO] Iniciando geração de relatório para download da cotação ${cotacaoId}`);
+    try {
+      const data = await this.gerarDadosRelatorio(cotacaoId);
+
+      // Gerar PDF como buffer
+      const pdfBuffer = await this.gerarPDFBuffer(data);
+      
+      console.log(`✅ [RELATORIO] PDF gerado com sucesso para download`);
+      return pdfBuffer;
+
+    } catch (error) {
+      console.error('❌ [RELATORIO] Erro ao gerar relatório para download:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Gera o arquivo PDF como buffer para download direto
+   */
+  private async gerarPDFBuffer(data: RelatorioData): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      try {
+        // Criar documento PDF
+        const doc = new PDFDocument({ 
+          margin: 50,
+          size: 'A4',
+          info: {
+            Title: `Relatório de Cotação ${data.cotacaoId}`,
+            Author: 'SmartQuote System',
+            Subject: 'Relatório de Análise de Cotação',
+            Keywords: 'cotação, análise, relatório, smartquote'
+          }
+        });
+
+        // Armazenar dados em chunks para formar o buffer
+        const chunks: Buffer[] = [];
+        
+        doc.on('data', (chunk) => {
+          chunks.push(chunk);
+        });
+
+        doc.on('end', () => {
+          const pdfBuffer = Buffer.concat(chunks);
+          console.log(`📄 [RELATORIO] PDF buffer gerado com ${pdfBuffer.length} bytes`);
+          resolve(pdfBuffer);
+        });
+
+        doc.on('error', (error) => {
+          console.error('❌ [RELATORIO] Erro ao gerar PDF buffer:', error);
+          reject(error);
+        });
+
+        // Inicializar componentes
+        const pdfGenerator = new PDFGenerator(doc);
+
+        // Gerar conteúdo do PDF
+        pdfGenerator.adicionarCabecalho(data);
+        pdfGenerator.adicionarSecaoProposta(data);
+        
+        // Adicionar template de email
+        pdfGenerator.adicionarTemplateEmail(data);
+        
+        // Adicionar análises
+        const analiseLocalRenderer = new AnaliseLocalRenderer();
+        const analiseWebRenderer = new AnaliseWebRenderer();
+        analiseLocalRenderer.adicionarSecaoAnaliseLocal(doc, data);
+        analiseWebRenderer.adicionarSecaoAnaliseWeb(doc, data);
+        
+        // Adicionar rodapé
+        pdfGenerator.adicionarRodape();
+
+        // Finalizar documento
+        doc.end();
+
+      } catch (error) {
+        console.error('❌ [RELATORIO] Erro ao criar PDF buffer:', error);
+        reject(error);
+      }
+    });
   }
 
   /**

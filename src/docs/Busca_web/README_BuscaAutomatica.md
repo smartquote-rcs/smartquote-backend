@@ -67,16 +67,6 @@ const resultados = await busca.buscarProdutosMultiplosSites(
 const todosProdutos = busca.combinarResultados(resultados);
 ```
 
-### Filtros por Preço
-
-```typescript
-// Filtrar produtos entreAOA$ 1000 eAOA$ 5000
-const produtosFiltrados = busca.filtrarPorPreco(
-  produtos,
-  1000,  // preço mínimo
-  5000   // preço máximo
-);
-```
 
 ## Métodos Disponíveis
 
@@ -97,7 +87,6 @@ Realiza busca em múltiplos websites simultaneamente.
 
 Combina resultados de múltiplas buscas em um único array.
 
-### `filtrarPorPreco(produtos, precoMin?, precoMax?): Product[]`
 
 Filtra produtos por faixa de preço.
 
@@ -156,9 +145,6 @@ async function exemploCompleto() {
     
     // Combinar resultados
     const produtos = busca.combinarResultados(resultados);
-    
-    // Aplicar filtros
-    const produtosFiltrados = busca.filtrarPorPreco(produtos, 1000, 5000);
     
     // Criar resposta estruturada
     const resposta = busca.criarRespostaBusca(

@@ -8,7 +8,6 @@ export const produtoSchema = z.object({
   descricao: z.string().optional(),
   codigo: z.string().optional(),
   modelo: z.string().optional(),
-  unidade: z.string().optional(),
   origem: z.enum(['local', 'externo']).optional(),
   image_url: z.string().url().optional(),
   produto_url: z.string().url().optional(),

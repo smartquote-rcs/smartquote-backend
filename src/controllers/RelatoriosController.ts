@@ -15,16 +15,18 @@ export default class RelatoriosController {
       if (isNaN(cotacaoIdNum)) {
         return res.status(400).json({ success: false, message: 'ID da cotação deve ser um número válido' });
       }
-      const pdfPath = await RelatorioService.verificarEgerarRelatorio(cotacaoIdNum);
-      res.json({
-        success: true,
-        message: 'Relatório gerado com sucesso',
-        data: {
-          pdfPath,
-          filename: pdfPath.split('/').pop(),
-          downloadUrl: `/api/relatorios/download/${encodeURIComponent(pdfPath)}`
-        }
-      });
+      
+      // Gerar o relatório diretamente no buffer para download
+      const pdfBuffer = await RelatorioService.gerarRelatorioParaDownload(cotacaoIdNum);
+      
+      // Configurar headers para download do PDF
+      const fileName = `relatorio_cotacao_${cotacaoIdNum}_${Date.now()}.pdf`;
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+      res.setHeader('Content-Length', pdfBuffer.length);
+      
+      // Enviar o PDF diretamente
+      res.send(pdfBuffer);
     } catch (error: any) {
       res.status(500).json({ success: false, message: 'Erro ao gerar relatório', error: error.message });
     }

@@ -187,4 +187,5 @@ export class EstoqueMonitorService {
   }
 }
 
-export default new EstoqueMonitorService();
+export { EstoqueMonitorService };
+export default EstoqueMonitorService;

@@ -1191,7 +1191,6 @@
         "descricao": { "type": "string", "example": "Notebook com 32GB RAM" },
         "codigo": { "type": "string", "example": "F1-NOTE-123456" },
         "modelo": { "type": "string", "example": "i7 16GB 512GB" },
-        "unidade": { "type": "string", "example": "un" },
         "origem": { "type": "string", "enum": ["local", "externo"], "example": "externo" },
         "image_url": { "type": "string", "example": "https://example.com/img.jpg" },
         "produto_url": { "type": "string", "example": "https://loja.com/produto" },

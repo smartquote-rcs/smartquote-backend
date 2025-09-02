@@ -102,4 +102,168 @@ export class NotificationService {
 
     return await this.create(notification);
   }
+
+  /**
+   * Marca uma notificação como lida
+   */
+  async markAsRead(id: number, userId?: string): Promise<NotificationDTO | null> {
+    try {
+      const updateData: any = {
+        is_read: true,
+        read_at: new Date().toISOString()
+      };
+
+      if (userId) {
+        updateData.user_id = userId;
+      }
+
+      const { data, error } = await supabase
+        .from(this.table)
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error(`📦 [NOTIFICATION-SERVICE] Erro ao marcar notificação ${id} como lida:`, error);
+        throw new Error(`Database error: ${error.message}`);
+      }
+
+      console.log(`📖 [NOTIFICATION-SERVICE] Notificação ${id} marcada como lida`);
+      return data as NotificationDTO;
+    } catch (err: any) {
+      console.error(`📦 [NOTIFICATION-SERVICE] Erro inesperado ao marcar como lida:`, err);
+      throw err;
+    }
+  }
+
+  /**
+   * Marca múltiplas notificações como lidas
+   */
+  async markMultipleAsRead(ids: number[], userId?: string): Promise<number> {
+    try {
+      const updateData: any = {
+        is_read: true,
+        read_at: new Date().toISOString()
+      };
+
+      if (userId) {
+        updateData.user_id = userId;
+      }
+
+      const { data, error } = await supabase
+        .from(this.table)
+        .update(updateData)
+        .in('id', ids)
+        .select('id');
+
+      if (error) {
+        console.error('📦 [NOTIFICATION-SERVICE] Erro ao marcar múltiplas notificações como lidas:', error);
+        throw new Error(`Database error: ${error.message}`);
+      }
+
+      const updatedCount = data?.length || 0;
+      console.log(`📖 [NOTIFICATION-SERVICE] ${updatedCount} notificações marcadas como lidas`);
+      return updatedCount;
+    } catch (err: any) {
+      console.error('📦 [NOTIFICATION-SERVICE] Erro inesperado ao marcar múltiplas como lidas:', err);
+      throw err;
+    }
+  }
+
+  /**
+   * Lista apenas notificações não lidas
+   */
+  async getUnread(userId?: string): Promise<NotificationDTO[]> {
+    try {
+      let query = supabase
+        .from(this.table)
+        .select('*')
+        .eq('is_read', false)
+        .order('created_at', { ascending: false });
+
+      if (userId) {
+        query = query.or(`user_id.is.null,user_id.eq.${userId}`);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('📦 [NOTIFICATION-SERVICE] Erro ao buscar notificações não lidas:', error);
+        throw new Error(`Database error: ${error.message}`);
+      }
+
+      return data as NotificationDTO[] || [];
+    } catch (err: any) {
+      console.error('📦 [NOTIFICATION-SERVICE] Erro inesperado ao buscar não lidas:', err);
+      throw err;
+    }
+  }
+
+  /**
+   * Conta notificações não lidas
+   */
+  async countUnread(userId?: string): Promise<number> {
+    try {
+      let query = supabase
+        .from(this.table)
+        .select('id', { count: 'exact' })
+        .eq('is_read', false);
+
+      if (userId) {
+        query = query.or(`user_id.is.null,user_id.eq.${userId}`);
+      }
+
+      const { count, error } = await query;
+
+      if (error) {
+        console.error('📦 [NOTIFICATION-SERVICE] Erro ao contar notificações não lidas:', error);
+        throw new Error(`Database error: ${error.message}`);
+      }
+
+      return count || 0;
+    } catch (err: any) {
+      console.error('📦 [NOTIFICATION-SERVICE] Erro inesperado ao contar não lidas:', err);
+      throw err;
+    }
+  }
+
+  /**
+   * Marca todas as notificações como lidas
+   */
+  async markAllAsRead(userId?: string): Promise<number> {
+    try {
+      const updateData: any = {
+        is_read: true,
+        read_at: new Date().toISOString()
+      };
+
+      if (userId) {
+        updateData.user_id = userId;
+      }
+
+      let query = supabase
+        .from(this.table)
+        .update(updateData)
+        .eq('is_read', false);
+
+      if (userId) {
+        query = query.or(`user_id.is.null,user_id.eq.${userId}`);
+      }
+
+      const { data, error } = await query.select('id');
+
+      if (error) {
+        console.error('📦 [NOTIFICATION-SERVICE] Erro ao marcar todas como lidas:', error);
+        throw new Error(`Database error: ${error.message}`);
+      }
+
+      const updatedCount = data?.length || 0;
+      console.log(`📖 [NOTIFICATION-SERVICE] ${updatedCount} notificações marcadas como lidas`);
+      return updatedCount;
+    } catch (err: any) {
+      console.error('📦 [NOTIFICATION-SERVICE] Erro inesperado ao marcar todas como lidas:', err);
+      throw err;
+    }
+  }
 }

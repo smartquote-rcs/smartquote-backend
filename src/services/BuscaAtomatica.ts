@@ -261,64 +261,33 @@ export class BuscaAutomatica {
     return produtos;
   }
 
-  /**
-   * Filtra produtos por faixa de preço
-   * @param produtos Array de produtos
-   * @param precoMin Preço mínimo (opcional)
-   * @param precoMax Preço máximo (opcional)
-   * @returns Array de produtos filtrados
-   */
-  filtrarPorPreco(produtos: Product[], precoMin?: number, precoMax?: number): Product[] {
-    return produtos.filter(produto => {
-      // Extrair valor numérico do preço (assumindo formato como "R$ 1.500,00" ou "$1500")
-      const precoNumerico = this.extrairPrecoNumerico(produto.price);
-      
-      if (precoNumerico === null) return true; // Se não conseguir extrair, inclui o produto
-      
-      if (precoMin !== undefined && precoNumerico < precoMin) return false;
-      if (precoMax !== undefined && precoNumerico > precoMax) return false;
-      
-      return true;
-    });
-  }
 
+  
   /**
    * Extrai valor numérico de uma string de preço
    * @param precoString String do preço
    * @returns Valor numérico ou null se não conseguir extrair
    */
-  private extrairPrecoNumerico(precoString: string): number | null {
-    try {
-      // Remove símbolos que não são dígitos, ponto ou vírgula
-      let numeroLimpo = precoString.replace(/[^\d.,]/g, '');
-  
-      // Verifica se existe separador decimal na antepenúltima posição
-      const temDecimal =
-        numeroLimpo.length > 2 &&
-        (numeroLimpo[numeroLimpo.length - 3] === '.' ||
-         numeroLimpo[numeroLimpo.length - 3] === ',');
-  
-      if (temDecimal) {
-        // Converte vírgula em ponto (para parseFloat funcionar)
-        numeroLimpo = numeroLimpo.replace(',', '.');
-  
-        // Se houver mais de um ponto, todos exceto o último são separadores de milhar → remove
-        const partes = numeroLimpo.split('.');
-        if (partes.length > 2) {
-          const decimal = partes.pop(); // última parte é decimal
-          numeroLimpo = partes.join('') + '.' + decimal;
-        }
-  
-        return Math.round(parseFloat(numeroLimpo));
-      } else {
-        // Sem decimais → remove todos os separadores e retorna número inteiro direto
-        numeroLimpo = numeroLimpo.replace(/[.,]/g, '');
-        return parseInt(numeroLimpo, 10);
-      }
-    } catch {
-      return null;
+ private extrairPrecoNumerico(precoString: string): number | null {
+  try {
+    // Remove tudo que não seja dígito, ponto ou vírgula
+    let numeroLimpo = precoString.replace(/[^\d.,]/g, '');
+
+    // Converte vírgula em ponto (padronização)
+    numeroLimpo = numeroLimpo.replace(/,/g, '.');
+
+    // Se houver mais de um ponto, todos exceto o último são separadores de milhar → remove
+    const partes = numeroLimpo.split('.');
+    if (partes.length > 2) {
+      const decimal = partes.pop(); // última parte é decimal
+      numeroLimpo = partes.join('') + '.' + decimal;
     }
+
+    return parseFloat(numeroLimpo);
+  } catch {
+    return null;
   }
+}
 
   /**
    * Cria uma resposta estruturada da busca

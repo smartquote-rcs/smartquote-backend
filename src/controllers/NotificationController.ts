@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { NotificationService } from '../services/NotificationService';
 import { ProdutosService } from '../services/ProdutoService';
 import { Notification } from '../models/Notification';
+import { markMultipleAsReadSchema } from '../schemas/NotificationSchema';
 
 class NotificationController {
 
@@ -22,6 +23,13 @@ class NotificationController {
     this.verificarEstoqueBaixo = this.verificarEstoqueBaixo.bind(this);
     this.verificacaoAutomatica = this.verificacaoAutomatica.bind(this);
     this.limparNotificacoesObsoletas = this.limparNotificacoesObsoletas.bind(this);
+    
+    // Novos métodos para notificações lidas
+    this.markAsRead = this.markAsRead.bind(this);
+    this.markMultipleAsRead = this.markMultipleAsRead.bind(this);
+    this.getUnread = this.getUnread.bind(this);
+    this.countUnread = this.countUnread.bind(this);
+    this.markAllAsRead = this.markAllAsRead.bind(this);
   }
 
   async create(req: Request, res: Response): Promise<Response> {
@@ -227,6 +235,119 @@ class NotificationController {
           notificacoesRemovidas,
           limiteUtilizado: limiteEstoque
         }
+      });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
+  /**
+   * Marca uma notificação como lida
+   */
+  async markAsRead(req: Request, res: Response): Promise<Response> {
+    try {
+      const { id } = req.params;
+      const userId = (req as any).user?.id; // Pega o ID do usuário do middleware de auth
+
+      if (!id || isNaN(Number(id))) {
+        return res.status(400).json({
+          error: 'ID da notificação é obrigatório e deve ser um número válido'
+        });
+      }
+
+      const result = await this.notificationService.markAsRead(Number(id), userId);
+      
+      if (!result) {
+        return res.status(404).json({
+          error: 'Notificação não encontrada'
+        });
+      }
+
+      return res.status(200).json({
+        message: 'Notificação marcada como lida com sucesso.',
+        data: result
+      });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
+  /**
+   * Marca múltiplas notificações como lidas
+   */
+  async markMultipleAsRead(req: Request, res: Response): Promise<Response> {
+    try {
+      // Validar entrada
+      const parsed = markMultipleAsReadSchema.safeParse(req.body);
+      
+      if (!parsed.success) {
+        const errors = parsed.error.format();
+        return res.status(400).json({ errors });
+      }
+
+      const { ids } = parsed.data;
+      const userId = (req as any).user?.id;
+
+      const updatedCount = await this.notificationService.markMultipleAsRead(ids, userId);
+
+      return res.status(200).json({
+        message: `${updatedCount} notificações marcadas como lidas.`,
+        data: {
+          updatedCount,
+          requestedIds: ids.length
+        }
+      });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
+  /**
+   * Lista apenas notificações não lidas
+   */
+  async getUnread(req: Request, res: Response): Promise<Response> {
+    try {
+      const userId = (req as any).user?.id;
+      const notifications = await this.notificationService.getUnread(userId);
+      
+      return res.status(200).json({
+        message: 'Lista de notificações não lidas.',
+        data: notifications,
+        count: notifications.length
+      });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
+  /**
+   * Conta notificações não lidas
+   */
+  async countUnread(req: Request, res: Response): Promise<Response> {
+    try {
+      const userId = (req as any).user?.id;
+      const count = await this.notificationService.countUnread(userId);
+      
+      return res.status(200).json({
+        message: 'Contagem de notificações não lidas.',
+        data: { count }
+      });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
+  /**
+   * Marca todas as notificações como lidas
+   */
+  async markAllAsRead(req: Request, res: Response): Promise<Response> {
+    try {
+      const userId = (req as any).user?.id;
+      const updatedCount = await this.notificationService.markAllAsRead(userId);
+      
+      return res.status(200).json({
+        message: 'Todas as notificações foram marcadas como lidas.',
+        data: { updatedCount }
       });
     } catch (err: any) {
       return res.status(500).json({ error: err.message });

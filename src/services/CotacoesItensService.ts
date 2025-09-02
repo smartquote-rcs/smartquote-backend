@@ -1,5 +1,8 @@
 import supabase from '../infra/supabase/connect';
 import { Product } from '../types/BuscaTypes';
+import RelatorioService from './RelatorioService';
+import { RelatorioData } from '../services/relatorio/types';
+import { url } from 'inspector';
 
 class CotacoesItensService {
   private parseNumero(precoStr?: string): number | null {
@@ -168,6 +171,71 @@ class CotacoesItensService {
     if (error) throw new Error(error.message);
     return data;
   }
-}
+  async getSugeridosWeb(id: number): Promise<any[]> {
+    const { data: cotacaoItem, error } = await supabase
+      .from('cotacoes_itens')
+      .select('*')
+      .eq('id', id)
+      .single();
+    const relatorio = await RelatorioService.gerarDadosRelatorio(cotacaoItem?.cotacao_id);
+    
+    if (relatorio.analiseWeb && Array.isArray(relatorio.analiseWeb)) {
 
+      const webIndex = relatorio.analiseWeb.findIndex((item: any) =>
+        item.escolha_principal === cotacaoItem.item_nome
+      );
+      if (webIndex !== -1) {
+        ////sugerir produtos no top_raking da analise_web
+        const topRanking = relatorio.analiseWeb[webIndex]?.top_ranking || [];
+        const sugestoes = topRanking.map((item: any) => ({
+          nome: item.nome,
+          url: item.url,
+          preco: item.preco,
+          posicao: item.posicao,
+          justificativa: item.justificativa,
+          pontos_fortes: item.pontos_fortes,
+          pontos_fracos: item.pontos_fracos,
+          score_estimado: item.score_estimado,
+        })) || [];
+        return sugestoes;
+      }
+    }
+    return [];
+  }
+  async getSugeridosLocal(id: number): Promise<any[]> {
+      // Busca o item de cotação pelo id
+      const { data: cotacaoItem, error } = await supabase
+        .from('cotacoes_itens')
+        .select('*')
+        .eq('id', id)
+        .single();
+      if (error) throw new Error(error.message);
+
+      // Gera o relatório relacionado à cotação
+      const relatorio = await RelatorioService.gerarDadosRelatorio(cotacaoItem?.cotacao_id);
+
+      if (relatorio.analiseLocal && Array.isArray(relatorio.analiseLocal)) {
+        // Busca o índice do item local correspondente ao nome do item
+        const localIndex = relatorio.analiseLocal.findIndex((item: any) =>
+          item.llm_relatorio?.escolha_principal === cotacaoItem.item_nome
+        );
+        if (localIndex !== -1) {
+          // Sugere produtos do top_ranking da análise local
+          const topRanking = relatorio.analiseLocal[localIndex]?.llm_relatorio?.top_ranking || [];
+          const sugestoes = topRanking.map((item: any) => ({
+            nome: item.nome,
+            id: item.id,
+            preco: item.preco,
+            posicao: item.posicao,
+            justificativa: item.justificativa,
+            pontos_fortes: item.pontos_fortes,
+            pontos_fracos: item.pontos_fracos,
+            score_estimado: item.score_estimado,
+          })) || [];
+          return sugestoes;
+        }
+      }
+      return [];
+  }
+}
 export default new CotacoesItensService();

@@ -1,0 +1,18 @@
+RELATÓRIO DE COTAÇÃO - CSV
+
+ID da Cotação:,306
+Status:,completa
+Orçamento Geral:,AOA 300.000,00
+Data de Geração:,03/09/2025
+Solicitação:,"Gostaria de solicitar uma cotação formal para o Servidor de Alto Desempenho – modelo, incluindo preço unitário e condições comerciais, prazo de entrega estimado, garantia e condições de assistência técnica e possibilidade de desconto para aquisição de múltiplas unidades (2 a 3 servidores)."
+
+DADOS DO USUÁRIO
+Email:,hudson@techsolutions.ao
+Nome:,Hudson Mateque
+Posição:,N/A
+
+ITENS DA COTAÇÃO
+Nome,Descrição,Preço Unitário,Quantidade,Subtotal,Origem,Provider
+"Servidor de Alto Desempenho","Servidor de alto desempenho para infra-estruturas robustas.",150000,2,300000,"local","N/A"
+
+TOTAL DOS ITENS:,AOA 300.000,00

@@ -1,10 +1,13 @@
 import { Request, Response } from 'express';
 import RelatorioService from '../services/RelatorioService';
+import { ExportService } from '../services/relatorio/ExportService';
 import supabase from '../infra/supabase/connect';
 import fs from 'fs';
 import path from 'path';
 
 export default class RelatoriosController {
+  private static exportService = new ExportService();
+
   static async gerarRelatorio(req: Request, res: Response) {
     try {
       const { cotacaoId } = req.params;
@@ -289,5 +292,73 @@ export default class RelatoriosController {
         propostaEmail: relatorio.proposta_email
       }
     });
+  }
+
+  /**
+   * Gera e faz download direto do relatório em formato CSV
+   */
+  static async gerarRelatorioCSV(req: Request, res: Response) {
+    try {
+      const { cotacaoId } = req.params;
+      if (!cotacaoId) {
+        return res.status(400).json({ success: false, message: 'ID da cotação é obrigatório' });
+      }
+      const cotacaoIdNum = parseInt(cotacaoId);
+      if (isNaN(cotacaoIdNum)) {
+        return res.status(400).json({ success: false, message: 'ID da cotação deve ser um número válido' });
+      }
+      
+      // Gerar o relatório CSV
+      const csvContent = await RelatoriosController.exportService.gerarCSV(cotacaoIdNum);
+      
+      // Configurar headers para download do CSV
+      const fileName = `relatorio_cotacao_${cotacaoIdNum}_${Date.now()}.csv`;
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+      
+      // Adicionar BOM para UTF-8 (para Excel) e enviar o CSV
+      const csvWithBOM = '\uFEFF' + csvContent;
+      res.send(csvWithBOM);
+    } catch (error: any) {
+      res.status(500).json({ 
+        success: false, 
+        message: 'Erro ao gerar relatório CSV', 
+        error: error.message 
+      });
+    }
+  }
+
+  /**
+   * Gera e faz download direto do relatório em formato XLSX
+   */
+  static async gerarRelatorioXLSX(req: Request, res: Response) {
+    try {
+      const { cotacaoId } = req.params;
+      if (!cotacaoId) {
+        return res.status(400).json({ success: false, message: 'ID da cotação é obrigatório' });
+      }
+      const cotacaoIdNum = parseInt(cotacaoId);
+      if (isNaN(cotacaoIdNum)) {
+        return res.status(400).json({ success: false, message: 'ID da cotação deve ser um número válido' });
+      }
+      
+      // Gerar o relatório XLSX
+      const xlsxBuffer = await RelatoriosController.exportService.gerarXLSX(cotacaoIdNum);
+      
+      // Configurar headers para download do XLSX
+      const fileName = `relatorio_cotacao_${cotacaoIdNum}_${Date.now()}.xlsx`;
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+      res.setHeader('Content-Length', xlsxBuffer.length);
+      
+      // Enviar o XLSX diretamente
+      res.send(xlsxBuffer);
+    } catch (error: any) {
+      res.status(500).json({ 
+        success: false, 
+        message: 'Erro ao gerar relatório XLSX', 
+        error: error.message 
+      });
+    }
   }
 }

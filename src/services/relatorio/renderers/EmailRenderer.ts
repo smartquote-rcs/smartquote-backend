@@ -46,15 +46,15 @@ export class EmailRenderer {
     const drawEmailHeader = (y: number, isContinuation = false) => {
       const headerY = y;
       
-      // Fundo do header
+      // Fundo do header azul
       this.doc
-        .fill('#e67e22')
+        .fill('#1e40af')
         .rect(margin - 15, headerY, contentWidth + 30, emailHeaderHeight)
         .fill();
       
-      // Linha de destaque superior
+      // Linha de destaque superior azul
       this.doc
-        .fill('#f39c12')
+        .fill('#2563eb')
         .rect(margin - 15, headerY, contentWidth + 30, 3)
         .fill();
       
@@ -63,7 +63,7 @@ export class EmailRenderer {
         .fill('#ffffff')
         .circle(margin + 30, headerY + 22, 16)
         .fill()
-        .fill('#e67e22')
+        .fill('#1e40af')
         .fontSize(14)
         .font('Helvetica-Bold')
         .text('@', margin + 25, headerY + 15);
@@ -79,23 +79,23 @@ export class EmailRenderer {
       return headerY + emailHeaderHeight + 15;
     };
     
-    // Função para desenhar box do email com bordas
+    // Função para desenhar box do email com bordas azuis
     const drawEmailBox = (startY: number, height: number) => {
       // Sombra
       this.doc
-        .fill('#fff8e7')
+        .fill('#f0f9ff')
         .rect(margin + 2, startY + 2, contentWidth - 4, height - 4)
         .fill();
       
       // Box principal
       this.doc
-        .fill('#fffbf0')
+        .fill('#fefefe')
         .rect(margin, startY, contentWidth, height)
-        .fillAndStroke('#fffbf0', '#f39c12');
+        .fillAndStroke('#fefefe', '#2563eb');
       
-      // Borda lateral decorativa
+      // Borda lateral decorativa azul
       this.doc
-        .fill('#e67e22')
+        .fill('#1e40af')
         .rect(margin, startY, 5, height)
         .fill();
     };
@@ -141,7 +141,7 @@ export class EmailRenderer {
       
       // Desenhar o texto da linha
       this.doc
-        .fill('#2c3e50')
+        .fill('#1e293b')
         .fontSize(10)
         .font('Helvetica')
         .text(line, margin + 20, textY, {
@@ -161,9 +161,9 @@ export class EmailRenderer {
     // Atualizar posição final
     this.doc.y = textY + 20;
     
-    // Linha final decorativa
+    // Linha final decorativa azul
     this.doc
-      .fill('#ecf0f1')
+      .fill('#f1f5f9')
       .rect(margin, this.doc.y - 10, contentWidth, 2)
       .fill();
   }

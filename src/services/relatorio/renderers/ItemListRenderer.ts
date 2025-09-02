@@ -40,14 +40,14 @@ export class ItemListRenderer {
       const itemsHeaderY = this.doc.y;
       
       this.doc
-        .fill('#34495e')
+        .fill('#1e293b')
         .fontSize(16)
         .font('Helvetica-Bold')
         .text('ITENS INCLUÍDOS NA PROPOSTA', margin, itemsHeaderY);
       
-      // Linha decorativa moderna
+      // Linha decorativa azul moderna
       this.doc
-        .fill('#3498db')
+        .fill('#2563eb')
         .rect(margin, itemsHeaderY + 25, 180, 2)
         .fill();
       
@@ -122,9 +122,9 @@ export class ItemListRenderer {
     const itemY = this.doc.y;
     
     // ========== DESENHO DO CARD DO ITEM ==========
-    // Sombra simulada
+    // Sombra simulada em tons azuis
     this.doc
-      .fill('#f5f5f5')
+      .fill('#f1f5f9')
       .rect(margin + 2, itemY + 2, contentWidth - 4, itemHeight - 4)
       .fill();
     
@@ -132,10 +132,10 @@ export class ItemListRenderer {
     this.doc
       .fill('#ffffff')
       .rect(margin, itemY, contentWidth, itemHeight)
-      .fillAndStroke('#ffffff', '#e1e8ed');
+      .fillAndStroke('#ffffff', '#cbd5e1');
     
-    // Borda lateral colorida por posição
-    const borderColors = ['#3498db', '#e74c3c', '#f39c12', '#9b59b6', '#1abc9c'];
+    // Borda lateral colorida em tons azuis
+    const borderColors = ['#2563eb', '#1d4ed8', '#1e40af', '#3730a3', '#1e3a8a'];
     const borderColor = borderColors[index % borderColors.length];
     
     this.doc
@@ -158,7 +158,7 @@ export class ItemListRenderer {
     
     // Nome do produto (usar a altura já calculada)
     this.doc
-      .fill('#1a1a1a')
+      .fill('#0f172a')
       .fontSize(13)
       .font('Helvetica-Bold')
       .text(item.nome, margin + 65, itemHeaderY, { 
@@ -166,15 +166,15 @@ export class ItemListRenderer {
         lineGap: 2 // Permitir múltiplas linhas sem truncar
       });
     
-    // Preço total em destaque (ajustar posição baseada na altura do nome para centralizar verticalmente)
+    // Preço total em destaque azul (ajustar posição baseada na altura do nome para centralizar verticalmente)
     const headerMinHeight = Math.max(nomeHeight, 25);
     const precoY = itemHeaderY + (headerMinHeight - 26) / 2; // Centralizar a caixa de preço verticalmente no header
     const precoBoxX = margin + contentWidth - 130;
     this.doc
-      .fill('#e8f5e8')
+      .fill('#eff6ff')
       .roundedRect(precoBoxX, precoY, 120, 26, 13)
       .fill()
-      .fill('#27ae60')
+      .fill('#1e40af')
       .fontSize(13)
       .font('Helvetica-Bold')
       .text(
@@ -191,13 +191,13 @@ export class ItemListRenderer {
     const descY = itemHeaderY + headerMinHeight + 15;
     
     this.doc
-      .fill('#666666')
+      .fill('#64748b')
       .fontSize(8)
       .font('Helvetica-Bold')
       .text('DESCRIÇÃO', margin + 20, descY);
     
     this.doc
-      .fill('#333333')
+      .fill('#334155')
       .fontSize(10)
       .font('Helvetica')
       .text(descricao, margin + 20, descY + 12, { 
@@ -211,7 +211,7 @@ export class ItemListRenderer {
     
     // Fundo sutil para a área técnica
     this.doc
-      .fill('#f8f9fa')
+      .fill('#f8fafc')
       .rect(margin + 15, techY - 5, contentWidth - 30, 35)
       .fill();
     
@@ -226,11 +226,11 @@ export class ItemListRenderer {
     
     techData.forEach(tech => {
       this.doc
-        .fill('#7f8c8d')
+        .fill('#64748b')
         .fontSize(7)
         .font('Helvetica-Bold')
         .text(tech.label, tech.x, techY + 2)
-        .fill('#2c3e50')
+        .fill('#1e293b')
         .fontSize(10)
         .font('Helvetica-Bold')
         .text(tech.value, tech.x, techY + 15);
@@ -240,15 +240,15 @@ export class ItemListRenderer {
     if (analise.escolha_principal) {
       const analiseY = techY + 50;
       
-      // Fundo da análise IA
+      // Fundo da análise IA em tons azuis
       this.doc
-        .fill('#f8f4ff')
+        .fill('#f0f9ff')
         .roundedRect(margin + 15, analiseY - 8, contentWidth - 30, 30, 10)
         .fill();
       
       // Badge IA
       this.doc
-        .fill('#8e44ad')
+        .fill('#1e40af')
         .circle(margin + 35, analiseY + 7, 10)
         .fill()
         .fill('#ffffff')
@@ -258,14 +258,14 @@ export class ItemListRenderer {
       
       // Label da análise
       this.doc
-        .fill('#8e44ad')
+        .fill('#1e40af')
         .fontSize(9)
         .font('Helvetica-Bold')
         .text('ANÁLISE INTELIGENTE', margin + 55, analiseY + 3);
       
       // Conteúdo da análise
       this.doc
-        .fill('#5d4e75')
+        .fill('#1e3a8a')
         .fontSize(9)
         .font('Helvetica')
         .text(

@@ -34,9 +34,9 @@ export class FooterRenderer {
         
         const footerY = this.doc.page.height - this.doc.page.margins.bottom - 30;
         
-        // Linha decorativa no rodapé
+        // Linha decorativa no rodapé azul
         this.doc
-          .strokeColor('#3498db')
+          .strokeColor('#2563eb')
           .lineWidth(1)
           .moveTo(margin, footerY)
           .lineTo(margin + contentWidth, footerY)
@@ -44,7 +44,7 @@ export class FooterRenderer {
         
         // Informações do rodapé
         this.doc
-          .fill('#7f8c8d')
+          .fill('#64748b')
           .fontSize(9)
           .font('Helvetica')
           .text(

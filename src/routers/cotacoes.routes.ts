@@ -17,4 +17,7 @@ router.patch('/:id', CotacoesController.patch);
  
 router.delete('/:id', CotacoesController.delete);
 
+// Nova rota para remover elementos faltantes
+router.post('/:id/remove-faltante', CotacoesController.removeFaltante);
+
 export default router;

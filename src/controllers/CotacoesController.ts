@@ -9,7 +9,6 @@ class CotacoesController {
   // compat: aceitar camelCase e converter
     const body = { ...req.body } as any;
   if (body.promptId && !body.prompt_id) body.prompt_id = body.promptId;
-  if (body.produtoId && !body.produto_id) body.produto_id = body.produtoId;
   if (body.aprovadoPor && !body.aprovado_por) body.aprovado_por = body.aprovadoPor;
     if (body.orcamentoGeral && !body.orcamento_geral) body.orcamento_geral = body.orcamentoGeral;
     if (body.dataAprovacao && !body.data_aprovacao) body.data_aprovacao = body.dataAprovacao;
@@ -107,7 +106,6 @@ class CotacoesController {
       const { id } = req.params;
       const updates = { ...req.body } as any;
   if (updates.promptId && !updates.prompt_id) updates.prompt_id = updates.promptId;
-  if (updates.produtoId && !updates.produto_id) updates.produto_id = updates.produtoId;
   if (updates.aprovadoPor && !updates.aprovado_por) updates.aprovado_por = updates.aprovadoPor;
       if (updates.orcamentoGeral && !updates.orcamento_geral) updates.orcamento_geral = updates.orcamentoGeral;
       if (updates.dataAprovacao && !updates.data_aprovacao) updates.data_aprovacao = updates.dataAprovacao;
@@ -115,6 +113,73 @@ class CotacoesController {
       if (updates.prazoValidade && !updates.prazo_validade) updates.prazo_validade = updates.prazoValidade;
       if (updates.status && ['pendente','aceite','recusado'].includes(updates.status)) {
         updates.status = updates.status === 'aceite' ? 'completa' : 'incompleta';
+      }
+
+      // Lógica de aprovação baseada em boolean "aprovacao" com regra de permissões por perfil
+      if (Object.prototype.hasOwnProperty.call(updates, 'aprovacao')) {
+        const aprov = updates.aprovacao === true || updates.aprovacao === 'true';
+
+        // Capturar usuário logado (enviado pelo frontend via aprovado_por ou em middleware futuro)
+        const usuarioId = updates.aprovado_por || (req as any).user?.id || (req as any).userId;
+  let usuarioRole = (req as any).user?.role || (req as any).userRole || updates.user_role;
+  const usuarioPosition = (req as any).user?.position;
+        // fallback adicional: se não veio role, tentar extrair de posição/position enviada ou armazenada
+        if (!usuarioRole) {
+          usuarioRole = updates.position || updates.posicao || updates.perfil;
+        }
+        // Se ainda não temos role e temos usuarioId, tentar buscar usuário (best-effort, sem quebrar se falhar)
+  if (!usuarioRole && usuarioId) {
+          try {
+            // lazy import para evitar ciclo
+            const userSvc = require('../services/UserService').default;
+            const u = await userSvc.getById(String(usuarioId));
+            usuarioRole = (u as any)?.position || (u as any)?.role || (u as any)?.function;
+          } catch {}
+        }
+
+        const LIMITE_MANAGER = 50_000_000;
+        // Obter valor referência da cotação (para qualquer decisão) se necessário
+        let valorReferencia = updates.orcamento_geral;
+        if (valorReferencia == null) {
+          try {
+            const atual = await CotacoesService.getById(Number(id));
+            valorReferencia = (atual as any)?.orcamento_geral ?? (atual as any)?.valor;
+          } catch {}
+        }
+        const numeroValor = Number(valorReferencia) || 0;
+
+        const acao = aprov ? 'aprovar' : 'rejeitar';
+        let permitido = false;
+        if (usuarioRole === 'admin') {
+          permitido = true;
+        } else if (usuarioRole === 'manager') {
+          permitido = numeroValor < LIMITE_MANAGER;
+        } else {
+          permitido = false;
+        }
+    console.log('[CotacoesController.patch] decisão de aprovação/rejeição', { id, usuarioId, usuarioRole, usuarioPosition, numeroValor, aprov });
+    if (!permitido) {
+          console.warn('Permissão negada aprovação/rejeição', {
+            cotacaoId: id,
+            usuarioId,
+            usuarioRole,
+      usuarioPosition,
+            numeroValor,
+            limite: LIMITE_MANAGER,
+            acao
+          });
+          return res.status(403).json({ error: `Usuário sem permissão para ${acao} esta cotação (perfil ou valor excede limite para manager).` });
+        }
+
+        if (aprov) {
+          updates.status = 'completa';
+          updates.data_aprovacao = new Date().toISOString();
+          if (usuarioId) updates.aprovado_por = usuarioId;
+        } else {
+          updates.status = 'incompleta';
+          updates.data_aprovacao = null;
+          if (usuarioId && !updates.aprovado_por) updates.aprovado_por = usuarioId;
+        }
       }
 
       // Buscar cotação antes de atualizar para comparação
@@ -140,6 +205,80 @@ class CotacoesController {
       return res.status(200).json({
         message: 'Cotação atualizada com sucesso.',
         data: cotacaoAtualizada,
+      });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
+  /**
+   * Remove um elemento específico do campo faltantes da cotação
+   */
+  async removeFaltante(req: Request, res: Response): Promise<Response> {
+    try {
+      const { id } = req.params;
+      const { index, query, nome } = req.body;
+
+      if (index === undefined && !query && !nome) {
+        return res.status(400).json({ 
+          error: 'É necessário fornecer index, query ou nome para identificar o elemento a ser removido' 
+        });
+      }
+
+      const cotacao = await CotacoesService.getById(Number(id));
+      if (!cotacao) {
+        return res.status(404).json({ error: 'Cotação não encontrada' });
+      }
+
+      const faltantesAtuais = Array.isArray(cotacao.faltantes) ? cotacao.faltantes : [];
+      let novosFaltantes = [...faltantesAtuais];
+      let elementoRemovido = null;
+
+      if (index !== undefined) {
+        // Remover por índice
+        if (index >= 0 && index < novosFaltantes.length) {
+          elementoRemovido = novosFaltantes.splice(index, 1)[0];
+        } else {
+          return res.status(400).json({ error: 'Índice inválido' });
+        }
+      } else if (query) {
+        // Remover por query sugerida
+        const indexToRemove = novosFaltantes.findIndex((faltante: any) => 
+          faltante.query_sugerida && faltante.query_sugerida.toLowerCase().includes(query.toLowerCase())
+        );
+        if (indexToRemove !== -1) {
+          elementoRemovido = novosFaltantes.splice(indexToRemove, 1)[0];
+        }
+      } else if (nome) {
+        // Remover por nome
+        const indexToRemove = novosFaltantes.findIndex((faltante: any) => 
+          faltante.nome && faltante.nome.toLowerCase().includes(nome.toLowerCase())
+        );
+        if (indexToRemove !== -1) {
+          elementoRemovido = novosFaltantes.splice(indexToRemove, 1)[0];
+        }
+      }
+
+      if (!elementoRemovido) {
+        return res.status(404).json({ error: 'Elemento não encontrado nos faltantes' });
+      }
+
+      // Atualizar status se necessário
+      const novoStatus = novosFaltantes.length === 0 ? 'completa' : 'incompleta';
+
+      const cotacaoAtualizada = await CotacoesService.updatePartial(Number(id), {
+        faltantes: novosFaltantes,
+        status: novoStatus
+      });
+
+      return res.status(200).json({
+        message: 'Elemento removido dos faltantes com sucesso.',
+        data: {
+          elementoRemovido,
+          faltantesRestantes: novosFaltantes.length,
+          novoStatus,
+          cotacao: cotacaoAtualizada
+        }
       });
     } catch (err: any) {
       return res.status(500).json({ error: err.message });

@@ -1,0 +1,27 @@
+{
+  "id": "interp_1755950614815_37ty2h5dt",
+  "emailId": "198d6cff2df90ac0",
+  "tipo": "pedido",
+  "prioridade": "média",
+  "solicitacao": "Quero 20 routers.",
+  "cliente": {
+    "nome": "Dario Nzita",
+    "empresa": "",
+    "email": "darionzita90@gmail.com",
+    "telefone": "",
+    "website": "",
+    "localizacao": ""
+  },
+  "confianca": 90,
+  "interpretedAt": "2025-08-23T12:03:34.815Z",
+  "rawGeminiResponse": "```json\n{\n  \"tipo\": \"pedido\",\n  \"prioridade\": \"média\",\n  \"solicitacao\": \"Quero 20 routers.\",\n  \"cliente\": {\n    \"nome\": \"Dario Nzita\",\n    \"empresa\": \"\",\n    \"email\": \"darionzita90@gmail.com\",\n    \"telefone\": \"\",\n    \"website\": \"\",\n    \"localizacao\": \"\"\n  },\n  \"confianca\": 90\n}\n```",
+  "dados_bruto": {
+    "id": "198d6cff2df90ac0",
+    "threadId": "",
+    "snippet": "pedido",
+    "from": "Dario Nzita <darionzita90@gmail.com>",
+    "subject": "pedido",
+    "date": "Sat, 23 Aug 2025 13:03:17 +0100",
+    "content": "quero 20 routers\r\n"
+  }
+}

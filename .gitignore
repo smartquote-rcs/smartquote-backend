@@ -7,3 +7,7 @@ src/credentials.json
 src/tData.json
 src/cData.json 
 .vercel
+dist/
+src/data
+temp/
+uploads/

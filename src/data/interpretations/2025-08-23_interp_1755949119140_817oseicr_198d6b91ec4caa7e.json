@@ -1,0 +1,27 @@
+{
+  "id": "interp_1755949119140_817oseicr",
+  "emailId": "198d6b91ec4caa7e",
+  "tipo": "pedido",
+  "prioridade": "média",
+  "solicitacao": "Solicito cotação para 20 unidades de routers.",
+  "cliente": {
+    "nome": "Dario Nzita",
+    "empresa": "",
+    "email": "darionzita90@gmail.com",
+    "telefone": "",
+    "website": "",
+    "localizacao": ""
+  },
+  "confianca": 95,
+  "interpretedAt": "2025-08-23T11:38:39.140Z",
+  "rawGeminiResponse": "```json\n{\n  \"tipo\": \"pedido\",\n  \"prioridade\": \"média\",\n  \"solicitacao\": \"Solicito cotação para 20 unidades de routers.\",\n  \"cliente\": {\n    \"nome\": \"Dario Nzita\",\n    \"empresa\": \"\",\n    \"email\": \"darionzita90@gmail.com\",\n    \"telefone\": \"\",\n    \"website\": \"\",\n    \"localizacao\": \"\"\n  },\n  \"confianca\": 95\n}\n```",
+  "dados_bruto": {
+    "id": "198d6b91ec4caa7e",
+    "threadId": "",
+    "snippet": "pedido",
+    "from": "Dario Nzita <darionzita90@gmail.com>",
+    "subject": "pedido",
+    "date": "Sat, 23 Aug 2025 12:38:21 +0100",
+    "content": "Routers. Cotação para 20 unidades.\r\n"
+  }
+}

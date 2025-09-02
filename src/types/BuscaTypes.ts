@@ -5,6 +5,7 @@
 export interface Product {
   name: string;
   price: string;
+  escala_mercado: string;
   image_url: string;
   description: string;
   product_url: string;
@@ -16,7 +17,7 @@ export interface ProductsResponse {
 
 export interface SearchParams {
   searchTerm: string;
-  website: string;
+  website: {url?: string, escala_mercado?: string};
   numResults: number;
 }
 

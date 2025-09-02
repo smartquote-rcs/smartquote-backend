@@ -33,18 +33,20 @@ SUPABASE_KEY = (
     or os.environ.get("SUPABASE_KEY")
     or os.environ.get("SUPABASE_ANON_KEY")
 )
+API_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:2000")
 SUPABASE_TABLE = "produtos"
 
 if not SUPABASE_URL or not SUPABASE_KEY:
     print("❌ Variáveis do Supabase ausentes. Defina SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY (ou ANON).")
 
 # --- CONFIGURAÇÃO WEAVIATE ---
-WEAVIATE_HOST = "localhost"
+WEAVIATE_HOST = os.environ.get("WEAVIATE_HOST")
 WEAVIATE_PORT = 8080
 WEAVIATE_GRPC_PORT = 50051
+API_KEY_WEAVIATE = os.environ.get("API_KEY_WEAVIATE")
 
 # --- CONFIGURAÇÃO DE BUSCA ---
-LIMITE_PADRAO_RESULTADOS = 5
+LIMITE_PADRAO_RESULTADOS = 4
 LIMITE_MAXIMO_RESULTADOS = 50
 
 # --- MODELOS DE EMBEDDING ---

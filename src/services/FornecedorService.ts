@@ -19,6 +19,7 @@ interface SiteForBusca {
   nome: string;
   url: string;
   ativo: boolean;
+  escala_mercado: string;
 }
 
 class FornecedorService {
@@ -29,7 +30,7 @@ class FornecedorService {
     try {
       const { data, error } = await supabase
         .from('fornecedores')
-        .select('id, nome, site, ativo')
+        .select('id, nome, site, ativo, escala_mercado')
         .eq('ativo', true)
         .not('site', 'is', null)
         .neq('site', '');
@@ -44,7 +45,8 @@ class FornecedorService {
         id: fornecedor.id,
         nome: fornecedor.nome,
         url: this.formatarUrlParaBusca(fornecedor.site),
-        ativo: fornecedor.ativo
+        ativo: fornecedor.ativo,
+        escala_mercado: fornecedor.escala_mercado
       }));
 
       return sitesParaBusca;
@@ -119,7 +121,7 @@ class FornecedorService {
 
       // Retorna configurações padrão se não encontrar na BD
       return {
-        numResultadosPorSite: 1,
+        numResultadosPorSite: 5,
         precoMinimo: null,
         precoMaximo: null,
         sitesAtivos: true,

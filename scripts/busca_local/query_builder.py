@@ -65,50 +65,6 @@ def _semantica_join(partes: List[str]) -> str:
     partes_limpa = [p.strip() for p in partes if p and str(p).strip()]
     return " | ".join(partes_limpa)
 
-def gerar_query_principal(brief: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """
-    Gera a Query 0 (apenas se tipo_de_solucao == 'produto'):
-    - Consulta semântica: solucao_principal + tags_semanticas
-    - Categoria: deixar vazio (geral)
-    - Palavras-chave específicas: requisitos críticos/altos (nome + especificações + variações)
-    """
-    tipo = str(brief.get("tipo_de_solucao", "")).lower()
-    if tipo != "produto":
-        return None
-
-    solucao_principal = str(brief.get("solucao_principal", "")).strip()
-    tags_sem = _as_list_str(brief.get("tags_semanticas"))
-    requisitos = brief.get("requisitos_do_produto", []) or []
-
-    # Categoria vazia
-    categoria = None
-
-    # Somente requisitos com nivel_de_exigencia crítica/alta
-    termos_requisitos: List[str] = []
-    for r in requisitos:
-        nivel = str(r.get("nivel_de_exigencia", "")).lower()
-        if nivel in {"critica", "alta"}:
-            termo = _termo_por_requisito(r)
-            if termo:
-                termos_requisitos.append(termo)
-
-    query_sem = _semantica_join([solucao_principal] + tags_sem)
-
-    return {
-        "id": "Q0",
-        "tipo": "principal",
-        "query": query_sem,
-        "filtros": {
-            "categoria": categoria if categoria else None,
-            "palavras_chave": termos_requisitos or None
-        },
-        "peso_prioridade": 1.0,
-        "fonte": {
-            "solucao_principal": solucao_principal,
-            "tags_semanticas": tags_sem
-        }
-    }
-
 def gerar_queries_itens(brief: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
     Gera Queries 1..N para cada item de 'itens_a_comprar':
@@ -125,14 +81,25 @@ def gerar_queries_itens(brief: Dict[str, Any]) -> List[Dict[str, Any]]:
         justificativa = str(item.get("justificativa", "")).strip()
         categoria = str(item.get("categoria", "")).strip() or None
         prioridade = str(item.get("prioridade", "")).lower()
+        alternativas = _as_list_str(item.get("alternativas"))
+        quantidade = int(item.get("quantidade", 1) or 1)
+        orcamento_estimado = float(item.get("orcamento_estimado", 0) or 0)
+        preferencia = str(item.get("preferencia", "")).strip().lower()
+        rigor = int(item.get("rigor", 0) or 0)
         peso = _prioridade_para_peso(prioridade)
 
-        if prioridade not in {"critica", "alta"}:
-            # Se prioridade não for crítica ou alta, não gera query
-            continue
         termos_especificos = _flatten_specs_to_terms(item.get("especificacoes_minimas"))
 
-        query_sem = _semantica_join([nome] + tags + [justificativa])
+        query_sem = _semantica_join([nome] + tags + [justificativa] + ["ou"] + alternativas)
+        #custo beneficio para uma filtragem mais profunda contendo quantidade: x, orcamento_estimado: y, preferencia: z
+        #só entra o campo de for diferente de 0
+        custo_beneficio = {}
+        if quantidade > 0:
+            custo_beneficio["quantidade"] = quantidade
+        if orcamento_estimado > 0:
+            custo_beneficio["orcamento_maximo_estimado"] = orcamento_estimado
+        if preferencia:
+            custo_beneficio["preferencia"] = preferencia
 
         # quantidade do item (min 1)
         try:
@@ -150,7 +117,9 @@ def gerar_queries_itens(brief: Dict[str, Any]) -> List[Dict[str, Any]]:
                 "categoria": categoria,
                 "palavras_chave": termos_especificos or None
             },
+            "custo_beneficio": custo_beneficio,  # <-- incluir
             "peso_prioridade": peso,
+            "rigor": rigor,
             "quantidade": quantidade,  # <-- incluir
             "fonte": {
                 "nome": nome,
@@ -172,7 +141,6 @@ def _map_tipo_alternativa_para_categoria(tipo: Optional[str]) -> Optional[str]:
     # fallback: retorna próprio 'tipo' como categoria
     return t
 
-# Note: geração de queries alternativas removida intencionalmente. O fluxo agora gera apenas queries para itens.
 
 def gerar_estrutura_de_queries(brief: Dict[str, Any]) -> List[Dict[str, Any]]:
     """

@@ -418,6 +418,93 @@
         }
       }
     },
+    "/cotacoes/{id}/remove-faltante": {
+      "post": {
+        "summary": "Remover elemento faltante",
+        "description": "Remove um elemento específico do campo faltantes da cotação e atualiza o status se necessário.",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID da cotação",
+            "required": true,
+            "type": "integer"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Critérios para identificar o elemento a ser removido",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "index": {
+                  "type": "integer",
+                  "description": "Índice do elemento no array faltantes",
+                  "example": 0
+                },
+                "query": {
+                  "type": "string",
+                  "description": "Query sugerida para identificar o elemento",
+                  "example": "servidor"
+                },
+                "nome": {
+                  "type": "string",
+                  "description": "Nome do produto para identificar o elemento",
+                  "example": "Servidor Dell"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Elemento removido com sucesso",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string"
+                },
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "elementoRemovido": {
+                      "type": "object"
+                    },
+                    "faltantesRestantes": {
+                      "type": "integer"
+                    },
+                    "novoStatus": {
+                      "type": "string",
+                      "enum": ["completa", "incompleta"]
+                    },
+                    "cotacao": {
+                      "$ref": "#/definitions/Cotacao"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Parâmetros inválidos ou índice fora do range"
+          },
+          "404": {
+            "description": "Cotação ou elemento não encontrado"
+          },
+          "500": {
+            "description": "Erro interno do servidor"
+          }
+        }
+      }
+    },
     "/produtos": {
       "get": {
         "summary": "Listar todos os produtos",
@@ -877,6 +964,116 @@
           }
         }
       }
+    },
+    "/sistema": {
+      "get": {
+        "summary": "Buscar configurações do sistema",
+        "description": "Retorna as configurações atuais do sistema (nome, idioma, fuso horário, moeda, backup).",
+        "tags": ["Sistema"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "Configurações encontradas",
+            "schema": {
+              "$ref": "#/definitions/SistemaResponse"
+            }
+          },
+          "500": {
+            "description": "Erro interno do servidor"
+          }
+        }
+      },
+      "post": {
+        "summary": "Criar ou atualizar configurações do sistema",
+        "description": "Salva as configurações do sistema (nome, idioma, fuso horário, moeda, backup).",
+        "tags": ["Sistema"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "sistema",
+            "description": "Dados das configurações do sistema",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/SistemaCreate"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Configurações salvas com sucesso",
+            "schema": {
+              "$ref": "#/definitions/SistemaResponse"
+            }
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "500": {
+            "description": "Erro interno do servidor"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Atualizar parcialmente configurações do sistema",
+        "description": "Atualiza apenas os campos especificados das configurações do sistema.",
+        "tags": ["Sistema"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "sistema",
+            "description": "Campos a serem atualizados",
+            "schema": {
+              "$ref": "#/definitions/SistemaUpdate"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Configurações atualizadas com sucesso",
+            "schema": {
+              "$ref": "#/definitions/SistemaResponse"
+            }
+          },
+          "400": {
+            "description": "Dados inválidos"
+          },
+          "404": {
+            "description": "Configurações não encontradas"
+          },
+          "500": {
+            "description": "Erro interno do servidor"
+          }
+        }
+      }
     }
   },
   "definitions": {
@@ -1028,6 +1225,183 @@
         "body": {
           "type": "string",
           "example": "O status da sua solicitação foi alterado."
+        }
+      }
+    },
+    "SistemaCreate": {
+      "type": "object",
+      "properties": {
+        "nome_empresa": {
+          "type": "string",
+          "example": "SmartQuote Ltda"
+        },
+        "idioma": {
+          "type": "string",
+          "example": "pt-BR"
+        },
+        "fuso_horario": {
+          "type": "string",
+          "example": "America/Sao_Paulo"
+        },
+        "moeda": {
+          "type": "string",
+          "example": "BRL"
+        },
+        "backup": {
+          "type": "string",
+          "example": "diario"
+        },
+        "manutencao": {
+          "type": "boolean",
+          "example": false
+        },
+        "tempo_de_sessao": {
+          "type": "integer",
+          "example": 480
+        },
+        "politica_senha": {
+          "type": "string",
+          "enum": ["forte", "medio"],
+          "example": "forte"
+        },
+        "log_auditoria": {
+          "type": "boolean",
+          "example": true
+        },
+        "ip_permitidos": {
+          "type": "string",
+          "example": "192.168.1.0/24,10.0.0.0/8"
+        }
+      },
+      "required": [
+        "nome_empresa",
+        "idioma",
+        "fuso_horario",
+        "moeda",
+        "backup",
+        "manutencao",
+        "tempo_de_sessao",
+        "politica_senha",
+        "log_auditoria",
+        "ip_permitidos"
+      ]
+    },
+    "SistemaUpdate": {
+      "type": "object",
+      "properties": {
+        "nome_empresa": {
+          "type": "string",
+          "example": "SmartQuote Pro Ltda"
+        },
+        "idioma": {
+          "type": "string",
+          "example": "en-US"
+        },
+        "fuso_horario": {
+          "type": "string",
+          "example": "America/New_York"
+        },
+        "moeda": {
+          "type": "string",
+          "example": "USD"
+        },
+        "backup": {
+          "type": "string",
+          "example": "semanal"
+        },
+        "manutencao": {
+          "type": "boolean",
+          "example": true
+        },
+        "tempo_de_sessao": {
+          "type": "integer",
+          "example": 360
+        },
+        "politica_senha": {
+          "type": "string",
+          "enum": ["forte", "medio"],
+          "example": "medio"
+        },
+        "log_auditoria": {
+          "type": "boolean",
+          "example": false
+        },
+        "ip_permitidos": {
+          "type": "string",
+          "example": "10.0.0.0/8"
+        }
+      }
+    },
+    "SistemaResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "example": true
+        },
+        "message": {
+          "type": "string",
+          "example": "Configurações do sistema encontradas"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "integer",
+              "example": 1
+            },
+            "nome_empresa": {
+              "type": "string",
+              "example": "SmartQuote Ltda"
+            },
+            "idioma": {
+              "type": "string",
+              "example": "pt-BR"
+            },
+            "fuso_horario": {
+              "type": "string",
+              "example": "America/Sao_Paulo"
+            },
+            "moeda": {
+              "type": "string",
+              "example": "BRL"
+            },
+            "backup": {
+              "type": "string",
+              "example": "diario"
+            },
+            "manutencao": {
+              "type": "boolean",
+              "example": false
+            },
+            "tempo_de_sessao": {
+              "type": "integer",
+              "example": 480
+            },
+            "politica_senha": {
+              "type": "string",
+              "enum": ["forte", "medio"],
+              "example": "forte"
+            },
+            "log_auditoria": {
+              "type": "boolean",
+              "example": true
+            },
+            "ip_permitidos": {
+              "type": "string",
+              "example": "192.168.1.0/24,10.0.0.0/8"
+            },
+            "criado_em": {
+              "type": "string",
+              "format": "date-time",
+              "example": "2025-08-29T10:00:00.000Z"
+            },
+            "atualizado_em": {
+              "type": "string",
+              "format": "date-time",
+              "example": "2025-08-29T10:00:00.000Z"
+            }
+          }
         }
       }
     }

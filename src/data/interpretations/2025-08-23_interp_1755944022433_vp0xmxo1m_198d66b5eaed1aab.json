@@ -1,0 +1,27 @@
+{
+  "id": "interp_1755944022433_vp0xmxo1m",
+  "emailId": "198d66b5eaed1aab",
+  "tipo": "pedido",
+  "prioridade": "média",
+  "solicitacao": "Estou interessado em alugar quiosques self-service portáteis para eventos, com bateria interna e conectividade 4G, para aluguel de curto prazo.",
+  "cliente": {
+    "nome": "Organizadora de Eventos",
+    "empresa": "Organizadora de Eventos",
+    "email": "eventos@organizadora.ao",
+    "telefone": null,
+    "website": null,
+    "localizacao": null
+  },
+  "confianca": 90,
+  "interpretedAt": "2025-08-23T10:13:42.433Z",
+  "rawGeminiResponse": "```json\n{\n  \"tipo\": \"pedido\",\n  \"prioridade\": \"média\",\n  \"solicitacao\": \"Estou interessado em alugar quiosques self-service portáteis para eventos, com bateria interna e conectividade 4G, para aluguel de curto prazo.\",\n  \"cliente\": {\n    \"nome\": \"Organizadora de Eventos\",\n    \"empresa\": \"Organizadora de Eventos\",\n    \"email\": \"eventos@organizadora.ao\",\n    \"telefone\": null,\n    \"website\": null,\n    \"localizacao\": null\n  },\n  \"confianca\": 90\n}\n```",
+  "dados_bruto": {
+    "id": "198d66b5eaed1aab",
+    "threadId": "",
+    "snippet": "pedido",
+    "from": "Dario Nzita <darionzita90@gmail.com>",
+    "subject": "pedido",
+    "date": "Sat, 23 Aug 2025 11:13:25 +0100",
+    "content": "*Assunto:* Quiosques para Feiras Temporárias\r\n*De:* eventos@organizadora.ao\r\n\r\nPrezados,\r\n\r\nInteressados em quiosques self-service portáteis para eventos, com bateria\r\ninterna e conectividade 4G. Possível aluguel curto-prazo?\r\n\r\nAtenciosamente,\r\nOrganizadora de Eventos\r\n"
+  }
+}

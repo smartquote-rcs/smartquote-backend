@@ -76,13 +76,7 @@ async create(data: User): Promise<UserDTO> {
   async getById(id: string): Promise<UserDTO | null> {
     const { data, error } = await supabase
       .from(this.table)
-      .select(`
-        id,
-        name,
-        email,
-        function
-        created_at
-      `)
+  .select(`id, name, email, position, created_at`)
       .eq('id', id)
       .single();
 

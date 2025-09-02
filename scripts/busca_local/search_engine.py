@@ -18,115 +18,165 @@ from busca_local.text_utils import (
 from busca_local.config import CATEGORY_EQUIV, STOPWORDS_PT, GROQ_API_KEY
 
 
-def _llm_escolher_indice(query: str, filtros: dict | None, candidatos: List[Dict[str, Any]]) -> int:
-    """Usa LLM (Groq) para escolher o índice do melhor candidato ou -1 se nenhum servir.
-
-    Contrato rápido:
-    - Input: query (str), filtros (dict ou None), candidatos (lista já limitada)
-    - Output: int (índice 0-based do candidato escolhido; -1 se nenhum adequado)
-    - Falhas: em erro de API ou chave ausente, retorna -1
+def _llm_escolher_indice(query: str, filtros: dict | None, custo_beneficio: dict | None, rigor: int | None, candidatos: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Usa LLM (Groq) para escolher o índice do melhor candidato e gerar relatório detalhado.
+    Esta versão foi refatorada para usar JSON garantido, tornando-a muito mais robusta.
     """
     if not candidatos:
-        return -1
+        return {"index": -1, "relatorio": {"erro": "Nenhum candidato fornecido"}}
 
-    api_key = os.environ.get("GROQ_API_KEY", GROQ_API_KEY)
+    # A API Key deve ser gerida de forma segura
+    api_key = os.environ.get("GROQ_API_KEY")
     if not api_key:
-        # Sem chave, não conseguimos refinar
-        return -1
+        return {"index": -1, "relatorio": {"erro": "API key da Groq não disponível"}}
 
-    # Compactar candidatos para o prompt (evitar payloads enormes)
+    # Compactar candidatos para o prompt, garantindo clareza para a LLM
     compacts: List[Dict[str, Any]] = []
     for i, c in enumerate(candidatos):
         compacts.append({
             "index": i,
+            "id": c.get("produto_id", ""),
             "nome": c.get("nome", ""),
-            "categoria": c.get("categoria") or c.get("modelo") or "",
+            "categoria": c.get("categoria_geral") or c.get("categoria") or "",
             "tags": c.get("tags") or [],
-            "descricao": (c.get("descricao") or "")[:400],
-            "preco": c.get("preco", None),
-            "estoque": c.get("estoque", None),
+            "descricao": (c.get("descricao_geral") or c.get("descricao") or "")[:400], # Limita o tamanho da descrição
+            "preco": c.get("preco"),
+            "estoque": c.get("estoque"),
         })
 
+    # --- PROMPT REFINADO PARA SAÍDA JSON ---
+    # A mudança principal é instruir a LLM a usar JSON.
     prompt_sistema = (
-        "Você é um assistente especializado em análise de produtos. Sua tarefa é analisar candidatos e escolher o melhor.\n"
-        "IMPORTANTE: Responda APENAS com um número JSON válido no formato exato: {\"index\": N}\n"
-        "Onde N é o índice (0, 1, 2...) do melhor candidato ou -1 se nenhum for adequado.\n"
-        "Critérios de avaliação:\n"
-        "1. Correspondência com a categoria solicitada\n"
-        "2. Atendimento às especificações técnicas\n"
-        "3. Relevância geral da consulta\n"
-        "4. Disponibilidade em estoque\n"
-        "5. Análise mais lógico-racional\n"
-        "NÃO adicione explicações, comentários ou texto extra. APENAS o JSON."
-    )
+    "Você é um Analista de Soluções de T.I. sénior, agindo como o módulo de decisão final do sistema SmartQuote. A sua análise deve ser lógica, objetiva e implacável na aplicação das regras.\n"
+    "A sua tarefa é analisar uma lista de produtos candidatos e gerar um relatório de recomendação, seguindo estritamente o formato JSON especificado.\n"
+    "Responda APENAS com um objeto JSON válido, sem comentários ou texto extra.\n\n"
+
+    "--- FORMATO DE SAÍDA (SUCESSO ou FALHA PARCIAL) ---\n"
+    "{\n"
+    '  "index": <int>,             // Índice (0, 1, 2...) do melhor candidato ou -1 se nenhum for totalmente elegível\n'
+    '  "relatorio": {\n'
+    '    "escolha_principal": "<string_or_null>",\n'
+    '    "justificativa_escolha": "<string>",\n'
+    '    "top_ranking": [\n'
+    '      {\n'
+    '        "posicao": <int>,\n'
+    '        "nome": "<string>",\n'
+    '        "preco": "<string>",\n'
+    '        "justificativa": "<string>",\n'
+    '        "pontos_fortes": ["<string>"],\n'
+    '        "pontos_fracos": ["<string>"],\n'
+    '        "score_estimado": <float>\n'
+    '      }\n'
+    '    ],\n'
+    '    "criterios_avaliacao": {\n'
+    '      "correspondencia_tipo": "<string>",\n'
+    '      "especificacoes": "<string>",\n'
+    '      "custo_beneficio": "<string>",\n'
+    '      "disponibilidade": "<string>"\n'
+    '    }\n'
+    '  }\n'
+    "}\n\n"
+
+    "--- FORMATO DE SAÍDA (FALHA TOTAL) ---\n"
+    "{\n"
+    '  "index": -1,\n'
+    '  "relatorio": {\n'
+    '    "escolha_principal": null,\n'
+    '    "justificativa_escolha": "Nenhum dos candidatos possui relevância mínima para a solicitação.",\n'
+    '    "top_ranking": [],\n'
+    '    "criterios_avaliacao": {\n'
+    '      "correspondencia_tipo": "Falhou. Nenhum candidato elegível ou parcialmente relevante foi encontrado.",\n'
+    '      "especificacoes": null,\n'
+    '      "custo_beneficio": null,\n'
+    '      "disponibilidade": null\n'
+    '    }\n'
+    '  }\n'
+    "}\n\n"
+
+    "--- REGRAS DE DECISÃO HIERÁRQUICAS ---\n"
+    "**PASSO 1: AVALIAÇÃO INDIVIDUAL E CLASSIFICAÇÃO (REGRA NÃO NEGOCIÁVEL)**\n"
+    "   - Para CADA candidato, analise a QUERY, os FILTROS e o RIGOR.\n"
+    "   - Classifique cada candidato numa de três categorias:\n"
+    "     1. **'Elegível':** Cumpre a correspondência de tipo de produto E todas as especificações obrigatórias impostas pelo 'rigor'.\n"
+    "     2. **'Parcialmente Relevante':** Cumpre a correspondência de tipo de produto, MAS falha num requisito de especificação imposto por um 'rigor' alto.\n"
+    "     3. **'Irrelevante':** O tipo de produto fundamental não corresponde à QUERY (ex: a query pede 'router' e o candidato é um 'switch').\n\n"
+
+    "**PASSO 2: DECISão principal e escolha do fluxo**\n"
+    "   - **Cenário A (SUCESSO):** Se existe PELO MENOS UM candidato 'Elegível'.\n"
+    "     - Escolha o melhor entre os 'Elegíveis' e defina o seu `index`.\n"
+    "     - Prossiga para o Passo 3 para gerar o relatório completo.\n"
+    "   - **Cenário B (FALHA PARCIAL):** Se NÃO existem candidatos 'Elegíveis', MAS existem candidatos 'Parcialmente Relevantes'.\n"
+    "     - Você DEVE definir `index: -1` e `escolha_principal: null`.\n"
+    "     - Prossiga para o Passo 3, mas o seu `top_ranking` só pode conter os candidatos 'Parcialmente Relevantes'.\n"
+    "   - **Cenário C (FALHA TOTAL):** Se todos os candidatos são 'Irrelevantes'.\n"
+    "     - Você DEVE parar e retornar o JSON no `Formato de FALHA TOTAL`.\n\n"
+
+    "**PASSO 3: ANÁLISE E GERAÇÃO DO RELATÓRIO**\n"
+    "   - Siga as instruções do cenário decidido no Passo 2.\n"
+    "   - **`top_ranking`:**\n"
+    "     - Não force um ranking. Liste apenas os candidatos que são 'Elegíveis' ou 'Parcialmente Relevantes'. Se só houver um, a lista terá um item.\n"
+    "     - **Para candidatos 'Parcialmente Relevantes'**: a `justificativa` DEVE explicar claramente qual especificação obrigatória falhou (ex: 'Excelente alternativa, mas não cumpre o requisito de 32GB de RAM').\n"
+    "   - **`criterios_avaliacao`:** Forneça uma análise honesta. Se a escolha foi difícil ou se nenhum candidato é perfeito, afirme isso."
+)
     filtros_str = "{}" if not filtros else json.dumps(filtros, ensure_ascii=False)
     user_msg = (
         f"QUERY: {query}\n"
         f"FILTROS: {filtros_str}\n"
-        f"CANDIDATOS: {json.dumps(compacts, ensure_ascii=False)}\n"
-        "Escolha o melhor índice ou -1."
+        f"DADOS ORCAMENTAIS: {custo_beneficio or {}}\n"
+        f"RIGOR: {rigor or 0}\n"
+        f"CANDIDATOS: {json.dumps(compacts, ensure_ascii=False)}\n\n"
+        "Analise e retorne o JSON completo com o ranking e as justificativas."
     )
 
     try:
+        # Importar a biblioteca Groq apenas quando necessário
+        from groq import Groq
+        
         client = Groq(api_key=api_key)
         resp = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            # Usar um modelo mais recente e robusto, se disponível
+            model="llama-3.3-70b-versatile", 
+            #model="llama-3.1-8b-instant",
             messages=[
                 {"role": "system", "content": prompt_sistema},
                 {"role": "user", "content": user_msg},
             ],
             temperature=0,
-            max_tokens=50,
+            max_tokens=4096,
             stream=False,
+            response_format={"type": "json_object"},
         )
         
-        content = (resp.choices[0].message.content or "").strip()
-        print(f"[LLM] Resposta bruta: '{content}'", file=sys.stderr)
+        content = (resp.choices[0].message.content or "{}").strip()
+        print(f"[LLM] Resposta bruta (JSON): '{content}'", file=sys.stderr)
         
-        # Tentar extrair JSON {"index": X}
-        idx = -1
-        try:
-            # Primeiro, tentar buscar por um padrão JSON na resposta
-            json_match = re.search(r'\{\s*"index"\s*:\s*(-?\d+)\s*\}', content)
-            if json_match:
-                idx = int(json_match.group(1))
-                print(f"[LLM] Índice extraído via regex JSON: {idx}", file=sys.stderr)
-            else:
-                # Se não achou padrão JSON, tentar parse direto
-                cleaned_content = content
-                # Se a resposta contém apenas um número, envolver em JSON
-                if re.match(r"^-?\d+$", content.strip()):
-                    cleaned_content = f'{{"index": {content.strip()}}}'
-                
-                data = json.loads(cleaned_content)
-                val = data.get("index")
-                if isinstance(val, int):
-                    idx = val
-                    print(f"[LLM] Índice extraído via JSON parse: {idx}", file=sys.stderr)
-        except Exception as e:
-            print(f"[LLM] Erro ao fazer parse do JSON: {e}", file=sys.stderr)
-            # fallback: buscar qualquer número na resposta
-            number_match = re.search(r"-?\d+", content)
-            if number_match:
-                try:
-                    idx = int(number_match.group(0))
-                    print(f"[LLM] Índice extraído via regex numérica: {idx}", file=sys.stderr)
-                except Exception:
-                    idx = -1
+        data = json.loads(content)
         
-        # Validar faixa
-        if idx is None or not isinstance(idx, int):
-            print(f"[LLM] Índice inválido: {idx}", file=sys.stderr)
-            idx = -1
-        if idx < 0 or idx >= len(candidatos):
-            print(f"[LLM] Índice fora da faixa: {idx} (válido: 0-{len(candidatos)-1})", file=sys.stderr)
-            return -1
+        # A lógica de validação pode ser mantida, pois é robusta
+        idx = data.get("index", -1)
+        #idx = -1
+        relatorio = data.get("relatorio", {})
+        if not isinstance(idx, int):
+             return {"index": -1, "relatorio": {"erro": f"Índice inválido: {idx}"}}
         
-        print(f"[LLM] Índice final selecionado: {idx}", file=sys.stderr)
-        return idx
+        if idx == -1:
+            print("[LLM] ⚠️ LLM rejeitou todos os candidatos.", file=sys.stderr)
+            return {"index": -1, "relatorio": relatorio or {"erro": "Nenhum candidato elegível."}}
+
+        if not (0 <= idx < len(candidatos)):
+            return {"index": -1, "relatorio": {"erro": f"Índice fora da faixa: {idx}"}}
+
+        print(f"[LLM] ✅ JSON recebido e válido - Índice escolhido: {idx}", file=sys.stderr)
+        return {"index": idx, "relatorio": relatorio}
+
+    except json.JSONDecodeError as e:
+        print(f"[LLM] ❌ Erro fatal ao fazer parse do JSON: {e}", file=sys.stderr)
+        return {"index": -1, "relatorio": {"erro": f"JSON malformado: {e}"}}
     except Exception as e:
-        print(f"[LLM] Erro na chamada da API: {e}", file=sys.stderr)
-        return -1
+        print(f"[LLM] ❌ Erro na chamada da API Groq: {e}", file=sys.stderr)
+        return {"index": -1, "relatorio": {"erro": f"Erro na API: {e}"}}
+
 
 def construir_filtro(filtros: dict = None):
     """Constrói filtros do Weaviate v4 (apenas estruturais, texto é tratado pela busca híbrida)."""
@@ -272,11 +322,11 @@ def buscar_hibrido_ponderado(client: weaviate.WeaviateClient, modelos: dict, que
     """Busca híbrida com ponderação (união de candidatos semânticos + BM25 e reranqueamento)."""
     # Monta descrição apenas para logs (filtros serão ponderados, não aplicados na query)
     filtro_desc = f" com filtros ponderados: {filtros}" if filtros else ""
-    print(f"\n--- BUSCA HÍBRIDA PONDERADA '{query}' em {espaco}{filtro_desc} ---")
+    print(f"\n--- BUSCA HÍBRIDA PONDERADA '{query}' em {espaco}{filtro_desc} ---", file=sys.stderr)
     
     modelo_ativo = modelos.get(espaco)
     if not modelo_ativo:
-        print(f"ERRO: Modelo para o espaço '{espaco}' não está carregado.")
+        print(f"ERRO: Modelo para o espaço '{espaco}' não está carregado.", file=sys.stderr)
         return []
 
     # 0. Preparos
@@ -294,7 +344,7 @@ def buscar_hibrido_ponderado(client: weaviate.WeaviateClient, modelos: dict, que
             return_metadata=wvc.query.MetadataQuery(distance=True)
         )
     except Exception as e:
-        print(f"Erro na busca semântica: {e}")
+        print(f"Erro na busca semântica: {e}", file=sys.stderr)
         res_semantica = None
 
     try:
@@ -306,14 +356,14 @@ def buscar_hibrido_ponderado(client: weaviate.WeaviateClient, modelos: dict, que
             return_metadata=wvc.query.MetadataQuery(score=True)
         )
     except Exception as e:
-        print(f"Erro na busca BM25: {e}")
+        print(f"Erro na busca BM25: {e}", file=sys.stderr)
         res_bm25 = None
 
     objs_sem = res_semantica.objects if res_semantica and getattr(res_semantica, 'objects', None) else []
     objs_bm = res_bm25.objects if res_bm25 and getattr(res_bm25, 'objects', None) else []
 
     if not objs_sem and not objs_bm:
-        print("Nenhum resultado encontrado.")
+        print("Nenhum resultado encontrado.", file=sys.stderr)
         return []
     
     # 2. Ponderação por especialistas
@@ -381,16 +431,17 @@ def buscar_hibrido_ponderado(client: weaviate.WeaviateClient, modelos: dict, que
     lista_final = lista_final[:limite]
 
     # 4. Exibir resultados
-    print(f"\n📊 Encontrados {len(lista_final)} produtos relevantes:")
+    print(f"\n📊 Encontrados {len(lista_final)} produtos candidatos no banco de dados:", file=sys.stderr)
     for i, r in enumerate(lista_final, 1):
-        preco_info = f" | R$ {r.get('preco', 0):.2f}" if r.get('preco') else ""
+        preco_info = f" |AOA$ {r.get('preco', 0):.2f}" if r.get('preco') else ""
         sem_pct = int(r['score_semantico'] * 100)
         txt_pct = int(r['score_textual'] * 100)
         pc_pct = int(r.get('score_palavras_chave', 0.0) * 100)
         flt_pct = int(r.get('score_filtro', 0.0) * 100)
         final_pct = int(r['score'] * 100)
         categoria_display = r.get('categoria', '') or r.get('modelo', '')
-        print(f"{i:2d}. {r['nome']} | {categoria_display}{preco_info}")
-        print(f"    📈 Score: {final_pct}% (Sem: {sem_pct}% + Txt: {txt_pct}% + PC: {pc_pct}% + Flt: {flt_pct}%)")
+        print(f"{i:2d}. {r['nome']}", file=sys.stderr)
+        print(f"    📈 Score: {final_pct}% (Sem: {sem_pct}% + Txt: {txt_pct}% + PC: {pc_pct}% + Flt: {flt_pct}%)", file=sys.stderr)
     
+    print(f"\n🔍 Estes produtos serão enviados para análise LLM para verificar se atendem aos critérios específicos da solicitação.", file=sys.stderr)
     return lista_final

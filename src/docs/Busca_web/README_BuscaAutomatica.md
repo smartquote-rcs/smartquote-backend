@@ -70,7 +70,7 @@ const todosProdutos = busca.combinarResultados(resultados);
 ### Filtros por Preço
 
 ```typescript
-// Filtrar produtos entre R$ 1000 e R$ 5000
+// Filtrar produtos entreAOA$ 1000 eAOA$ 5000
 const produtosFiltrados = busca.filtrarPorPreco(
   produtos,
   1000,  // preço mínimo
@@ -115,6 +115,7 @@ interface Product {
   image_url: string;
   description: string;
   product_url: string;
+  currency_unit
 }
 ```
 

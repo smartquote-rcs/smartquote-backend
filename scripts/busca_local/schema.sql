@@ -4,7 +4,6 @@
 CREATE TABLE public.cotacoes (
   id bigint NOT NULL DEFAULT nextval('cotacoes_id_seq'::regclass),
   prompt_id bigint NOT NULL,
-  produto_id bigint,
   aprovacao boolean,
   motivo character varying,
   aprovado_por bigint,
@@ -19,8 +18,7 @@ CREATE TABLE public.cotacoes (
   faltantes jsonb DEFAULT '[]'::jsonb,
   orcamento_geral numeric NOT NULL DEFAULT 0,
   CONSTRAINT cotacoes_pkey PRIMARY KEY (id),
-  CONSTRAINT cotacoes_prompt_id_fkey FOREIGN KEY (prompt_id) REFERENCES public.prompts(id),
-  CONSTRAINT cotacoes_produto_id_fkey FOREIGN KEY (produto_id) REFERENCES public.produtos(id)
+  CONSTRAINT cotacoes_prompt_id_fkey FOREIGN KEY (prompt_id) REFERENCES public.prompts(id)
 );
 CREATE TABLE public.cotacoes_itens (
   id bigint NOT NULL DEFAULT nextval('cotacoes_itens_id_seq'::regclass),
@@ -52,7 +50,7 @@ CREATE TABLE public.dados_info (
   CONSTRAINT dados_info_sistema_id_foreign FOREIGN KEY (sistema_id) REFERENCES public.sistema(id)
 );
 CREATE TABLE public.fornecedores (
-  id bigint NOT NULL,
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   nome character varying NOT NULL,
   contato_email character varying NOT NULL,
   contato_telefone character varying NOT NULL,
@@ -105,8 +103,8 @@ CREATE TABLE public.produtos (
   disponibilidade character varying NOT NULL DEFAULT 'imediata'::character varying CHECK (disponibilidade::text = ANY (ARRAY['imediata'::character varying::text, 'por encomenda'::character varying::text, 'limitada'::character varying::text])),
   especificacoes_tecnicas jsonb DEFAULT '{}'::jsonb,
   CONSTRAINT produtos_pkey PRIMARY KEY (id),
-  CONSTRAINT produtos_atualizado_por_foreign FOREIGN KEY (atualizado_por) REFERENCES public.users(id),
   CONSTRAINT produtos_fornecedor_id_foreign FOREIGN KEY (fornecedor_id) REFERENCES public.fornecedores(id),
+  CONSTRAINT produtos_atualizado_por_foreign FOREIGN KEY (atualizado_por) REFERENCES public.users(id),
   CONSTRAINT produtos_cadastrado_por_foreign FOREIGN KEY (cadastrado_por) REFERENCES public.users(id)
 );
 CREATE TABLE public.prompts (
@@ -115,7 +113,24 @@ CREATE TABLE public.prompts (
   dados_extraidos json NOT NULL,
   origem json NOT NULL,
   status character varying NOT NULL DEFAULT 'recebido'::character varying CHECK (status::text = ANY (ARRAY['recebido'::character varying, 'pendente'::character varying, 'analizado'::character varying, 'enviado'::character varying]::text[])),
+  dados_bruto json,
+  cliente jsonb,
   CONSTRAINT prompts_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.relatorios (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  cotacao_id bigint NOT NULL,
+  versao integer NOT NULL DEFAULT 1,
+  status character varying NOT NULL DEFAULT 'rascunho'::character varying CHECK (status::text = ANY (ARRAY['rascunho'::character varying, 'finalizado'::character varying, 'enviado'::character varying]::text[])),
+  criado_em timestamp with time zone NOT NULL DEFAULT now(),
+  atualizado_em timestamp with time zone NOT NULL DEFAULT now(),
+  criado_por bigint,
+  analise_local ARRAY,
+  analise_web ARRAY,
+  proposta_email jsonb,
+  CONSTRAINT relatorios_pkey PRIMARY KEY (id),
+  CONSTRAINT relatorios_criado_por_fkey FOREIGN KEY (criado_por) REFERENCES public.users(id),
+  CONSTRAINT relatorios_cotacao_id_fkey FOREIGN KEY (cotacao_id) REFERENCES public.cotacoes(id)
 );
 CREATE TABLE public.sistema (
   id bigint NOT NULL,

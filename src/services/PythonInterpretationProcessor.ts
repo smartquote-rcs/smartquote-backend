@@ -5,7 +5,7 @@
 import { spawn, ChildProcess } from 'child_process';
 import path from 'path';
 import os from 'os';
-import type { EmailInterpretation } from './GeminiInterpretationService';
+import type { EmailInterpretation, BuscaLocal } from './GeminiInterpretationService';
 
 interface PythonProcessResult {
   success: boolean;
@@ -18,7 +18,7 @@ type ResolveFn = (res: PythonProcessResult) => void;
 type RejectFn = (err: any) => void;
 
 interface QueueItem {
-  interpretation: EmailInterpretation;
+  interpretation: EmailInterpretation | BuscaLocal;
   resolve: ResolveFn;
   reject: RejectFn;
   rid: string;
@@ -215,12 +215,110 @@ class PythonInterpretationProcessor {
   /**
    * Enfileira e dispara se houver worker livre
    */
-  async processInterpretation(interpretation: EmailInterpretation): Promise<PythonProcessResult> {
+  async processInterpretation(interpretation: EmailInterpretation | BuscaLocal): Promise<PythonProcessResult> {
     return new Promise<PythonProcessResult>((resolve, reject) => {
       const rid = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
       this.queue.push({ interpretation, resolve, reject, rid });
       console.log(`📥 [PYTHON-POOL] Tarefa enfileirada (rid=${rid}). Fila: ${this.queue.length}`);
       this.pump();
+    });
+  }
+
+  /**
+   * Executa busca híbrida ponderada usando processo Python dedicado
+   */
+  async processHybridSearch(searchPayload: { pesquisa: string; filtros?: any; limite?: number }): Promise<PythonProcessResult> {
+    return new Promise<PythonProcessResult>((resolve, reject) => {
+      const startTime = Date.now();
+      
+      // Construir argumentos para o processo Python
+      const args = [this.scriptPath, '--only-buscar_hibrido_ponderado'];
+      if (searchPayload.limite) {
+        args.push('--limite', String(searchPayload.limite));
+      }
+
+      console.log(`🔍 [PYTHON-HYBRID] Iniciando busca híbrida: ${searchPayload.pesquisa}`);
+      
+      const proc = spawn('python', args, {
+        stdio: ['pipe', 'pipe', 'pipe'],
+        cwd: process.cwd(),
+        env: { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUTF8: '1' },
+        windowsHide: true
+      });
+
+      let stdoutBuffer = '';
+      let resultReceived = false;
+
+      // Timeout para a busca
+      const timeout = setTimeout(() => {
+        if (!resultReceived) {
+          console.error(`⏱️ [PYTHON-HYBRID] Timeout após ${this.taskTimeoutMs}ms`);
+          try { proc.kill('SIGKILL'); } catch {}
+          resolve({ success: false, error: 'Timeout na busca híbrida', executionTime: Date.now() - startTime });
+        }
+      }, this.taskTimeoutMs);
+
+      proc.stdout?.on('data', (data: Buffer) => {
+        stdoutBuffer += data.toString();
+        let idx;
+        while ((idx = stdoutBuffer.indexOf('\n')) >= 0) {
+          const line = stdoutBuffer.slice(0, idx).trim();
+          stdoutBuffer = stdoutBuffer.slice(idx + 1);
+          if (!line) continue;
+          
+          // Procurar por linhas que começam com [RESULTADO_JSON]
+          if (line.startsWith('[RESULTADO_JSON]')) {
+            const jsonStr = line.substring('[RESULTADO_JSON]'.length);
+            try {
+              const result = JSON.parse(jsonStr);
+              resultReceived = true;
+              clearTimeout(timeout);
+              const executionTime = Date.now() - startTime;
+              console.log(`✅ [PYTHON-HYBRID] Busca concluída em ${executionTime}ms`);
+              resolve({ success: true, result, executionTime });
+              return;
+            } catch (err) {
+              console.warn(`⚠️ [PYTHON-HYBRID] Erro ao parsear JSON: ${err}`);
+            }
+          }
+        }
+      });
+
+      proc.stderr?.on('data', (data: Buffer) => {
+        const s = data.toString();
+        console.log(`🐍 [PYTHON-HYBRID-LOG] ${s.trim()}`);
+      });
+
+      proc.on('error', (err: Error) => {
+        if (!resultReceived) {
+          resultReceived = true;
+          clearTimeout(timeout);
+          console.error(`❌ [PYTHON-HYBRID] Erro no processo: ${err.message}`);
+          resolve({ success: false, error: `Erro no processo Python: ${err.message}`, executionTime: Date.now() - startTime });
+        }
+      });
+
+      proc.on('close', (code: number) => {
+        if (!resultReceived) {
+          resultReceived = true;
+          clearTimeout(timeout);
+          console.warn(`⚠️ [PYTHON-HYBRID] Processo encerrado (code=${code})`);
+          resolve({ success: false, error: `Processo Python encerrado (code=${code})`, executionTime: Date.now() - startTime });
+        }
+      });
+
+      // Enviar payload via stdin
+      try {
+        const jsonPayload = JSON.stringify(searchPayload);
+        proc.stdin?.write(jsonPayload + '\n');
+        proc.stdin?.end();
+        console.log(`📤 [PYTHON-HYBRID] Payload enviado: ${jsonPayload}`);
+      } catch (err: any) {
+        resultReceived = true;
+        clearTimeout(timeout);
+        console.error(`❌ [PYTHON-HYBRID] Erro ao enviar payload: ${err.message}`);
+        resolve({ success: false, error: `Erro ao enviar dados: ${err.message}`, executionTime: Date.now() - startTime });
+      }
     });
   }
 

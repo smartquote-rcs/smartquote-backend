@@ -7,6 +7,7 @@ import swaggerUI from 'swagger-ui-express';
 import swaggerDocumentation from './swagger.json';
 import GlobalEmailMonitorManager from './services/GlobalEmailMonitorManager';
 import EstoqueMonitorService from './services/EstoqueMonitorService';
+import { removerCotacoesExpiradasHoje } from './services/RemoveExpiredCotacoes';
 
 const port = process.env.PORT_DEFAULT || 2001
 const app = express();
@@ -20,7 +21,15 @@ app.use("/api",routers);
 
 app.listen(port, async ()=>{
   console.log(`Server running in port=${port}`);
-  
+
+  // Remover cotações expiradas (prazo_validade igual à data atual)
+  try {
+    await removerCotacoesExpiradasHoje();
+    console.log('🗑️ Cotações expiradas removidas com sucesso');
+  } catch (error) {
+    console.error('❌ Erro ao remover cotações expiradas:', error);
+  }
+
   // Inicializar monitoramento de email automaticamente
   try {
     const globalMonitor = GlobalEmailMonitorManager.getInstance();

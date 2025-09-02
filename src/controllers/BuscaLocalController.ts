@@ -1,18 +1,22 @@
 import { Request, Response } from 'express';
 import { pythonProcessor } from '../services/PythonInterpretationProcessor';
 import { BuscaAutomatica } from '../services/BuscaAtomatica';
+import WebBuscaJobService from '../services/WebBuscaJobService';
 import FornecedorService from '../services/FornecedorService';
 import CotacoesItensService from '../services/CotacoesItensService';
 import supabase from '../infra/supabase/connect';
 import PromptsService from '../services/PromptsService';
 import CotacoesService from '../services/CotacoesService';
 import type { Cotacao } from '../models/Cotacao';
+import RelatorioService from '../services/RelatorioService';
+import { number } from 'zod';
 
 type BuscaLocalOptions = {
   limite?: number;
   multilingue?: boolean; // default: true
   criarCotacao?: boolean; // default: false
   timeoutMs?: number; // default: 120000
+  onlyBuscarHibridoPonderado?: boolean; // default: false
 };
 
 export class BuscaLocalController {
@@ -27,7 +31,92 @@ export class BuscaLocalController {
     if (opts.criarCotacao) {
       args.push('--criar-cotacao');
     }
+    if(opts.onlyBuscarHibridoPonderado)
+    {
+      args.push('--only-buscar_hibrido_ponderado');
+    }
     return args;
+  }
+
+  async searchLocal(req: Request, res: Response) {
+    try {
+      const pesquisa: string = (req.body?.pesquisa || '').toString().trim();
+      const limite = Number(req.body?.limite) || undefined;
+      const filtros = req.body?.filtros || undefined;
+
+      if (!pesquisa) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Campo "pesquisa" é obrigatório' 
+        });
+      }
+
+      console.log(`🔍 [BUSCA-LOCAL] Iniciando busca híbrida para: "${pesquisa}"`);
+      
+      // Preparar payload para o Python no formato esperado pelo --only-buscar_hibrido_ponderado
+      const searchPayload = {
+        pesquisa,
+        filtros: filtros || {},
+        limite
+      };
+
+      // Enviar para o processo Python usando o método especializado para busca híbrida
+      const result = await pythonProcessor.processHybridSearch(searchPayload);
+
+      if (!result.success) {
+        console.error(`❌ [BUSCA-LOCAL] Falha na busca: ${result.error}`);
+        return res.status(500).json({ 
+          success: false, 
+          message: 'Falha na busca local', 
+          error: result.error 
+        });
+      }
+
+      const pythonResult = result.result;
+      
+      if (pythonResult?.status === 'empty') {
+        console.log(`📭 [BUSCA-LOCAL] Nenhum resultado encontrado para: "${pesquisa}"`);
+        return res.status(200).json({
+          success: true,
+          message: 'Busca concluída - nenhum resultado encontrado',
+          resultados: [],
+          total: 0,
+          pesquisa,
+          filtros
+        });
+      }
+
+      if (pythonResult?.status === 'success' && Array.isArray(pythonResult.resultados)) {
+        const resultados = pythonResult.resultados;
+        console.log(`✅ [BUSCA-LOCAL] ${resultados.length} produtos encontrados para: "${pesquisa}"`);
+        
+        return res.status(200).json({
+          success: true,
+          message: 'Busca híbrida concluída com sucesso',
+          resultados,
+          total: resultados.length,
+          pesquisa,
+          filtros,
+          executionTime: result.executionTime
+        });
+      }
+
+      // Caso não esperado
+      console.warn(`⚠️ [BUSCA-LOCAL] Resultado inesperado do Python:`, pythonResult);
+      return res.status(500).json({
+        success: false,
+        message: 'Formato de resultado inesperado',
+        pythonResult
+      });
+
+    } catch (error: any) {
+      console.error(`❌ [BUSCA-LOCAL] Erro ao processar busca: ${error.message}`);
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Erro ao processar busca', 
+        error: error.message 
+      });
+    }
   }
 
   async search(req: Request, res: Response) {
@@ -36,7 +125,8 @@ export class BuscaLocalController {
       const limite = Number(req.body?.limite) || undefined;
       const multilingue = req.body?.multilingue !== undefined ? Boolean(req.body.multilingue) : true;
       const criarCotacao = req.body?.criarCotacao ? Boolean(req.body.criarCotacao) : false;
-
+      const searchWeb = req.body?.searchWeb !== undefined ? Boolean(req.body.searchWeb) : true;
+      const ponderacaoWeb_LLM = req.body?.ponderacao_busca_externa !== undefined ? Boolean(req.body.ponderacao_busca_externa) : false;
       if (!solicitacao) {
         return res.status(400).json({ success: false, message: 'Campo "solicitacao" é obrigatório' });
       }
@@ -54,7 +144,7 @@ export class BuscaLocalController {
       } as any);
 
       if (!result.success || !result.result) {
-        return res.status(500).json({ success: false, message: 'Falha na busca local', error: result.error });
+        return res.status(500).json({ success: false, message: 'Falha na busca local', error: result });
       }
 
   const payload = result.result || {};
@@ -62,33 +152,46 @@ export class BuscaLocalController {
   const resumoLocal = payload?.resultado_resumo || {};
   const cotacoesInfo = payload.cotacoes || null;
 
+  console.log(`🔍 [BUSCA-LOCAL] Processando busca para: "${solicitacao}"`);
+  console.log(`📊 [BUSCA-LOCAL] Produtos não encontrados no banco de dados: ${faltantes.length}`);
+  console.log(`🏠 [BUSCA-LOCAL] Resultados locais: ${Object.keys(resumoLocal).length} queries`);
+  console.log(`📋 [BUSCA-LOCAL] Cotação: ${cotacoesInfo?.principal_id || 'Nenhuma'}`);
+
   let produtosWeb: any[] = [];
-      if (faltantes.length > 0) {
-        const fornecedores = await FornecedorService.getFornecedoresAtivos();
-        const sites = fornecedores.map(f => f.url).filter(Boolean);
-        const cfg = await FornecedorService.getConfiguracoesSistema();
-        const numPorSite = cfg?.numResultadosPorSite ?? 5;
+  let resultadosCompletos: any[] = [];
+  if (faltantes.length > 0) {
+    console.log(`🌐 [BUSCA-LOCAL] Iniciando busca web para ${faltantes.length} faltantes`);
+    const svc = new WebBuscaJobService();
+    const statusUrls = await svc.createJobsForFaltantes(faltantes, solicitacao, ponderacaoWeb_LLM);
+    console.log(`🚀 [BUSCA-LOCAL] Jobs criados: ${statusUrls.length}`);
+    
+    const { resultadosCompletos: resultados, produtosWeb: aprovados } = await svc.waitJobs(statusUrls);
+    produtosWeb = aprovados;
+    resultadosCompletos = resultados;
+    console.log(`✅ [BUSCA-LOCAL] Jobs concluídos: ${produtosWeb.length} produtos aprovados`);
+    console.log(`📋 [BUSCA-LOCAL] Resultados completos: ${resultadosCompletos.length} jobs`);
+    
+    // Verificar se precisamos criar cotação para produtos web
+    if (produtosWeb.length > 0 && !cotacoesInfo?.principal_id) {
+      console.log(`📝 [BUSCA-LOCAL] Cotação será criada para receber ${produtosWeb.length} produtos web`);
+    }
+  }
 
-        const busca = new BuscaAutomatica();
-        // para cada faltante, buscar em todos os sites
-        const promessas = faltantes.map((f: any) => busca.buscarProdutosMultiplosSites(f.query_sugerida || solicitacao, sites, numPorSite));
-        const resultados = await Promise.all(promessas);
-        resultados.forEach(arr => {
-          produtosWeb.push(...(new BuscaAutomatica()).combinarResultados(arr));
-        });
-      }
-
-  // Garantir uma cotação principal: usar a que o Python criou, ou criar agora
-      let itensInseridos = 0;
+        // Usar a cotação que o Python já criou, ou criar apenas se necessário
       let cotacaoPrincipalId: number | null = cotacoesInfo?.principal_id ?? null;
-  // Novo critério: se houver resultados locais (mesmo sem faltantes/produtosWeb), também criaremos cotação
-  const temResultadosLocais = Object.values(resumoLocal).some((arr: any) => Array.isArray(arr) && arr.length > 0);
-  if (!cotacaoPrincipalId && (produtosWeb.length > 0 || faltantes.length > 0 || temResultadosLocais)) {
-        // Criar prompt e cotação principal - usar dados do Python se disponível
+      const temResultadosLocais = Object.values(resumoLocal).some((arr: any) => Array.isArray(arr) && arr.length > 0);
+      
+      console.log(`🏗️ [BUSCA-LOCAL] Verificando cotação:`);
+      console.log(`   - Cotação: ${cotacaoPrincipalId || 'Nenhuma'}`);
+      console.log(`   - Produtos web: ${produtosWeb.length}`);
+      console.log(`   - Faltantes: ${faltantes.length}`);
+      
+      // Só criar cotação se o Python não criou e realmente precisarmos
+      if (!cotacaoPrincipalId && (produtosWeb.length > 0 || faltantes.length > 0)) {
+        console.log(`📝 [BUSCA-LOCAL] Criando nova cotação para produtos web/faltantes`);
         const dadosExtraidos = payload?.dados_extraidos || {
           solucao_principal: solicitacao,
           tipo_de_solucao: 'sistema',
-          tags_semanticas: [],
           itens_a_comprar: faltantes.map((f: any) => ({
             nome: f.nome || 'Item não especificado',
             natureza_componente: 'software',
@@ -97,15 +200,17 @@ export class BuscaLocalController {
             quantidade: f.quantidade || 1
           }))
         };
-        const promptId = await PromptsService.create({
+        const prompt = await PromptsService.create({
           texto_original: solicitacao,
           dados_extraidos: dadosExtraidos,
+          cliente: payload?.cliente || {},
+          dados_bruto: payload?.dados_bruto || {},
           origem: { tipo: 'servico', fonte: 'api' },
           status: 'analizado'
         });
-        if (promptId) {
+        if (prompt.id) {
           const nova: Cotacao = {
-            prompt_id: promptId,
+            prompt_id: prompt.id,
             status: 'incompleta',
             aprovacao: false,
             faltantes: faltantes?.length ? faltantes : [],
@@ -114,64 +219,50 @@ export class BuscaLocalController {
           try {
             const criada = await CotacoesService.create(nova);
             cotacaoPrincipalId = criada?.id ?? null;
+            console.log(`✅ [BUSCA-LOCAL] Cotação criada com sucesso: ID ${cotacaoPrincipalId}`);
           } catch (e) {
-            console.error('Erro ao criar cotação principal:', e);
+            console.error('❌ [BUSCA-LOCAL] Erro ao criar cotação principal:', e);
           }
         }
+      } else if (cotacaoPrincipalId) {
+        console.log(`📋 [BUSCA-LOCAL] Usando cotação existente: ID ${cotacaoPrincipalId}`);
+      } else {
+        console.log(`ℹ️ [BUSCA-LOCAL] Nenhuma cotação necessária (apenas resultados locais)`);
       }
   // Inserir itens web, se houver
-  if (cotacaoPrincipalId && produtosWeb.length > 0) {
-        for (const p of produtosWeb) {
-          try {
-            const idItem = await CotacoesItensService.insertWebItem(Number(cotacaoPrincipalId), p);
-            if (idItem) itensInseridos++;
-          } catch (e) {
-            console.error('Erro ao inserir item web na cotação:', e);
-          }
+  if (cotacaoPrincipalId && resultadosCompletos.length > 0 && searchWeb) {
+        console.log(`🔧 [BUSCA-LOCAL] Iniciando inserção de ${resultadosCompletos.length} resultados de jobs na cotação ${cotacaoPrincipalId}`);
+        
+        try {
+          const svc = new WebBuscaJobService();
+          
+          const inseridos = await svc.insertJobResultsInCotacao(Number(cotacaoPrincipalId), resultadosCompletos);
+          
+          await svc.recalcOrcamento(Number(cotacaoPrincipalId));
+          
+          console.log(`✅ [BUSCA-LOCAL] ${inseridos} itens web inseridos na cotação ${cotacaoPrincipalId}`);
+        } catch (e) {
+          console.error('❌ [BUSCA-LOCAL] Erro ao inserir itens web na cotação:', e);
+          console.error('❌ [BUSCA-LOCAL] Stack trace:', (e as any)?.stack);
         }
-        // Recalcular orçamento geral na tabela de cotações
+      } else {
+        console.log(`⚠️ [BUSCA-LOCAL] Condições não atendidas para inserção web:`);
+        console.log(`   - cotacaoPrincipalId: ${cotacaoPrincipalId}`);
+      }
+
+      // O Python já cria os itens locais automaticamente, não precisamos duplicar aqui
+      // Apenas recalcular orçamento se houver resultados locais
+      if (cotacaoPrincipalId && temResultadosLocais) {
         await this.recalcularOrcamento(Number(cotacaoPrincipalId));
       }
 
-      // Inserir pelo menos 1 item local por query (top-1), quando não houver itens web e houver resultados locais
-  // Evitar duplicação: só inserir locais pelo Node se o Python NÃO tiver criado cotação
-  if (!cotacaoPrincipalId && temResultadosLocais) {
-        for (const [qid, arr] of Object.entries(resumoLocal)) {
-          const lista = Array.isArray(arr) ? arr as any[] : [];
-          if (!lista.length) continue;
-          const top = lista[0];
-          // payload do Python inclui produto_id para locais
-          const produtoIdLocal = top?.produto_id;
-          if (!produtoIdLocal) continue;
-          try {
-            // inserir item local com snapshot básico
-            await supabase
-              .from('cotacoes_itens')
-              .insert({
-                cotacao_id: Number(cotacaoPrincipalId),
-                origem: 'local',
-                produto_id: produtoIdLocal,
-                item_nome: top?.nome || null,
-                item_descricao: top?.categoria || null,
-                item_preco: top?.preco ?? null,
-                item_moeda: 'AOA',
-                quantidade: 1,
-                payload: { query_id: qid, score: top?.score }
-              });
-            itensInseridos++;
-          } catch (e) {
-            console.error('Erro ao inserir item local na cotação:', e);
-          }
-        }
-        await this.recalcularOrcamento(Number(cotacaoPrincipalId));
-      }
-
+      // Relatório será gerado automaticamente pelo WebBuscaJobService quando a cotação estiver completa
+      
       return res.status(200).json({
         success: true,
         message: 'Busca híbrida concluída',
         dados_python: payload,
         resultados_web: produtosWeb,
-        itens_web_inseridos: itensInseridos,
         cotacao_principal_id: cotacaoPrincipalId,
       });
     } catch (error: any) {
@@ -199,6 +290,7 @@ export class BuscaLocalController {
       console.error('Erro ao recalcular orçamento:', e);
     }
   }
+
 }
 
 export default new BuscaLocalController();

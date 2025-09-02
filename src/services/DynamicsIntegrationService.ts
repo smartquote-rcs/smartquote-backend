@@ -173,8 +173,16 @@ class DynamicsIntegrationService {
   async testarConexao(): Promise<boolean> {
     try {
       console.log(`🔍 [DYNAMICS] Testando conexão com Dynamics...`);
+      console.log(`🔍 [DYNAMICS] Config atual:`, {
+        organizationId: this.config.organizationId,
+        environmentId: this.config.environmentId,
+        webApiEndpoint: this.config.webApiEndpoint,
+        discoveryEndpoint: this.config.discoveryEndpoint,
+        hasToken: !!this.config.accessToken
+      });
       
       const url = `${this.config.webApiEndpoint}/$metadata`;
+      console.log(`🔍 [DYNAMICS] Testando URL: ${url}`);
       
       const headers: Record<string, string> = {
         'Accept': 'application/xml'
@@ -182,22 +190,34 @@ class DynamicsIntegrationService {
 
       if (this.config.accessToken) {
         headers['Authorization'] = `Bearer ${this.config.accessToken}`;
+        console.log(`🔍 [DYNAMICS] Token configurado: ${this.config.accessToken.substring(0, 50)}...`);
+      } else {
+        console.warn(`⚠️ [DYNAMICS] Nenhum token de acesso configurado!`);
       }
+  
+      console.log(`🔍 [DYNAMICS] Headers:`, headers);
 
       const response = await fetch(url, { 
         method: 'GET',
         headers 
       });
 
+      console.log(`🔍 [DYNAMICS] Response status: ${response.status}`);
+      console.log(`🔍 [DYNAMICS] Response headers:`, Object.fromEntries(response.headers.entries()));
+
       if (response.ok) {
         console.log(`✅ [DYNAMICS] Conexão com Dynamics estabelecida com sucesso!`);
         return true;
       } else {
+        const errorBody = await response.text();
         console.error(`❌ [DYNAMICS] Falha na conexão: HTTP ${response.status}`);
+        console.error(`❌ [DYNAMICS] Response body:`, errorBody);
         return false;
       }
     } catch (error) {
       console.error(`❌ [DYNAMICS] Erro ao testar conexão:`, error);
+      console.error(`❌ [DYNAMICS] Tipo do erro:`, error instanceof Error ? error.name : typeof error);
+      console.error(`❌ [DYNAMICS] Mensagem do erro:`, error instanceof Error ? error.message : error);
       return false;
     }
   }

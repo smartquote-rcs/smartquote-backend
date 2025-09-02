@@ -1,152 +1,52 @@
 [
   {
-    "id": "198c285e37ac0a73",
-    "savedAt": "2025-08-19T14:27:33.192Z",
+    "id": "1990548e3c899ede",
+    "savedAt": "2025-09-02T11:22:08.886Z",
     "formats": [
       "json"
     ],
     "filePaths": [
-      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-08-19T14-27-33-161Z_198c285e37ac0a73_TI.json"
-    ]
-  },
-  {
-    "id": "198c2747988985b9",
-    "savedAt": "2025-08-19T14:27:34.069Z",
-    "formats": [
-      "json"
-    ],
-    "filePaths": [
-      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-08-19T14-27-33-824Z_198c2747988985b9_TI.json"
-    ]
-  },
-  {
-    "id": "198c25bd83d08a32",
-    "savedAt": "2025-08-19T14:27:35.613Z",
-    "formats": [
-      "json"
-    ],
-    "filePaths": [
-      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-08-19T14-27-35-610Z_198c25bd83d08a32_Re_TI.json"
-    ]
-  },
-  {
-    "id": "198c257622229b89",
-    "savedAt": "2025-08-19T14:27:35.789Z",
-    "formats": [
-      "json"
-    ],
-    "filePaths": [
-      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-08-19T14-27-35-758Z_198c257622229b89_TI.json"
-    ]
-  },
-  {
-    "id": "198c23657d770cfe",
-    "savedAt": "2025-08-19T14:27:44.572Z",
-    "formats": [
-      "json"
-    ],
-    "filePaths": [
-      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-08-19T14-27-44-565Z_198c23657d770cfe_Re_Ti.json"
-    ]
-  },
-  {
-    "id": "198c2492395d5d23",
-    "savedAt": "2025-08-19T14:27:45.085Z",
-    "formats": [
-      "json"
-    ],
-    "filePaths": [
-      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-08-19T14-27-45-077Z_198c2492395d5d23_TI.json"
-    ]
-  },
-  {
-    "id": "198c2479260f1405",
-    "savedAt": "2025-08-19T14:27:45.192Z",
-    "formats": [
-      "json"
-    ],
-    "filePaths": [
-      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-08-19T14-27-45-184Z_198c2479260f1405_TI.json"
-    ]
-  },
-  {
-    "id": "198c241a4a7ae54d",
-    "savedAt": "2025-08-19T14:27:45.313Z",
-    "formats": [
-      "json"
-    ],
-    "filePaths": [
-      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-08-19T14-27-45-308Z_198c241a4a7ae54d_TI.json"
-    ]
-  },
-  {
-    "id": "198c2c0af88a8bb8",
-    "savedAt": "2025-08-19T14:38:13.652Z",
-    "formats": [
-      "json"
-    ],
-    "filePaths": [
-      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-08-19T14-38-13-644Z_198c2c0af88a8bb8_Boa_noite.json"
-    ]
-  },
-  {
-    "id": "198c2bdea8ed9e40",
-    "savedAt": "2025-08-19T14:38:21.183Z",
-    "formats": [
-      "json"
-    ],
-    "filePaths": [
-      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-08-19T14-38-21-106Z_198c2bdea8ed9e40_Boa_noite.json"
-    ]
-  },
-  {
-    "id": "1990548cddbe760e",
-    "savedAt": "2025-09-01T13:17:49.733Z",
-    "formats": [
-      "json"
-    ],
-    "filePaths": [
-      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-09-01T13-17-49-723Z_1990548cddbe760e_Computador_DELL_da_12.json"
+      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-09-02T11-22-08-878Z_1990548e3c899ede_Computador_Dell.json"
     ]
   },
   {
     "id": "199054bbfb82f03b",
-    "savedAt": "2025-09-01T13:17:50.148Z",
+    "savedAt": "2025-09-02T11:22:09.370Z",
     "formats": [
       "json"
     ],
     "filePaths": [
-      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-09-01T13-17-50-145Z_199054bbfb82f03b_Pedido_de_Cotacao.json"
+      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-09-02T11-22-09-358Z_199054bbfb82f03b_Pedido_de_Cotacao.json"
     ]
   },
   {
-    "id": "1990548e3c899ede",
-    "savedAt": "2025-09-01T13:17:50.271Z",
+    "id": "1990a135f459aa89",
+    "savedAt": "2025-09-02T11:22:09.639Z",
     "formats": [
       "json"
     ],
     "filePaths": [
-      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-09-01T13-17-50-261Z_1990548e3c899ede_Computador_Dell.json"
+      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-09-02T11-22-09-636Z_1990a135f459aa89_Pedido_de_Cotao_Servidor_de_A.json"
+    ]
+  },
+  {
+    "id": "1990548cddbe760e",
+    "savedAt": "2025-09-02T11:22:10.467Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-09-02T11-22-10-428Z_1990548cddbe760e_Computador_DELL_da_12.json"
     ]
   },
   {
     "id": "198fa81df6ee5d2e",
-    "savedAt": "2025-09-01T13:18:02.141Z",
+    "savedAt": "2025-09-02T11:22:19.312Z",
     "formats": [
       "json"
     ],
     "filePaths": [
-      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-09-01T13-18-02-137Z_198fa81df6ee5d2e_Computador_Dell.json"
-    ]
-  },
-  {
-    "id": "198fa7dd447871fb",
-    "savedAt": "2025-09-01T13:18:02.548Z",
-    "formats": [
-      "json"
-    ],
-    "filePaths": [
-      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-09-01T13-18-02-543Z_198fa7dd447871fb_Computador_Dell.json"
+      "C:\\Users\\User02\\Documents\\smartquote-backend\\src\\data\\emails\\json\\2025-09-02T11-22-19-295Z_198fa81df6ee5d2e_Computador_Dell.json"
     ]
   }
 ]

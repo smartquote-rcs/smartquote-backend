@@ -27,4 +27,8 @@ buscaRouter.get("/config", BuscaController.getConfig);
 // GET /busca-automatica/produtos/:fornecedorId - Lista produtos salvos de um fornecedor
 buscaRouter.get("/produtos/:fornecedorId", BuscaController.getProdutosPorFornecedor);
 
+// GET /busca-automatica/procurarSites - Lista sites sugeridos
+buscaRouter.get("/procurarSites", BuscaController.getSitesSugeridos);
+
+
 export default buscaRouter;

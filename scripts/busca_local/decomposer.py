@@ -42,12 +42,11 @@ class SolutionDecomposer:
         PREENCHA OS CAMPOS ABAIXO EXATAMENTE COMO ESPECIFICADO:
 
         1. **solucao_principal**: Descrição clara e objetiva da solução proposta.
-        2. **tags_semanticas**: Lista de sinônimos e termos relacionados que descrevem a solucao_principal.
-        3. **tipo_de_solucao**: 
+        2. **tipo_de_solucao**: 
         - Use "produto" para soluções em que, na aquisição, seja necessário apenas um único item ou pacote fechado, mesmo que incluam múltiplas partes internas.
         - Use "sistema" para soluções compostas por múltiplos elementos que precisam ser adquiridos separadamente, ou pedido de varios produtos.
-        4. **complexidade_estimada**: Um dos seguintes valores: **"simples"**, **"medio"**, **"complexo"**.
-        5. **itens_a_comprar**: Lista de itens que devem ser adquiridos separadamente para compor a solução (primeiro item sendo o principal), cada um com:
+        3. **complexidade_estimada**: Um dos seguintes valores: **"simples"**, **"medio"**, **"complexo"**.
+        4. **itens_a_comprar**: Lista de itens ("hardware", "software" ou "servico") que devem ser adquiridos separadamente para compor a solução (primeiro item sendo o principal), cada um com:
         - **nome**: pode ser geral como "Computador", "Impressora" ou específico como "Impressora HP LaserJet" dependendo da necessidade do cliente.
         - **natureza_componente**: "hardware", "software" ou "servico"
         - **prioridade**: "critica", "alta", "media" ou "baixa" (tudo especificado pelo usuário e partes imprescindíveis é "critica" ou "alta")
@@ -62,23 +61,25 @@ class SolutionDecomposer:
         - **tags**: lista de tags relacionadas a este item (ou deixe vazia)
         - **alternativas**: lista de alternativas equivalentes (ou vazia)
         - **quantidade**: número inteiro indicando quantos itens são necessários
-        6. **alternativas_viaveis**: Lista de outras soluções viáveis (nunca vazia) com:
-        - **nome**, **tipo**, 
-        - **vantagens**: lista de pontos positivos
-        - **limitacoes**: lista de desvantagens ou restrições
-        - **cenario_recomendado**: str onde essa alternativa seria preferível
-        - **economia_estimada**: valor aproximado de economia (número decimal)
-        7. **orcamento_estimado_range**: objeto com os campos:
-        - **minimo**: valor inteiro (Kwanzas)
-        - **maximo**: valor inteiro (Kwanzas)
-        8. **prazo_implementacao_dias**: número inteiro com a estimativa de dias
-        9. **preferencias_usuario**: lista de preferências expressas pelo cliente (ex: ["preferência por soluções open-source", "manutenção local"])
-
+        - **orcamento_estimado**: valor inteiro (Kwanzas) indicando o orçamento unitario máximo para este item (se não especificado: 0)
+        - **preferencias_usuario**: lista de preferências expressas pelo cliente de forma implícita ou explícita sobre o item (ex: ["preferência por soluções open-source", "manutenção local"])
+        - **rigor**: inteiro (0–5) indicando quão exatamente o usuário quer o item:
+            - 0 = genérico ("um computador")
+            - 1 = pouco específico, com uma característica mínima
+            - 2 = algumas características, ainda aberto a variações
+            - 3 = moderadamente específico, margem de flexibilidade
+            - 4 = quase fechado, pequenas variações possíveis
+            - 5 = rígido, modelo exato exigido
+        5. **prazo_implementacao_dias**: número inteiro com a estimativa de dias (se não especificado: 0)
+       
         ---
 
         ATENÇÃO:
         - Respeite os nomes dos campos exatamente como estão.
         - Retorne somente um YAML válido conforme as instruções. Nenhum texto adicional.
+        - Não invente informações só por estarem em falta
+        - Se a descrição do item for genérica (ex.: "computador", "impressora"), registre apenas como está, sem acrescentar requisitos ou limitações.
+        - Se a descrição do item indicar uma categoria específica (ex.: "computador de alto desempenho", "impressora multifuncional"), registre apenas os requisitos mínimos necessários que caracterizam essa categoria, sem extrapolar.
         - sem chaves {} no final
 
         """
@@ -107,17 +108,13 @@ class SolutionDecomposer:
             
             try:
                 data_dict = yaml.safe_load(yaml_output_string)
+                
                 resposta_validada = DecompositionResult.model_validate(data_dict)
                 
                 print("\n✅ DECOMPOSIÇÃO CONCLUÍDA COM SUCESSO!")
                 print(f"📌 Solução Principal: {resposta_validada.solucao_principal}")
                 print(f"🔧 Tipo de Solução: {resposta_validada.tipo_de_solucao}")
                 print(f"📦 Itens a Comprar: {len(resposta_validada.itens_a_comprar)} itens")
-                print(f"🔄 Alternativas Viáveis: {len(resposta_validada.alternativas_viaveis)} alternativas")
-                if resposta_validada.orcamento_estimado_range:
-                    orcamento_min = resposta_validada.orcamento_estimado_range.get('minimo', 'N/A')
-                    orcamento_max = resposta_validada.orcamento_estimado_range.get('maximo', 'N/A')
-                    print(f"💰 Orçamento Estimado: {orcamento_min} - {orcamento_max} Kz")
                 print("-" * 60 + "\n")
                 
                 return resposta_validada
@@ -170,36 +167,23 @@ class SolutionDecomposer:
                 "especificacoes_minimas": comp.especificacoes_minimas,
                 "justificativa": comp.justificativa,
                 "tags": comp.tags or [],
-                "quantidade": getattr(comp, "quantidade", 1) or 1
+                "quantidade": getattr(comp, "quantidade", 1) or 1,
+                "orcamento_estimado": getattr(comp, "orcamento_estimado", 0) or 0,
+                "preferencias_usuario": comp.preferencias_usuario or [],
+                "rigor": getattr(comp, "rigor", 0) or 0,
             })
         
-        # Mapear alternativas viáveis
-        alternativas = []
-        for alt in result.alternativas_viaveis:
-            alternativas.append({
-                "nome": alt.nome,
-                "tipo": alt.tipo,
-                "vantagens": alt.vantagens,
-                "limitacoes": alt.limitacoes,
-                "cenario_recomendado": alt.cenario_recomendado
-            })
         
         brief = {
             "solucao_principal": result.solucao_principal,
             "tipo_de_solucao": result.tipo_de_solucao,
-            "tags_semanticas": result.tags_semanticas,
             "itens_a_comprar": itens,
-            "alternativas_viaveis": alternativas,
-            "preferencias_usuario": result.preferencias_usuario,
-            "orcamento_estimado_range": result.orcamento_estimado_range,
             "prazo_implementacao_dias": result.prazo_implementacao_dias,
         }
         
         print("✅ BRIEF GERADO COM SUCESSO!")
         print(f"📊 Resumo do Brief:")
         print(f"   - Itens a comprar: {len(itens)}")
-        print(f"   - Alternativas viáveis: {len(alternativas)}")
-        print(f"   - Tags semânticas: {len(result.tags_semanticas)}")
         print("-" * 60 + "\n")
         
         return brief

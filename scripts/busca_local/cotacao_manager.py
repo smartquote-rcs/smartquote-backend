@@ -1,4 +1,6 @@
 from typing import Dict, Any, List, Optional
+from busca_local.config import API_BASE_URL
+import requests
 
 class CotacaoManager:
     def __init__(self, supabase_manager):
@@ -8,52 +10,100 @@ class CotacaoManager:
         """Verifica se o cliente Supabase está disponível."""
         return self.supabase.is_available()
 
+
+    def insert_relatorio(self, cotacao_id: int, analise_local: List[Dict[str, Any]], criado_por: int = None):
+        """
+        Insere um relatório na tabela 'relatorios' e retorna o id criado, se já existir adiciona apenas o payload no array.
+        """
+        if not self._is_available():
+            print("⚠️ Supabase indisponível: não foi possível criar relatório.")
+            return None
+
+        try:
+            # Verifica se já existe relatorio para a cotação
+            resp = self.supabase.supabase.table("relatorios").select("id, analise_local").eq("cotacao_id", cotacao_id).order("id", desc=True).limit(1).execute()
+            data = getattr(resp, "data", None) or []
+            if data:
+                relatorio = data[0]
+                relatorio_id = relatorio["id"]
+                # Adiciona o novo payload ao array analise_local
+                analise_atual = relatorio.get("analise_local") or []
+                novo_analise = analise_atual + analise_local
+                self.supabase.supabase.table("relatorios").update({"analise_local": novo_analise, "atualizado_em": "now()"}).eq("id", relatorio_id).execute()
+                print(f"📝 Relatório atualizado: id={relatorio_id}")
+                return relatorio_id
+            else:
+                # Cria novo relatorio
+                body = {
+                    "cotacao_id": cotacao_id,
+                    "analise_local": analise_local,
+                    "criado_por": criado_por,
+                    "versao": 1,
+                    "status": "rascunho"
+                }
+                resp = self.supabase.supabase.table("relatorios").insert(body).execute()
+                data = getattr(resp, "data", None) or []
+                if data and "id" in data[0]:
+                    relatorio_id = data[0]["id"]
+                    print(f"📝 Relatório criado: id={relatorio_id}")
+                    return relatorio_id
+                print(f"⚠️ Falha ao obter id do relatório criado. Resposta: {resp}")
+        except Exception as e:
+            print(f"❌ Erro ao criar/atualizar relatório: {e}")
+        return None
+
+
+        
     def insert_prompt(
         self,
         texto_original: str,
         dados_extraidos: Dict[str, Any],
+        cliente: Dict[str, Any],
         *,
         origem: Optional[Dict[str, Any]] = None,
-        status: Optional[str] = "analizado"
+        status: Optional[str] = "analizado",
+        dados_bruto: Dict[str, Any]
     ) -> Optional[int]:
         """
-        Cria um registro em 'prompts' e retorna o id.
+        Cria um registro em 'prompts' via API REST e retorna o id.
         """
-        if not self._is_available():
-            print("⚠️ Supabase indisponível: não foi possível criar prompt.")
-            return None
         body: Dict[str, Any] = {
             "texto_original": texto_original or "",
             "dados_extraidos": dados_extraidos or {},
+            "cliente": cliente or {},
             "origem": origem or {"tipo": "interativo", "fonte": "nlp_parser"},
+            "dados_bruto": dados_bruto or {}
         }
         if status:
             body["status"] = status
-        # 1) tentativa direta
+        if dados_bruto:
+            body["dados_bruto"] = dados_bruto
+
+        # URL da API (ajuste conforme necessário)
+        api_url = f"{API_BASE_URL}/api/prompts"
+
         try:
-            resp = self.supabase.supabase.table("prompts").insert(body).execute()
-            data = getattr(resp, "data", None) or []
-            if isinstance(data, list) and data and isinstance(data[0], dict) and "id" in data[0]:
-                pid = data[0]["id"]
-                print(f"📝 Prompt criado: id={pid}")
-                return pid
+            response = requests.post(api_url, json=body)
+            if response.status_code == 201:
+                resp_json = response.json()
+                # Tenta extrair o id do campo 'data', senão pega diretamente do objeto
+                prompt_id = None
+                if "data" in resp_json:
+                    prompt_data = resp_json["data"]
+                    if isinstance(prompt_data, dict):
+                        prompt_id = prompt_data.get("id")
+                    elif isinstance(prompt_data, list) and prompt_data:
+                        prompt_id = prompt_data[0].get("id")
+                elif "id" in resp_json:
+                    prompt_id = resp_json["id"]
+                if prompt_id is not None:
+                    print(f"📝 Prompt criado via API: id={prompt_id}")
+                    return prompt_id
+                print(f"⚠️ Prompt criado mas id não encontrado. Resposta: {resp_json}")
+            else:
+                print(f"❌ Erro ao criar prompt via API: {response.status_code} - {response.text}")
         except Exception as e:
-            print(f"⚠️ Insert direto em prompts falhou: {e}")
-        # 2) fallback: gerar próximo id simples
-        try:
-            q = self.supabase.supabase.table("prompts").select("id").order("id", desc=True).limit(1).execute()
-            rows = getattr(q, "data", None) or []
-            next_id = (rows[0]["id"] + 1) if rows else 1
-            body2 = dict(body)
-            body2["id"] = next_id
-            resp2 = self.supabase.supabase.table("prompts").insert(body2).execute()
-            data2 = getattr(resp2, "data", None) or []
-            if isinstance(data2, list) and data2:
-                print(f"📝 Prompt criado (fallback): id={data2[0].get('id', next_id)}")
-                return data2[0].get("id", next_id)
-            print(f"⚠️ Falha ao obter id do prompt criado. Resposta: {resp2}")
-        except Exception as ie:
-            print(f"❌ Fallback ao criar prompt falhou: {ie}")
+            print(f"❌ Erro ao chamar API de prompt: {e}")
         return None
 
     def insert_cotacao(
@@ -64,75 +114,54 @@ class CotacaoManager:
         observacoes: Optional[str] = None,
         condicoes: Optional[Dict[str, Any]] = None,
         faltantes: Optional[List[Dict[str, Any]]] = None,
-        produto_id: Optional[int] = None,
         aprovacao: Optional[bool] = None,
         motivo: Optional[str] = None,
         aprovado_por: Optional[int] = None,
         prazo_validade: Optional[str] = None
     ) -> Optional[int]:
         """
-        Cria uma cotação mínima. Não exige produto_id e suporta salvar ids de queries faltantes.
+        Cria uma cotação mínima via API REST. Não exige produto_id e suporta salvar ids de queries faltantes.
         """
-        if not self._is_available():
-            print("⚠️ Supabase indisponível: não foi possível criar cotação.")
-            return None
-
         payload: Dict[str, Any] = {"prompt_id": prompt_id}
-        # Status automático: completa se não houver faltantes; incompleta caso contrário
         if status is None:
             status = "incompleta" if (faltantes and len(faltantes) > 0) else "completa"
         payload["status"] = status
-        # Aprovação padrão false se não informada
         payload["aprovacao"] = bool(aprovacao) if aprovacao is not None else False
-
-        # Campos opcionais apenas se fornecidos
         if observacoes:
             payload["observacoes"] = observacoes
         if condicoes is not None:
             payload["condicoes"] = condicoes
         if faltantes is not None:
             payload["faltantes"] = faltantes
-        if produto_id is not None:
-            payload["produto_id"] = produto_id
         if motivo is not None:
             payload["motivo"] = motivo
         if aprovado_por is not None:
             payload["aprovado_por"] = aprovado_por
         if prazo_validade is not None:
             payload["prazo_validade"] = prazo_validade
-        # Iniciar orçamento geral com zero
         payload.setdefault("orcamento_geral", 0)
 
+        # URL da API (ajuste conforme necessário)
+        api_url = f"{API_BASE_URL}/api/cotacoes"
+
         try:
-            resp = self.supabase.supabase.table("cotacoes").insert(payload).execute()
-            data = getattr(resp, "data", None) or []
-            if isinstance(data, list) and data and isinstance(data[0], dict) and "id" in data[0]:
-                cotacao_id = data[0]["id"]
-                print(f"🧾 Cotação criada: id={cotacao_id}")
-                return cotacao_id
-
-            # Fallback: buscar última cotação por prompt_id
-            try:
-                q = (
-                    self.supabase.supabase.table("cotacoes")
-                    .select("id")
-                    .eq("prompt_id", prompt_id)
-                    .order("id", desc=True)
-                    .limit(1)
-                    .execute()
-                )
-                qd = getattr(q, "data", None) or []
-                if qd:
-                    cotacao_id = qd[0].get("id")
-                    if cotacao_id is not None:
-                        print(f"🧾 Cotação criada (fallback): id={cotacao_id}")
-                        return cotacao_id
-            except Exception as ie:
-                print(f"⚠️ Fallback de busca de cotação falhou: {ie}")
-
-            print(f"⚠️ Falha ao obter id da cotação criada. Resposta: {resp}")
+            response = requests.post(api_url, json=payload)
+            if response.status_code == 201:
+                resp_json = response.json()
+                cotacao_data = resp_json.get("data")
+                cotacao_id = None
+                if isinstance(cotacao_data, dict):
+                    cotacao_id = cotacao_data.get("id")
+                elif isinstance(cotacao_data, list) and cotacao_data:
+                    cotacao_id = cotacao_data[0].get("id")
+                if cotacao_id is not None:
+                    print(f"🧾 Cotação criada via API: id={cotacao_id}")
+                    return cotacao_id
+                print(f"⚠️ Cotação criada mas id não encontrado. Resposta: {resp_json}")
+            else:
+                print(f"❌ Erro ao criar cotação via API: {response.status_code} - {response.text}")
         except Exception as e:
-            print(f"❌ Erro ao criar cotação: {e}")
+            print(f"❌ Erro ao chamar API de cotação: {e}")
         return None
 
     def _build_item_snapshot_from_result(self, resultado: Dict[str, Any]) -> Dict[str, Any]:

@@ -5,14 +5,14 @@
 O SmartQuote é um sistema híbrido que combina busca local (em base de dados própria) com busca automática na web para gerar cotações completas. O sistema pode ser acionado de duas formas:
 
 1. **Via Email** - Monitoramento automático de emails
-2. **Via API HTTP** - Requisições diretas para `/api/busca-local`
+2. **Via API HTTP** - Requisições diretas para `/api/busca`
 
 ## Arquitetura do Sistema
 
 ```
 ┌─────────────────┐    ┌─────────────────┐
 │     Email       │    │   HTTP Request  │
-│   Monitoring    │    │   /busca-local  │
+│   Monitoring    │    │   /busca  │
 └─────────┬───────┘    └─────────┬───────┘
           │                      │
           ▼                      ▼
@@ -60,7 +60,7 @@ O SmartQuote é um sistema híbrido que combina busca local (em base de dados pr
 
 #### 1.2 Fluxo via HTTP
 ```
-🌐 POST /api/busca-local
+🌐 POST /api/busca
      ↓
 📝 Validação da solicitação
      ↓
@@ -107,8 +107,6 @@ O SmartQuote é um sistema híbrido que combina busca local (em base de dados pr
     "solucao_principal": "API KYC-AML para verificação bancária",
     "tipo_de_solucao": "produto",
     "itens_a_comprar": [...],
-    "alternativas_viaveis": [...],
-    "orcamento_estimado_range": {...}
   }
   ```
 
@@ -270,7 +268,7 @@ graph TD
 
 ```mermaid
 graph TD
-    A[🌐 POST /busca-local] --> B[📝 Validate Request]
+    A[🌐 POST /busca] --> B[📝 Validate Request]
     B --> C[🐍 Python Worker]
     C --> D[🤖 LLM Decomposition] 
     D --> E[🔍 Local Search]
@@ -316,7 +314,6 @@ graph TD
 {
   "solucao_principal": "API KYC-AML para verificação bancária",
   "tipo_de_solucao": "produto",
-  "tags_semanticas": ["KYC", "AML", "verificação"],
   "itens_a_comprar": [
     {
       "nome": "API KYC-AML",
@@ -327,11 +324,6 @@ graph TD
       "quantidade": 1
     }
   ],
-  "alternativas_viaveis": [...],
-  "orcamento_estimado_range": {
-    "minimo": 5000000,
-    "maximo": 10000000
-  },
   "prazo_implementacao_dias": 30
 }
 ```

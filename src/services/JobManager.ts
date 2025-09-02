@@ -6,7 +6,7 @@ import { fork, ChildProcess, spawn } from 'child_process';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 
-interface JobStatus {
+interface  JobStatus {
   id: string;
   status: 'pendente' | 'executando' | 'concluido' | 'erro';
   criadoEm: Date;
@@ -17,6 +17,14 @@ interface JobStatus {
     numResultados: number;
     fornecedores: number[];
     usuarioId?: number;
+    quantidade?: number; // Nova propriedade para quantidade
+    custo_beneficio?: any; // Nova propriedade para custo-benefício
+    rigor?: number; // Novo parâmetro para rigor
+    ponderacao_web_llm?: number; 
+    refinamento?: boolean; // Nova flag para indicar se deve fazer refinamento LLM
+    salvamento?: boolean; // Nova flag para indicar se deve fazer salvamento
+    faltante_id?: string; // ID do faltante para rastreamento
+    urls_add?: {url: string, escala_mercado: string}[]; // URLs adicionais para busca
   };
   progresso?: {
     etapa: 'busca' | 'salvamento';
@@ -25,6 +33,7 @@ interface JobStatus {
     detalhes?: string;
   };
   resultado?: {
+    relatorio?: any;
     produtos?: any[];
     salvamento?: {
       salvos: number;
@@ -47,7 +56,15 @@ class JobManager {
     termo: string,
     numResultados: number,
     fornecedores: number[],
-    usuarioId?: number
+    usuarioId?: number,
+    quantidade?: number,
+    custo_beneficio?: any,
+    rigor?: number,
+    refinamento?: boolean,
+    salvamento?: boolean,
+    faltante_id?: string,
+    urls_add?: {url: string, escala_mercado: string}[],
+    ponderacao_web_llm?: number
   ): string {
     const jobId = uuidv4();
     
@@ -59,13 +76,21 @@ class JobManager {
         termo,
         numResultados,
         fornecedores,
-        usuarioId
+        usuarioId,
+        quantidade: quantidade || 1,
+        custo_beneficio: custo_beneficio || {},
+        rigor: rigor || 0,
+        ponderacao_web_llm,
+        refinamento,
+        salvamento,
+        faltante_id,
+        urls_add
       }
     };
     
     this.jobs.set(jobId, job);
     
-    console.log(`📝 Job criado: ${jobId} para busca "${termo}"`);
+    console.log(`📝 Job criado: ${jobId} para busca "${termo}"${refinamento ? ' (com refinamento LLM)' : ''}${faltante_id ? ` - Faltante ID: ${faltante_id}` : ''}`);
     
     // Executar job imediatamente
     this.executarJob(jobId);
@@ -141,7 +166,15 @@ class JobManager {
       termo: job.parametros.termo,
       numResultados: job.parametros.numResultados,
       fornecedores: job.parametros.fornecedores,
-      usuarioId: job.parametros.usuarioId
+      usuarioId: job.parametros.usuarioId,
+      quantidade: job.parametros.quantidade,
+      custo_beneficio: job.parametros.custo_beneficio,
+      rigor: job.parametros.rigor,
+      ponderacao_web_llm: job.parametros.ponderacao_web_llm,
+      refinamento: job.parametros.refinamento,
+      salvamento: job.parametros.salvamento,
+      faltante_id: job.parametros.faltante_id,
+      urls_add: job.parametros.urls_add
     };
     
     childProcess.stdin?.write(JSON.stringify(jobData) + '\n');
@@ -173,7 +206,8 @@ class JobManager {
       // Filtrar logs normais do worker que não são erros
       if (stderrData.includes('[WORKER]') || 
           stderrData.includes('[dotenv@') ||
-          stderrData.includes('tip:')) {
+          stderrData.includes('tip:') ||
+          stderrData.includes('DeprecationWarning: The `punycode` module is deprecated')) {
         // Estes são logs normais, não erros
         console.log(`🔧 Worker log [${jobId}]: ${stderrData.trim()}`);
       } else {
@@ -213,7 +247,9 @@ class JobManager {
       // Job concluído com sucesso
       job.status = 'concluido';
       job.concluidoEm = new Date();
+      job.parametros.quantidade = message.quantidade;
       job.resultado = {
+        relatorio: message.relatorio,
         produtos: message.produtos,
         salvamento: message.salvamento,
         tempoExecucao: message.tempoExecucao

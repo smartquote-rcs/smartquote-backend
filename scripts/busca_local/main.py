@@ -8,7 +8,7 @@ import os
 import sys
 import json
 import argparse
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # Adicionar o diretório pai ao path para permitir imports relativos
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -16,7 +16,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from busca_local.config import LIMITE_PADRAO_RESULTADOS, LIMITE_MAXIMO_RESULTADOS, GROQ_API_KEY
 from busca_local.weaviate_client import WeaviateManager
 from busca_local.supabase_client import SupabaseManager
-from busca_local.search_engine import buscar_hibrido_ponderado
+from busca_local.search_engine import buscar_hibrido_ponderado, _llm_escolher_indice
 from busca_local.query_builder import gerar_estrutura_de_queries
 from busca_local.cotacao_manager import CotacaoManager
 
@@ -70,22 +70,30 @@ def executar_estrutura_de_queries(
         lista = list(agregados.values())
         lista.sort(key=lambda x: x["score"], reverse=True)
 
-        # Refinamento LLM no resultado final mesclado
-        from busca_local.search_engine import _llm_escolher_indice
-        idx_escolhido = -1
+        resultado_llm = {"index": -1, "relatorio": {}}
         try:
-            idx_escolhido = _llm_escolher_indice(q["query"], q.get("filtros") or None, lista)
+            resultado_llm = _llm_escolher_indice(q["query"], q.get("filtros") or None, q.get("custo_beneficio") or None, q.get("rigor") or None, lista)
+            print(f"🧠 [LLM] Resultado para {q['id']}: índice={resultado_llm.get('index')}, relatório={len(resultado_llm.get('relatorio', {}))} campos")
         except Exception as e:
             print(f"[LLM] Erro ao executar refinamento: {e}")
-            idx_escolhido = -1
+            resultado_llm = {"index": -1, "relatorio": {}}
+        
+        idx_escolhido = resultado_llm.get("index", -1)
+        relatorio_llm = resultado_llm.get("relatorio", {})
+        
         if isinstance(idx_escolhido, int) and 0 <= idx_escolhido < len(lista):
             escolhido = lista[idx_escolhido]
             escolhido["llm_match"] = True
             escolhido["llm_index"] = idx_escolhido
+            escolhido["llm_relatorio"] = relatorio_llm  # Adicionar relatório LLM
             print(f"🎯 Índice escolhido pela LLM: {idx_escolhido} - {escolhido.get('nome', 'N/A')}")
+            print(f"🧠 [LLM] Produto escolhido tem relatório: {bool(escolhido.get('llm_relatorio'))} - {len(escolhido.get('llm_relatorio', {}))} campos")
             lista = [escolhido]
         else:
-            print("🎯 Nenhum candidato disponível após refinamento LLM")
+            if idx_escolhido == -1:
+                print("🎯 LLM rejeitou todos os produtos candidatos - nenhum atende aos critérios específicos")
+            else:
+                print(f"🎯 Índice LLM inválido: {idx_escolhido} (esperado: 0-{len(lista)-1})")
             lista = []
 
         resultados_por_query[q["id"]] = lista
@@ -94,7 +102,7 @@ def executar_estrutura_de_queries(
         if verbose:
             print(f"\n📌 Top {min(limite, len(lista))} para {q['id']}:", file=sys.stderr)
             for i, r in enumerate(lista[:limite], start=1):
-                preco_info = f" | R$ {r.get('preco', 0):.2f}" if r.get('preco') else ""
+                preco_info = f" |AOA$ {r.get('preco', 0):.2f}" if r.get('preco') else ""
                 categoria_display = r.get('categoria', '') or r.get('modelo', '')
                 print(f" {i:2d}. {r['nome']} | {categoria_display}{preco_info} | Score {int(r['score']*100)}%", file=sys.stderr)
 
@@ -206,6 +214,7 @@ def processar_interpretacao(
             "tipo": qm.get("tipo"),
             "nome": nome_amigavel,
             "query": qm.get("query"),
+            "custo_beneficio": filtros.get("custo_beneficio"),
             "categoria": filtros.get("categoria"),
             "palavras_chave": filtros.get("palavras_chave"),
             "quantidade": qm.get("quantidade"),
@@ -218,6 +227,7 @@ def processar_interpretacao(
         nome = (meta.get("nome") or "").strip()
         categoria = (meta.get("categoria") or "").strip()
         palavras = meta.get("palavras_chave") or []
+        custo_beneficio = meta.get("custo_beneficio") or {} 
         if isinstance(palavras, list):
             palavras_str = " ".join([str(p).strip() for p in palavras if str(p).strip()])
         else:
@@ -231,6 +241,7 @@ def processar_interpretacao(
             "tipo": meta.get("tipo"),
             "nome": nome or None,
             "categoria": categoria or None,
+            "custo_beneficio": custo_beneficio,
             "palavras_chave": palavras or None,
             "quantidade": meta.get("quantidade") or 1,
             "query_sugerida": query_sugerida or None,
@@ -245,6 +256,8 @@ def processar_interpretacao(
         "prioridade": interpretation.get("prioridade"),
         "confianca": interpretation.get("confianca"),
         "dados_extraidos": brief,  # Incluir o JSON estruturado do LLM
+        "cliente": interpretation.get("cliente"),
+        "dados_bruto": interpretation.get("dados_bruto"),
         "faltantes": tarefas_web,
         "resultado_resumo": _resumo_resultados(resultados, limite_resultados),
     }
@@ -257,7 +270,10 @@ def processar_interpretacao(
         prompt_id = cotacao_manager.insert_prompt(
             texto_original=solicitacao,
             dados_extraidos=brief,
-            origem={"tipo": "servico", "fonte": "stdin"},
+            cliente=interpretation.get("cliente"),
+            dados_bruto=interpretation.get("dados_bruto"),
+
+            origem={"tipo": "local", "interpretation_id": interpretation.get("id")},
             status="analizado",
         )
         if not prompt_id:
@@ -279,6 +295,7 @@ def processar_interpretacao(
             prompt_id=prompt_id,
             faltantes=tarefas_web if tarefas_web else None,
             observacoes="Cotação principal (automática).",
+            prazo_validade=(datetime.now() + timedelta(days=15)).isoformat()
         )
 
         itens_adicionados = 0
@@ -310,63 +327,44 @@ def processar_interpretacao(
                     )
                     continue
 
+                # Adicionar relatório LLM ao payload se disponível
+                payload = {
+                    "query_id": qid, 
+                    "score": top_resultado.get("score"), 
+                    "alternativa": False
+                }
+                 
+                # Se o produto foi aprovado pelo LLM, incluir o relatório
+                if top_resultado.get('llm_relatorio'):
+                    payload["llm_relatorio"] = top_resultado.get('llm_relatorio')
+                    print(f"🧠 [COTACAO] Adicionando relatório LLM para {qid}: {len(top_resultado.get('llm_relatorio', {}))} campos")
+                else:
+                    print(f"⚠️ [COTACAO] Nenhum relatório LLM encontrado para {qid}")
+                
+               
+                
+                #inserir relatorio local, se já existe adionar apenas o payload no array
+                relatorio_id = cotacao_manager.insert_relatorio(
+                    cotacao_id=cotacao1_id,
+                    analise_local=[payload],
+                    criado_por=interpretation.get("criado_por"),
+                )
+
                 item_id = cotacao_manager.insert_cotacao_item_from_result(
                     cotacao_id=cotacao1_id,
                     resultado_produto=top_resultado,
                     origem="local",
                     produto_id=produto_id_local,
-                    payload={"query_id": qid, "score": top_resultado.get("score"), "alternativa": False},
+                    payload=payload,
                     quantidade=quantidade,
                 )
                 if item_id:
                     itens_adicionados += 1
                     produtos_principais.add(produto_id_local)  # Adicionar produto ao conjunto
 
-        alternativas_ids: List[str] = []
-        alternativas = [qid for qid, meta in meta_por_id.items() if meta.get("tipo") == "alternativa"]
-        for qid in alternativas:
-            res_list = resultados.get(qid) or []
-            if not res_list:
-                continue
-            top_resultado = res_list[0]
-            produto_id_local = top_resultado.get("produto_id")
-            nome_alt = meta_por_id.get(qid, {}).get("fonte", {}).get("nome") or top_resultado.get("nome", "")
-
-            # Verificar se o produto da alternativa já está na cotação principal
-            if produto_id_local in produtos_principais:
-                print(
-                    f"⚠️ Alternativa '{nome_alt}' com produto '{top_resultado.get('nome')}' já está na cotação principal. Pulando.",
-                    file=sys.stderr,
-                )
-                continue
-
-            cotacao_alt_id = cotacao_manager.insert_cotacao(
-                prompt_id=prompt_id,
-                observacoes=f"Cotação alternativa - {nome_alt}",
-                condicoes={"tipo": "alternativa", "query_id": qid},
-            )
-            if not cotacao_alt_id:
-                print(f"❌ Falha ao criar cotação alternativa para '{nome_alt}'.", file=sys.stderr)
-                continue
-
-            if not produto_id_local:
-                print(f"⚠️ Alternativa '{top_resultado.get('nome')}' sem ID de produto. Pulando.", file=sys.stderr)
-                continue
-
-            item_id = cotacao_manager.insert_cotacao_item_from_result(
-                cotacao_id=cotacao_alt_id,
-                resultado_produto=top_resultado,
-                origem="local",
-                produto_id=produto_id_local,
-                payload={"query_id": qid, "score": top_resultado.get("score"), "alternativa": True},
-            )
-            if item_id:
-                alternativas_ids.append(str(cotacao_alt_id))
-
         saida["cotacoes"] = {
             "principal_id": cotacao1_id,
-            "itens_adicionados": itens_adicionados,
-            "alternativas_ids": alternativas_ids,
+            "itens_adicionados": itens_adicionados
         }
 
     return saida
@@ -377,6 +375,7 @@ def main():
     parser.add_argument("--limite", type=int, default=LIMITE_PADRAO_RESULTADOS, help="Limite de resultados por query")
     parser.add_argument("--no-multilingue", dest="no_multilingue", action="store_true", help="Desativa vetor multilingue")
     parser.add_argument("--criar-cotacao", action="store_true", help="Cria cotações automaticamente quando houver resultados")
+    parser.add_argument("--only-buscar_hibrido_ponderado", action="store_true", help="Busca apenas híbrido ponderado")
     args = parser.parse_args()
 
     limite = args.limite
@@ -407,6 +406,16 @@ def main():
         produtos = supabase_manager.get_produtos()
         if produtos:
             print(f"🔄 Indexando {len(produtos)} produtos do Supabase...", file=sys.stderr)
+            # Limpeza de órfãos em Weaviate antes de reindexar
+            try:
+                valid_ids = {int(p.get("id") or p.get("produto_id")) for p in produtos if (p.get("id") or p.get("produto_id"))}
+            except Exception:
+                valid_ids = set()
+            try:
+                if valid_ids:
+                    weaviate_manager.remover_orfaos(valid_ids)
+            except Exception as e:
+                print(f"⚠️ Falha na limpeza de órfãos no Weaviate: {e}", file=sys.stderr)
             produtos_indexados = 0
             for produto in produtos:
                 try:
@@ -453,6 +462,69 @@ def main():
                 usar_multilingue=usar_multilingue,
                 criar_cotacao=args.criar_cotacao,
             )
+
+        if args.only_buscar_hibrido_ponderado:
+            print("🔍 [PYTHON] Buscando apenas híbrido ponderado", file=sys.stderr)
+            modelos = weaviate_manager.get_models()
+            espacos = ["vetor_portugues"] + (["vetor_multilingue"] if modelos.get("vetor_multilingue") is not None and usar_multilingue else [])
+            def executar_busca_hibrida(payload):
+                query = payload.get("pesquisa", "").strip()
+                filtros = payload.get("filtros", {})
+                if not query:
+                    print(json.dumps({"status": "error", "error": "Nenhuma pesquisa informada."}))
+                    return
+                limite_busca = limite
+                resultados = []
+                for espaco in espacos:
+                    r = buscar_hibrido_ponderado(
+                        weaviate_manager.client,
+                        modelos,
+                        query,
+                        espaco,
+                        limite=limite_busca,
+                        filtros=filtros,
+                    )
+                    resultados.extend(r)
+                if not resultados:
+                    print("[RESULTADO_JSON]" + json.dumps({"status": "empty", "resultados": []}), flush=True)
+                else:
+                    saida = []
+                    for res in resultados:
+                        saida.append({
+                            "produto_id": res.get("produto_id"),
+                            "nome": res.get("nome"),
+                            "score": res.get("score"),
+                            "estoque": res.get("estoque"),
+                            "descricao": res.get("descricao"),
+                            "preco": res.get("preco"),
+                            "categoria": res.get("categoria", res.get("modelo", "")),
+                        })
+                    print("[RESULTADO_JSON]" + json.dumps({"status": "success", "resultados": saida}, ensure_ascii=False), flush=True)
+            if args.server:
+                print("🐍 [PYTHON] Servidor busca híbrida (linha por tarefa)", file=sys.stderr)
+                for line in sys.stdin:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        payload = json.loads(line)
+                        executar_busca_hibrida(payload)
+                    except Exception as e:
+                        print(f"❌ Erro ao processar linha: {e}", file=sys.stderr)
+                return
+            else:
+                input_data = sys.stdin.read().strip()
+                if not input_data:
+                    print("❌ [PYTHON] Nenhum dado recebido via stdin", file=sys.stderr)
+                    sys.exit(1)
+                try:
+                    payload = json.loads(input_data)
+                except Exception as e:
+                    print(f"❌ [PYTHON] Erro ao fazer parse do JSON: {e}", file=sys.stderr)
+                    sys.exit(1)
+                executar_busca_hibrida(payload)
+                return
+           
 
         if args.server:
             print("🐍 [PYTHON] Servidor iniciado (linha por tarefa)", file=sys.stderr)

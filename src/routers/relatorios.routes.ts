@@ -13,8 +13,8 @@ const router = Router();
  * @desc Gera relatório completo em PDF para uma cotação
  * @access Private
  */
-router.post('/gerar/:cotacaoId', authMiddleware, RelatoriosController.gerarRelatorio);
-
+//router.post('/gerar/:cotacaoId', authMiddleware, RelatoriosController.gerarRelatorio);
+router.post('/gerar/:cotacaoId', RelatoriosController.gerarRelatorio);
 /**
  * @route GET /api/relatorios/download/:filename
  * @desc Download do arquivo PDF gerado

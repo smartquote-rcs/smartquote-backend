@@ -55,13 +55,7 @@ export class ExemploBuscaAutomatica {
       
       console.log(`Total de produtos encontrados: ${todosProdutos.length}`);
       
-      // Filtrar por faixa de preço (exemplo: produtos entreAOA$ 1000 eAOA$ 5000)
-      const produtosFiltrados = this.buscaAutomatica.filtrarPorPreco(
-        todosProdutos,
-        1000,
-        5000
-      );
-
+      
       console.log(`Produtos na faixa de preço: ${produtosFiltrados.length}`);
       
       return produtosFiltrados;

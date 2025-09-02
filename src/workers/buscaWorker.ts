@@ -394,12 +394,6 @@ async function processarJob(message: JobMessage) {
 
     // 3. Aplicar filtros se necessário
     const configuracoes = await FornecedorService.getConfiguracoesSistema();
-    const { precoMinimo, precoMaximo } = configuracoes;
-    
-    if (precoMinimo !== null || precoMaximo !== null) {
-      todosProdutos = buscaService.filtrarPorPreco(todosProdutos, precoMinimo, precoMaximo);
-      log(`Produtos após filtro de preço: ${todosProdutos.length}`);
-    }
 
     // 4. Aplicar refinamento LLM se solicitado
     let relatorioLLM = null;

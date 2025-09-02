@@ -11,6 +11,7 @@ export interface RelatorioData {
     llm_relatorio: {
       top_ranking: Array<{
         nome: string;
+        id: number;
         preco: string;
         posicao: number;
         justificativa: string;
@@ -70,6 +71,7 @@ export interface RankingItem {
   pontos_fracos: string[];
   score_estimado: number;
   url?: string;
+  id?: number;
 }
 
 export interface CriteriosAvaliacao {

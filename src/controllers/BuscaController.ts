@@ -76,15 +76,7 @@ class BuscaController {
       console.log(`Produtos antes dos filtros: ${todosProdutos.length}`);
       console.log(`Configuração: ${numResultados} produtos por site x ${sitesParaBusca.length} sites = máximo ${numResultados * sitesParaBusca.length}`);
 
-      // Aplicar filtros de preço das configurações do sistema (se definidos)
-      if (precoMin !== null || precoMax !== null) {
-        todosProdutos = buscaService.filtrarPorPreco(
-          todosProdutos, 
-          precoMin || undefined, 
-          precoMax || undefined
-        );
-        console.log(`Produtos após filtro de preço: ${todosProdutos.length}`);
-      }
+     
 
       // LIMITE ADICIONAL: Se ainda há muitos produtos, limitar ao total esperado
       const limiteTotal = numResultados * sitesParaBusca.length;
@@ -210,7 +202,7 @@ class BuscaController {
     }
 
     try {
-      const { produto, quantidade, custo_beneficio, rigor, refinamento, faltante_id, salvamento, urls_add, ponderacao_web_llm } = parsed.data;
+      const { produto, quantidade_resultados, quantidade, custo_beneficio, rigor, refinamento, faltante_id, salvamento, urls_add, ponderacao_web_llm } = parsed.data;
 
       // Buscar fornecedores ativos para validar que existem sites para buscar
       const sitesFromDB = await FornecedorService.getFornecedoresAtivos();
@@ -224,7 +216,7 @@ class BuscaController {
 
       // Buscar configurações do sistema
       const configuracoes = await FornecedorService.getConfiguracoesSistema();
-      const numResultados = configuracoes.numResultadosPorSite;
+      const numResultados = quantidade_resultados || configuracoes.numResultadosPorSite;
 
       // Criar job em background
       const jobId = jobManager.criarJob(
@@ -239,7 +231,7 @@ class BuscaController {
         salvamento,
         faltante_id, // Passar o ID do faltante
         urls_add,
-        ponderacao_web_llm
+        ponderacao_web_llm || 0.5 // Ponderação padrão 0.5 se não fornecida
       );
 
       // Responder imediatamente com o job ID

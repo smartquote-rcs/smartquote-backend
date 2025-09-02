@@ -288,7 +288,7 @@ export class AnaliseWebRenderer {
           // URL (pequena e discreta)
           let currentY = nomeY + Math.max(nomeHeight, 20) + 10;
           if (ranking.url) {
-            const urlText = ranking.url.length > 60 ? ranking.url.substring(0, 60) + '...' : ranking.url;
+            const urlText = ranking.url;
             doc
               .fill('#3498db')
               .fontSize(8)

@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { pythonProcessor } from '../services/PythonInterpretationProcessor';
+import { pythonApiClient } from '../services/PythonApiClient';
 import { BuscaAutomatica } from '../services/BuscaAtomatica';
 import WebBuscaJobService from '../services/WebBuscaJobService';
 import FornecedorService from '../services/FornecedorService';
@@ -288,6 +289,85 @@ export class BuscaLocalController {
       }
     } catch (e) {
       console.error('Erro ao recalcular orçamento:', e);
+    }
+  }
+
+  /**
+   * Verifica o status da API Python
+   */
+  async checkPythonApiHealth(req: Request, res: Response) {
+    try {
+      console.log('🔍 [BUSCA-LOCAL] Verificando status da API Python...');
+      
+      const isAvailable = await pythonApiClient.isAvailable();
+      
+      if (isAvailable) {
+        const health = await pythonApiClient.checkHealth();
+        console.log('✅ [BUSCA-LOCAL] API Python está saudável');
+        
+        return res.status(200).json({
+          success: true,
+          message: 'API Python está funcionando',
+          health,
+          stats: pythonApiClient.getStats()
+        });
+      } else {
+        console.warn('⚠️ [BUSCA-LOCAL] API Python não está disponível');
+        
+        return res.status(503).json({
+          success: false,
+          message: 'API Python não está disponível',
+          stats: pythonApiClient.getStats()
+        });
+      }
+    } catch (error: any) {
+      console.error(`❌ [BUSCA-LOCAL] Erro ao verificar API Python: ${error.message}`);
+      
+      return res.status(500).json({
+        success: false,
+        message: 'Erro ao verificar status da API Python',
+        error: error.message,
+        stats: pythonApiClient.getStats()
+      });
+    }
+  }
+
+  /**
+   * Sincroniza produtos do Supabase para o Weaviate via API Python
+   */
+  async syncProducts(req: Request, res: Response) {
+    try {
+      console.log('🔄 [BUSCA-LOCAL] Iniciando sincronização de produtos...');
+      
+      const result = await pythonProcessor.syncProducts();
+      
+      if (result.success) {
+        const syncedCount = result.result?.produtos_sincronizados || 0;
+        console.log(`✅ [BUSCA-LOCAL] ${syncedCount} produtos sincronizados em ${result.executionTime}ms`);
+        
+        return res.status(200).json({
+          success: true,
+          message: `${syncedCount} produtos sincronizados com sucesso`,
+          produtos_sincronizados: syncedCount,
+          executionTime: result.executionTime
+        });
+      } else {
+        console.error(`❌ [BUSCA-LOCAL] Falha na sincronização: ${result.error}`);
+        
+        return res.status(500).json({
+          success: false,
+          message: 'Falha na sincronização de produtos',
+          error: result.error
+        });
+      }
+    } catch (error: any) {
+      console.error(`❌ [BUSCA-LOCAL] Erro na sincronização: ${error.message}`);
+      
+      return res.status(500).json({
+        success: false,
+        message: 'Erro na sincronização de produtos',
+        error: error.message
+      });
     }
   }
 

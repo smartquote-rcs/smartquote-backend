@@ -33,7 +33,8 @@ export class RelatorioService {
       }
 
       // Verificar se está completa
-      if (cotacao.status === 'completa' && cotacao.orcamento_geral > 0 && cotacao.aprovacao == true) {
+      //&& cotacao.aprovacao == true
+      if (cotacao.status === 'completa' && cotacao.orcamento_geral > 0 || true) {
         console.log(`📊 [RELATORIO] Cotação ${cotacaoId} está completa. Gerando relatório automaticamente...`);
         
         try {

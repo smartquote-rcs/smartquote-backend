@@ -10,7 +10,7 @@ const router = Router();
 
 /**
  * @route POST /api/relatorios/gerar/:cotacaoId
- * @desc Gera relatório completo em PDF para uma cotação
+ * @desc Gera e faz download direto do relatório em PDF para uma cotação
  * @access Private
  */
 //router.post('/gerar/:cotacaoId', authMiddleware, RelatoriosController.gerarRelatorio);
@@ -50,5 +50,4 @@ router.put('/proposta-email/:cotacaoId', RelatoriosController.atualizarPropostaE
  */
 router.get('/proposta-email/:cotacaoId', RelatoriosController.obterPropostaEmail);
 
-router.post
 export default router;

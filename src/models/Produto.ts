@@ -10,7 +10,6 @@ export interface Produto {
   modelo?: string;
   descricao: string;
   preco: number; // armazenado em centavos em algumas rotas
-  unidade?: string;
   estoque: number;
   origem?: string; // 'local' | 'externo'
   image_url?: string;

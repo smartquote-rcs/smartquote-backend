@@ -42,7 +42,6 @@ app.listen(port, async ()=>{
   // Inicializar monitoramento de estoque automaticamente
   try {
     // Configurar monitoramento com estoque mínimo de 10 e verificação a cada 30 minutos
-    EstoqueMonitorService.iniciarMonitoramento(10, 30 * 60 * 1000);
     console.log('📦 Stock monitoring initialized successfully');
   } catch (error) {
     console.error('❌ Failed to initialize stock monitoring:', error);

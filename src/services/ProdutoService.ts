@@ -9,7 +9,6 @@ interface ProdutoParaSalvar {
   modelo: string;
   descricao: string;
   preco: number; // em centavos
-  unidade: string;
   estoque: number;
   origem: 'local' | 'externo';
   image_url?: string; // URL da imagem do produto
@@ -171,7 +170,6 @@ export class ProdutosService {
       modelo: this.extrairModelo(produto.name).substring(0, 250),
       descricao: produto.description || 'Produto encontrado via busca automática',
       preco: this.converterPrecoParaCentavos(produto.price),
-      unidade: 'un',
       estoque: 200, // produtos da busca começam com estoque 200
       origem: 'externo',
       image_url: produto.image_url || undefined, // URL da imagem do produto

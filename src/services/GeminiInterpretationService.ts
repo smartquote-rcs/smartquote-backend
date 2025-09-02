@@ -39,7 +39,6 @@ export interface ProductInfo {
   nome: string;
   descricao?: string;
   quantidade?: number;
-  unidade?: string;
   preco?: number;
   moeda?: string;
   codigo?: string;

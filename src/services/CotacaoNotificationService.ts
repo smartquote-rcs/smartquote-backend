@@ -1,6 +1,7 @@
 import { NotificationService } from './NotificationService';
 import { Notification } from '../models/Notification';
 import { CotacaoDTO } from '../models/Cotacao';
+import DynamicsIntegrationService from './DynamicsIntegrationService';
 
 export class CotacaoNotificationService {
   private notificationService = new NotificationService();
@@ -38,6 +39,22 @@ export class CotacaoNotificationService {
     try {
       await this.notificationService.createIfNotExists(notification);
       console.log(`✅ [COTACAO-NOTIF] Notificação criada para cotação aprovada ID: ${cotacao.id}`);
+      
+      // Integração com Dynamics 365 - enviar dados da cotação aprovada
+      try {
+        console.log(`🔄 [COTACAO-NOTIF] Enviando cotação aprovada para Dynamics 365...`);
+        const dynamicsSuccess = await DynamicsIntegrationService.processarCotacaoAprovada(cotacao);
+        
+        if (dynamicsSuccess) {
+          console.log(`🎉 [COTACAO-NOTIF] Cotação ${cotacao.id} enviada para Dynamics com sucesso!`);
+        } else {
+          console.warn(`⚠️ [COTACAO-NOTIF] Falha ao enviar cotação ${cotacao.id} para Dynamics (processo continua)`);
+        }
+      } catch (dynamicsError) {
+        console.error(`❌ [COTACAO-NOTIF] Erro na integração com Dynamics para cotação ${cotacao.id}:`, dynamicsError);
+        // Não interrompe o fluxo principal, apenas registra o erro
+      }
+      
     } catch (error) {
       console.error(`📋 [COTACAO-NOTIF] Erro ao criar notificação de aprovação para cotação ${cotacao.id}:`, error);
     }
@@ -119,18 +136,6 @@ export class CotacaoNotificationService {
         await this.processarNotificacaoCotacao(cotacaoNova, 'aprovada');
       } else {
         await this.processarNotificacaoCotacao(cotacaoNova, 'rejeitada');
-      }
-    }
-
-    // Verificar se houve mudança no status (se disponível)
-    if (cotacaoAntiga.status !== cotacaoNova.status) {
-      switch (cotacaoNova.status) {
-        case 'aceite':
-          await this.processarNotificacaoCotacao(cotacaoNova, 'aprovada');
-          break;
-        case 'recusado':
-          await this.processarNotificacaoCotacao(cotacaoNova, 'rejeitada');
-          break;
       }
     }
   }

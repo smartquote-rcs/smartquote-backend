@@ -10,6 +10,7 @@ import testRouter from "./test.routes";
 import emailRouter from "./email.routes";
 import geminiRouter from "./gemini.routes";
 import notificationsRouter from "./notifications.routes";
+import dynamicsRouter from "./dynamics.routes";
 import { ProdutosService } from '../services/ProdutoService';
 import buscaLocalRouter from './buscaLocal.routes';
 
@@ -32,6 +33,7 @@ routers.use('/email', emailRouter);
 routers.use('/gemini', geminiRouter);
 routers.use('/busca-local', buscaLocalRouter);
 routers.use('/notifications', authMiddleware, notificationsRouter);
+routers.use('/dynamics', authMiddleware, dynamicsRouter);
 
 
 // Rotas públicas RESTful para products (compatível com frontend)

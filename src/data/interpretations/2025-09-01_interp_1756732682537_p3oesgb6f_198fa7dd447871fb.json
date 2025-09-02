@@ -1,0 +1,18 @@
+{
+  "id": "interp_1756732682537_p3oesgb6f",
+  "emailId": "198fa7dd447871fb",
+  "tipo": "pedido",
+  "prioridade": "média",
+  "solicitacao": "Preciso de um computador Dell de 12ª geração e 4 telefones Samsung.",
+  "cliente": {
+    "nome": "Bartolomeu Cassoma Gaspar João",
+    "empresa": "",
+    "email": "bartolomeugasparbg@gmail.com",
+    "telefone": "",
+    "website": "",
+    "localizacao": ""
+  },
+  "confianca": 90,
+  "interpretedAt": "2025-09-01T13:18:02.537Z",
+  "rawGeminiResponse": "```json\n{\n  \"tipo\": \"pedido\",\n  \"prioridade\": \"média\",\n  \"solicitacao\": \"Preciso de um computador Dell de 12ª geração e 4 telefones Samsung.\",\n  \"cliente\": {\n    \"nome\": \"Bartolomeu Cassoma Gaspar João\",\n    \"empresa\": \"\",\n    \"email\": \"bartolomeugasparbg@gmail.com\",\n    \"telefone\": \"\",\n    \"website\": \"\",\n    \"localizacao\": \"\"\n  },\n  \"confianca\": 90\n}\n```"
+}

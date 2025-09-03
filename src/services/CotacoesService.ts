@@ -23,8 +23,7 @@ class CotacoesService {
     return 0;
   }
 
-  return count ?? 0;
-}
+
 
   async create( CotacaoData: Cotacao): Promise<CotacaoDTO> {
     const { data, error } = await supabase

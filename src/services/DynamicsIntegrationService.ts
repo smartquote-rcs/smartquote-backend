@@ -78,7 +78,8 @@ class DynamicsIntegrationService {
       // Observações e condições
       description_extended: cotacao.observacao || cotacao.observacoes || '',
       conditions: JSON.stringify(cotacao.condicoes || {}),
-      missingitems: JSON.stringify(cotacao.faltantes || []),
+  // DEPRECATED: faltantes agora são placeholders em cotacoes_itens; manter campo para compat se ainda vier no DTO
+  missingitems: JSON.stringify((cotacao as any).faltantes || []),
       
       // IDs de relacionamento
       prompt_id: cotacao.prompt_id || null,

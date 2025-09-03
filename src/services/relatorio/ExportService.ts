@@ -32,11 +32,11 @@ export class ExportService {
    * Busca dados resumidos da cotação para exportação
    */
   async buscarDadosResumo(cotacaoId: number): Promise<RelatorioResumoData> {
-    // Buscar dados da cotação
+  // Buscar dados da cotação
     const { data: cotacao, error: cotacaoError } = await supabase
       .from('cotacoes')
       .select(`
-        id, status, orcamento_geral, faltantes, prompt_id,
+    id, status, orcamento_geral, prompt_id,
         prompt:prompts(id, texto_original, cliente)
       `)
       .eq('id', cotacaoId)
@@ -63,7 +63,7 @@ export class ExportService {
       }
     }
 
-    // Buscar itens da cotação
+  // Buscar itens da cotação
     const { data: itens, error: itensError } = await supabase
       .from('cotacoes_itens')
       .select('*')
@@ -73,8 +73,10 @@ export class ExportService {
       throw new Error(`Erro ao buscar itens da cotação: ${itensError.message}`);
     }
 
-    // Processar itens
-    const itensProcessados: ItemResumo[] = (itens || []).map(item => ({
+    // Processar itens (exclui placeholders com status=false)
+    const itensProcessados: ItemResumo[] = (itens || [])
+      .filter((item: any) => item.status !== false)
+      .map(item => ({
       nome: item.item_nome || 'N/A',
       descricao: item.item_descricao || 'N/A',
       preco: parseFloat(item.item_preco || 0),
@@ -84,6 +86,11 @@ export class ExportService {
       provider: item.provider || 'N/A'
     }));
 
+    // Mapear placeholders (status=false) para manter compat no resumo
+    const faltantesCompat = (itens || [])
+      .filter((i: any) => i.status === false)
+      .map((i: any) => i.pedido || i.item_nome || 'Item solicitado');
+
     return {
       cotacaoId: cotacao.id,
       cotacaoStatus: cotacao.status || 'N/A',
@@ -92,7 +99,7 @@ export class ExportService {
       dataGeracao: new Date(),
       itens: itensProcessados,
       dadosUsuario,
-      faltantes: cotacao.faltantes || []
+      faltantes: faltantesCompat
     };
   }
 

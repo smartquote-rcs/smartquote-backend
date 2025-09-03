@@ -132,7 +132,7 @@ export class BuscaLocalController {
       }
 
   const payload = result.result || {};
-  const faltantes = Array.isArray(payload.faltantes) ? payload.faltantes : [];
+  let faltantes = Array.isArray(payload.faltantes) ? payload.faltantes : [];
   const resumoLocal = payload?.resultado_resumo || {};
   const cotacoesInfo = payload.cotacoes || null;
 
@@ -143,6 +143,23 @@ export class BuscaLocalController {
 
   let produtosWeb: any[] = [];
   let resultadosCompletos: any[] = [];
+  // Caso não haja faltantes no payload, mas exista cotação, usar placeholders do banco para web
+  if (searchWeb && faltantes.length === 0 && cotacoesInfo?.principal_id) {
+    try {
+      const placeholdersDB = await CotacoesItensService.listPlaceholders(Number(cotacoesInfo.principal_id));
+      if (placeholdersDB.length > 0) {
+        faltantes = placeholdersDB.map((p: any) => ({
+          id: p.id,
+          nome: p.item_nome,
+          quantidade: p.quantidade,
+          query_sugerida: p.pedido
+        }));
+        console.log(`🔄 [BUSCA-LOCAL] Usando ${faltantes.length} placeholders do banco como faltantes para busca web`);
+      }
+    } catch (e) {
+      console.warn('⚠️ [BUSCA-LOCAL] Falha ao carregar placeholders do banco:', (e as any)?.message || e);
+    }
+  }
   if (faltantes.length > 0 && searchWeb) {
     console.log(`🌐 [BUSCA-LOCAL] Iniciando busca web para ${faltantes.length} faltantes`);
     const svc = new WebBuscaJobService();
@@ -163,15 +180,22 @@ export class BuscaLocalController {
 
         // Usar a cotação que o Python já criou, ou criar apenas se necessário
       let cotacaoPrincipalId: number | null = cotacoesInfo?.principal_id ?? null;
+      let cotacaoCriadaLocalmente = false;
       const temResultadosLocais = Object.values(resumoLocal).some((arr: any) => Array.isArray(arr) && arr.length > 0);
       
       console.log(`🏗️ [BUSCA-LOCAL] Verificando cotação:`);
       console.log(`   - Cotação: ${cotacaoPrincipalId || 'Nenhuma'}`);
       console.log(`   - Produtos web: ${produtosWeb.length}`);
-      console.log(`   - Faltantes: ${faltantes.length}`);
+      console.log(`   - Faltantes (payload): ${faltantes.length}`);
+      if (cotacaoPrincipalId) {
+        try {
+          const pendentes = await CotacoesItensService.listPlaceholders(Number(cotacaoPrincipalId));
+          console.log(`   - Placeholders pendentes (DB): ${pendentes.length}`);
+        } catch {}
+      }
       
       // Só criar cotação se o Python não criou e realmente precisarmos
-      if (!cotacaoPrincipalId && (produtosWeb.length > 0 || faltantes.length > 0)) {
+  if (!cotacaoPrincipalId && (produtosWeb.length > 0 || faltantes.length > 0)) {
         console.log(`📝 [BUSCA-LOCAL] Criando nova cotação para produtos web/faltantes`);
         const dadosExtraidos = payload?.dados_extraidos || {
           solucao_principal: solicitacao,
@@ -197,12 +221,12 @@ export class BuscaLocalController {
             prompt_id: prompt.id,
             status: 'incompleta',
             aprovacao: false,
-            faltantes: faltantes?.length ? faltantes : [],
             orcamento_geral: 0
           };
           try {
             const criada = await CotacoesService.create(nova);
             cotacaoPrincipalId = criada?.id ?? null;
+    cotacaoCriadaLocalmente = true;
             console.log(`✅ [BUSCA-LOCAL] Cotação criada com sucesso: ID ${cotacaoPrincipalId}`);
           } catch (e) {
             console.error('❌ [BUSCA-LOCAL] Erro ao criar cotação principal:', e);
@@ -212,6 +236,19 @@ export class BuscaLocalController {
         console.log(`📋 [BUSCA-LOCAL] Usando cotação existente: ID ${cotacaoPrincipalId}`);
       } else {
         console.log(`ℹ️ [BUSCA-LOCAL] Nenhuma cotação necessária (apenas resultados locais)`);
+      }
+
+      // Inserir placeholders para cada faltante como itens com status=false e pedido
+  // Evitar duplicação: só inserir se a cotação foi criada localmente aqui
+  if (cotacaoCriadaLocalmente && cotacaoPrincipalId && faltantes.length > 0) {
+        try {
+          for (const f of faltantes) {
+            await CotacoesItensService.insertPlaceholderItem(Number(cotacaoPrincipalId), f);
+          }
+          console.log(`🧩 [BUSCA-LOCAL] ${faltantes.length} placeholders inseridos na cotação ${cotacaoPrincipalId}`);
+        } catch (e) {
+          console.error('❌ [BUSCA-LOCAL] Erro ao inserir placeholders de faltantes:', e);
+        }
       }
   // Inserir itens web, se houver
   if (cotacaoPrincipalId && resultadosCompletos.length > 0 && searchWeb) {
@@ -223,6 +260,13 @@ export class BuscaLocalController {
           const inseridos = await svc.insertJobResultsInCotacao(Number(cotacaoPrincipalId), resultadosCompletos);
           
           await svc.recalcOrcamento(Number(cotacaoPrincipalId));
+
+          // Atualizar status conforme existência de placeholders
+          try {
+            const placeholdersRestantes = await CotacoesItensService.listPlaceholders(Number(cotacaoPrincipalId));
+            const novoStatus = placeholdersRestantes.length === 0 ? 'completa' : 'incompleta';
+            await CotacoesService.updatePartial(Number(cotacaoPrincipalId), { status: novoStatus });
+          } catch {}
           
           console.log(`✅ [BUSCA-LOCAL] ${inseridos} itens web inseridos na cotação ${cotacaoPrincipalId}`);
         } catch (e) {
@@ -236,7 +280,7 @@ export class BuscaLocalController {
 
       // O Python já cria os itens locais automaticamente, não precisamos duplicar aqui
       // Apenas recalcular orçamento se houver resultados locais
-      if (cotacaoPrincipalId && temResultadosLocais) {
+  if (cotacaoPrincipalId && temResultadosLocais) {
         await this.recalcularOrcamento(Number(cotacaoPrincipalId));
       }
 

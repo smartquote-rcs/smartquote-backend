@@ -27,6 +27,123 @@ class CotacoesItensService {
     }
   }
 
+  /**
+   * Insere um placeholder de item de cotação representando um "faltante".
+   * Campos principais:
+   *  - status: false (não encontrado ainda)
+   *  - pedido: texto original (ex: query_sugerida)
+   */
+  async insertPlaceholderItem(cotacaoId: number, faltante: any): Promise<number | null> {
+    const payload: any = {
+      cotacao_id: cotacaoId,
+  // origem precisa respeitar o CHECK CONSTRAINT da tabela (ex.: 'local' | 'web').
+  // Para placeholders, usamos 'web' como padrão, indicando que será buscado externamente.
+  origem: 'web',
+      provider: undefined,
+      external_url: undefined,
+      item_nome: faltante?.nome || 'Item não encontrado',
+      item_descricao: faltante?.categoria
+        ? `Pedido de categoria: ${faltante.categoria}`
+        : 'Item solicitado não encontrado na base local',
+      item_preco: undefined,
+      item_moeda: 'AOA',
+      quantidade: Number(faltante?.quantidade || 1),
+      status: false,
+      pedido: faltante?.query_sugerida || faltante?.nome || '',
+    };
+
+    const { data, error } = await supabase
+      .from('cotacoes_itens')
+      .insert(payload)
+      .select('id')
+      .single();
+
+    if (error) {
+      throw new Error(`Falha ao inserir placeholder na cotação ${cotacaoId}: ${error.message}`);
+    }
+
+    return data?.id ?? null;
+  }
+
+  /**
+   * Retorna todos os placeholders (status=false) de uma cotação
+   */
+  async listPlaceholders(cotacaoId: number): Promise<any[]> {
+    const { data, error } = await supabase
+      .from('cotacoes_itens')
+      .select('*')
+      .eq('cotacao_id', cotacaoId)
+      .eq('status', false);
+    if (error) throw new Error(error.message);
+    return data || [];
+  }
+
+  /**
+   * Remove placeholders por índice na lista ordenada por id asc
+   */
+  async removePlaceholderByIndex(cotacaoId: number, index: number): Promise<any | null> {
+    const placeholders = await this.listPlaceholders(cotacaoId);
+    if (index < 0 || index >= placeholders.length) return null;
+    const alvo = placeholders.sort((a, b) => a.id - b.id)[index];
+    const { data, error } = await supabase
+      .from('cotacoes_itens')
+      .delete()
+      .eq('id', alvo.id)
+      .select('*')
+      .single();
+    if (error) throw new Error(error.message);
+    return data || null;
+  }
+
+  /**
+   * Remove placeholder por pedido (query) aproximado
+   */
+  async removePlaceholderByPedido(cotacaoId: number, query: string): Promise<any | null> {
+    // Buscar um placeholder cujo pedido contenha a query
+    const { data: candidatos, error } = await supabase
+      .from('cotacoes_itens')
+      .select('*')
+      .eq('cotacao_id', cotacaoId)
+      .eq('status', false)
+      .ilike('pedido', `%${query}%`)
+      .limit(1);
+    if (error) throw new Error(error.message);
+    const alvo = (candidatos || [])[0];
+    if (!alvo) return null;
+    const { data, error: delErr } = await supabase
+      .from('cotacoes_itens')
+      .delete()
+      .eq('id', alvo.id)
+      .select('*')
+      .single();
+    if (delErr) throw new Error(delErr.message);
+    return data || null;
+  }
+
+  /**
+   * Remove placeholder por nome aproximado
+   */
+  async removePlaceholderByNome(cotacaoId: number, nome: string): Promise<any | null> {
+    const { data: candidatos, error } = await supabase
+      .from('cotacoes_itens')
+      .select('*')
+      .eq('cotacao_id', cotacaoId)
+      .eq('status', false)
+      .ilike('item_nome', `%${nome}%`)
+      .limit(1);
+    if (error) throw new Error(error.message);
+    const alvo = (candidatos || [])[0];
+    if (!alvo) return null;
+    const { data, error: delErr } = await supabase
+      .from('cotacoes_itens')
+      .delete()
+      .eq('id', alvo.id)
+      .select('*')
+      .single();
+    if (delErr) throw new Error(delErr.message);
+    return data || null;
+  }
+
   async buildPrompt(cotacaoId: number, produto: Product): Promise<number | null> {
     const item_preco = this.parseNumero(produto.price);
     const provider = this.providerFromUrl(produto.product_url);
@@ -102,6 +219,47 @@ class CotacoesItensService {
     return await this.insertWebItemById(cotacaoId, produto.id, produto, produto.quantidade);
   }
 
+  /**
+   * Atualiza um placeholder (status=false) com dados de um produto web, marcando status=true
+   * e preenchendo colunas (produto_id, provider, external_url, item_nome, descricao, preco, moeda, quantidade).
+   */
+  async fulfillPlaceholderWithWebProduct(
+    cotacaoId: number,
+    placeholderId: number,
+    produto: any,
+    quantidade: number,
+    produtoId?: number
+  ): Promise<number | null> {
+    const item_preco = this.parseNumero(produto?.price);
+    const provider = this.providerFromUrl(produto?.product_url || produto?.url);
+
+    const updatePayload: any = {
+      cotacao_id: cotacaoId,
+      produto_id: produtoId || null,
+      origem: 'web',
+      provider: provider || undefined,
+      external_url: produto?.product_url || produto?.url || undefined,
+      item_nome: produto?.name || produto?.nome || 'Produto web',
+      item_descricao: produto?.description || produto?.descricao || null,
+      item_preco: item_preco ?? null,
+      item_moeda: 'AOA',
+      quantidade: Number(quantidade || 1),
+      status: true,
+    };
+
+    const { data, error } = await supabase
+      .from('cotacoes_itens')
+      .update(updatePayload)
+      .eq('id', placeholderId)
+      .select('id')
+      .single();
+
+    if (error) {
+      throw new Error(`Falha ao atualizar placeholder ${placeholderId} na cotação ${cotacaoId}: ${error.message}`);
+    }
+
+    return data?.id ?? null;
+  }
   /**
    * Insere itens de um job completo na cotação, aproveitando os IDs salvos
    */

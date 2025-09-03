@@ -421,7 +421,7 @@
     "/cotacoes/{id}/remove-faltante": {
       "post": {
         "summary": "Remover elemento faltante",
-        "description": "Remove um elemento específico do campo faltantes da cotação e atualiza o status se necessário.",
+  "description": "Remove um placeholder (faltante) da cotação em cotacoes_itens (status=false) e atualiza o status se necessário.",
         "consumes": [
           "application/json"
         ],
@@ -446,7 +446,7 @@
               "properties": {
                 "index": {
                   "type": "integer",
-                  "description": "Índice do elemento no array faltantes",
+                  "description": "Índice do placeholder (lista ordenada por id asc)",
                   "example": 0
                 },
                 "query": {
@@ -1210,7 +1210,7 @@
         "aprovado_por": { "type": "integer", "example": 1 },
         "status": { "type": "string", "enum": ["completa","incompleta"], "example": "incompleta" },
         "orcamento_geral": { "type": "number", "example": 0 },
-        "faltantes": { "type": "array", "items": {"type": "string"}, "example": ["prazo","quantidade"] },
+                "faltantes": { "type": "array", "items": {"type": "string"}, "example": [], "description": "DEPRECATED: substituído por placeholders em cotacoes_itens" },
         "observacao": { "type": "string", "example": "Entrega em 5 dias úteis" }
       }
     },

@@ -108,5 +108,25 @@
     "filePaths": [
       "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\src\\data\\emails\\json\\2025-09-03T11-03-21-137Z_1990ed3f16e396d5_Re_Computador_Dell.json"
     ]
+  },
+  {
+    "id": "1990f8c7642c4df9",
+    "savedAt": "2025-09-03T12:33:28.488Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\src\\data\\emails\\json\\2025-09-03T12-33-28-478Z_1990f8c7642c4df9_.json"
+    ]
+  },
+  {
+    "id": "1990f9c376e34801",
+    "savedAt": "2025-09-03T12:47:45.124Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\src\\data\\emails\\json\\2025-09-03T12-47-45-122Z_1990f9c376e34801_quero_um_servidor.json"
+    ]
   }
 ]

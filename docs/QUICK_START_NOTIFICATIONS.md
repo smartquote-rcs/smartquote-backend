@@ -42,15 +42,42 @@ O sistema já está configurado para inicializar automaticamente quando o servid
 
 ## 🎯 Teste Rápido
 
-### 1. Testar API Básica
+### 1. Primeiro, faça login para obter o token
 
 ```bash
+# Criar uma conta (se não tiver)
+curl -X POST http://localhost:3333/api/auth/signup \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "Seu Nome",
+    "email": "seu_email@example.com", 
+    "password": "sua_senha_segura"
+  }'
+
+# Fazer login para obter token
+curl -X POST http://localhost:3333/api/auth/signin \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "seu_email@example.com",
+    "password": "sua_senha_segura"
+  }'
+```
+
+**Importante**: Copie o `token` da resposta do login. Você precisará dele para os próximos comandos!
+
+### 2. Testar API de Notificações (Com Token)
+
+```bash
+# Substitua SEU_TOKEN_AQUI pelo token obtido no login
+
 # Listar notificações
-curl -X GET http://localhost:3333/api/notifications
+curl -X GET http://localhost:3333/api/notifications \
+  -H "Authorization: Bearer SEU_TOKEN_AQUI"
 
 # Criar notificação
 curl -X POST http://localhost:3333/api/notifications \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer SEU_TOKEN_AQUI" \
   -d '{
     "title": "Teste",
     "subject": "Notificação de teste",
@@ -58,32 +85,56 @@ curl -X POST http://localhost:3333/api/notifications \
   }'
 ```
 
-### 2. Testar Monitoramento de Estoque
+### 3. Testar Monitoramento de Estoque
 
 ```bash
 # Forçar verificação de estoque baixo
-curl -X GET http://localhost:3333/api/notifications/estoque-baixo
+curl -X GET http://localhost:3333/api/notifications/estoque-baixo \
+  -H "Authorization: Bearer SEU_TOKEN_AQUI"
 
 # Limpar notificações obsoletas
-curl -X DELETE http://localhost:3333/api/notifications/obsoletas
+curl -X DELETE http://localhost:3333/api/notifications/obsoletas \
+  -H "Authorization: Bearer SEU_TOKEN_AQUI"
 ```
 
-### 3. Testar Notificações de Cotações
+### 4. Testar Notificações de Cotações
 
 As notificações de cotações são criadas automaticamente quando você:
-- Criar uma cotação: `POST /api/cotacoes`
-- Deletar uma cotação: `DELETE /api/cotacoes/:id`
-- Atualizar aprovação: `PATCH /api/cotacoes/:id` com `{"aprovacao": true/false}`
+- Criar uma cotação: `POST /api/cotacoes` (precisa do token)
+- Deletar uma cotação: `DELETE /api/cotacoes/:id` (precisa do token)  
+- Atualizar aprovação: `PATCH /api/cotacoes/:id` com `{"aprovacao": true/false}` (precisa do token)
+
+**Exemplo:**
+```bash
+# Criar uma cotação (gerará notificação automática)
+curl -X POST http://localhost:3333/api/cotacoes \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer SEU_TOKEN_AQUI" \
+  -d '{
+    "produto_id": 1,
+    "fornecedor_id": 1,
+    "preco": 99.90,
+    "quantidade": 10
+  }'
+```
 
 ## 📋 Checklist de Funcionamento
 
 - [ ] Tabela `notifications` criada no Supabase
 - [ ] Variáveis de ambiente configuradas
+- [ ] Usuário criado via `/api/auth/signup`
+- [ ] Token obtido via `/api/auth/signin`
 - [ ] Servidor iniciado (logs de monitoramento aparecendo)
-- [ ] API respondendo em `/api/notifications`
+- [ ] API respondendo em `/api/notifications` (com token)
 - [ ] Notificações sendo criadas automaticamente
 
 ## 🔧 Troubleshooting
+
+### Problema: "401 Unauthorized"
+**Solução**: Verifique se você está enviando o header `Authorization: Bearer SEU_TOKEN` nos requests.
+
+### Problema: Token expirado
+**Solução**: Faça login novamente em `/api/auth/signin` para obter um novo token.
 
 ### Problema: Notificações duplicadas
 **Solução**: O sistema já previne duplicatas automaticamente via database constraints.

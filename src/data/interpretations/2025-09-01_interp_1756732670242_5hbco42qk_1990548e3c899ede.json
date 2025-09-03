@@ -1,0 +1,18 @@
+{
+  "id": "interp_1756732670242_5hbco42qk",
+  "emailId": "1990548e3c899ede",
+  "tipo": "pedido",
+  "prioridade": "média",
+  "solicitacao": "Preciso de um computador Dell da 12 geração.",
+  "cliente": {
+    "nome": "Bartolomeu Cassoma Gaspar João",
+    "empresa": "",
+    "email": "bartolomeugasparbg@gmail.com",
+    "telefone": "",
+    "website": "",
+    "localizacao": ""
+  },
+  "confianca": 90,
+  "interpretedAt": "2025-09-01T13:17:50.242Z",
+  "rawGeminiResponse": "```json\n{\n  \"tipo\": \"pedido\",\n  \"prioridade\": \"média\",\n  \"solicitacao\": \"Preciso de um computador Dell da 12 geração.\",\n  \"cliente\": {\n    \"nome\": \"Bartolomeu Cassoma Gaspar João\",\n    \"empresa\": \"\",\n    \"email\": \"bartolomeugasparbg@gmail.com\",\n    \"telefone\": \"\",\n    \"website\": \"\",\n    \"localizacao\": \"\"\n  },\n  \"confianca\": 90\n}\n```"
+}

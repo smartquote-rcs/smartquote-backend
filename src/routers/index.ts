@@ -10,6 +10,7 @@ import testRouter from "./test.routes";
 import emailRouter from "./email.routes";
 import geminiRouter from "./gemini.routes";
 import notificationsRouter from "./notifications.routes";
+import dynamicsRouter from "./dynamics.routes";
 import { ProdutosService } from '../services/ProdutoService';
 import supabase from '../infra/supabase/connect';
 import buscaLocalRouter from './buscaLocal.routes';
@@ -38,8 +39,10 @@ routers.use('/cotacoes-itens', cotacoesItensRouter);
 routers.use('/busca-automatica', buscaRouter);
 routers.use('/email', emailRouter);
 routers.use('/gemini', geminiRouter);
-routers.use('/busca', buscaLocalRouter);
-routers.use('/notifications', notificationsRouter);
+routers.use('/busca-local', buscaLocalRouter);
+routers.use('/busca', buscaLocalRouter); // Mantém ambas as rotas para compatibilidade
+routers.use('/notifications', notificationsRouter); // Removido authMiddleware temporariamente para testes
+routers.use('/dynamics', dynamicsRouter); // Remove authMiddleware para permitir testes diretos
 routers.use('/prompts', promptsRouter);
 routers.use('/relatorios', relatorioRouter);
 routers.use('/users-public', usersUpsertRouter); // rota pública para upsert mínimo

@@ -1,0 +1,18 @@
+{
+  "id": "interp_1756732670137_5phb0xduy",
+  "emailId": "199054bbfb82f03b",
+  "tipo": "pedido",
+  "prioridade": "alta",
+  "solicitacao": "Gostaria de solicitar uma cotação para 2 Servidores de Alto Desempenho (com redundância de energia e armazenamento mínimo de 8TB), soluções de licenciamento de software (Windows Server e Microsoft Office para 20 utilizadores) e serviços de instalação e configuração inicial. Preciso também de informações sobre prazos de entrega, garantias e opções de suporte técnico (helpdesk ou SLA).",
+  "cliente": {
+    "nome": "Carlos Pereira",
+    "empresa": "TechSolutions Lda.",
+    "email": "hmateque@gmail.com",
+    "telefone": null,
+    "website": null,
+    "localizacao": null
+  },
+  "confianca": 95,
+  "interpretedAt": "2025-09-01T13:17:50.137Z",
+  "rawGeminiResponse": "```json\n{\n  \"tipo\": \"pedido\",\n  \"prioridade\": \"alta\",\n  \"solicitacao\": \"Gostaria de solicitar uma cotação para 2 Servidores de Alto Desempenho (com redundância de energia e armazenamento mínimo de 8TB), soluções de licenciamento de software (Windows Server e Microsoft Office para 20 utilizadores) e serviços de instalação e configuração inicial. Preciso também de informações sobre prazos de entrega, garantias e opções de suporte técnico (helpdesk ou SLA).\",\n  \"cliente\": {\n    \"nome\": \"Carlos Pereira\",\n    \"empresa\": \"TechSolutions Lda.\",\n    \"email\": \"hmateque@gmail.com\",\n    \"telefone\": null,\n    \"website\": null,\n    \"localizacao\": null\n  },\n  \"confianca\": 95\n}\n```"
+}

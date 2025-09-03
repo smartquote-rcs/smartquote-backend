@@ -1,0 +1,18 @@
+{
+  "id": "interp_1756732669705_s3odvqjow",
+  "emailId": "1990548cddbe760e",
+  "tipo": "pedido",
+  "prioridade": "média",
+  "solicitacao": "Eu quero 3 computadores Dell da 12ª geração.",
+  "cliente": {
+    "nome": "Hudson Mateque",
+    "empresa": "",
+    "email": "hmateque@gmail.com",
+    "telefone": "",
+    "website": "",
+    "localizacao": ""
+  },
+  "confianca": 90,
+  "interpretedAt": "2025-09-01T13:17:49.706Z",
+  "rawGeminiResponse": "```json\n{\n  \"tipo\": \"pedido\",\n  \"prioridade\": \"média\",\n  \"solicitacao\": \"Eu quero 3 computadores Dell da 12ª geração.\",\n  \"cliente\": {\n    \"nome\": \"Hudson Mateque\",\n    \"empresa\": \"\",\n    \"email\": \"hmateque@gmail.com\",\n    \"telefone\": \"\",\n    \"website\": \"\",\n    \"localizacao\": \"\"\n  },\n  \"confianca\": 90\n}\n```"
+}

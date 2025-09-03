@@ -222,7 +222,53 @@ O monitoramento de estoque é iniciado automaticamente no boot do servidor:
 import './services/EstoqueMonitorService'; // Auto-inicialização
 ```
 
-## 📝 Exemplos de Uso
+## � Autenticação
+
+O sistema de notificações utiliza autenticação JWT. Para acessar os endpoints protegidos, você precisa de um token Bearer.
+
+### Como obter o token:
+
+#### 1. Primeiro, faça login:
+```bash
+curl -X POST http://localhost:3333/api/auth/signin \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "seu_email@example.com",
+    "password": "sua_senha"
+  }'
+```
+
+#### 2. Resposta do login:
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "id": "123e4567-e89b-12d3-a456-426614174000",
+    "email": "seu_email@example.com"
+  }
+}
+```
+
+#### 3. Use o token nos próximos requests:
+Substitua `YOUR_TOKEN` pelo token recebido no login:
+
+```bash
+curl -X GET http://localhost:3333/api/notifications \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+### Criar uma conta (se não tiver):
+```bash
+curl -X POST http://localhost:3333/api/auth/signup \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "Seu Nome",
+    "email": "seu_email@example.com",
+    "password": "sua_senha_segura"
+  }'
+```
+
+## �📝 Exemplos de Uso
 
 ### 1. Integração em Controladores
 ```typescript
@@ -239,22 +285,26 @@ async create(req: Request, res: Response): Promise<Response> {
 }
 ```
 
-### 2. Teste Manual via API
+### 2. Teste Manual via API (Com Autenticação)
 ```bash
 # Verificar notificações de estoque baixo
-curl -X GET http://localhost:3333/api/notifications/estoque-baixo
+curl -X GET http://localhost:3333/api/notifications/estoque-baixo \
+  -H "Authorization: Bearer SEU_TOKEN_AQUI"
 
 # Listar todas as notificações
-curl -X GET http://localhost:3333/api/notifications
+curl -X GET http://localhost:3333/api/notifications \
+  -H "Authorization: Bearer SEU_TOKEN_AQUI"
 
 # Limpar notificações obsoletas
-curl -X DELETE http://localhost:3333/api/notifications/obsoletas
+curl -X DELETE http://localhost:3333/api/notifications/obsoletas \
+  -H "Authorization: Bearer SEU_TOKEN_AQUI"
 ```
 
 ### 3. Criação Manual de Notificação
 ```bash
 curl -X POST http://localhost:3333/api/notifications \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer SEU_TOKEN_AQUI" \
   -d '{
     "title": "Manutenção Programada",
     "subject": "Sistema entrará em manutenção às 02:00",

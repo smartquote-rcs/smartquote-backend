@@ -44,6 +44,22 @@ class AuthService {
       },
     };
   }
+
+  async recoverPassword(email: string) {
+    if (!email) {
+      throw new Error("E-mail é obrigatório");
+    }
+
+    const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: "http://localhost:3000/reset-password", 
+    });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return data;
+  }
 }
 
 export default new AuthService();

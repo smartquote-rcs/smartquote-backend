@@ -33,6 +33,7 @@ export interface CotacaoDTO extends Cotacao {
     id: number;
     texto_original: string;
   };
+  produto_id:number;
   produto?: {
     id: number;
     nome: string;

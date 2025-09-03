@@ -1,8 +1,8 @@
 import { NotificationService } from './NotificationService';
 import { ProdutosService } from './ProdutoService';
 import { Notification } from '../models/Notification';
-
-export class EstoqueMonitorService {
+ 
+class EstoqueMonitorService {
   private notificationService = new NotificationService();
   private produtosService = new ProdutosService();
   
@@ -186,6 +186,5 @@ export class EstoqueMonitorService {
     };
   }
 }
-
-export { EstoqueMonitorService };
+ 
 export default EstoqueMonitorService;

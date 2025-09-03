@@ -4,6 +4,7 @@ export interface RelatorioData {
   solicitacao: string;
   orcamentoGeral: number;
   cliente?: any;
+  propostaEmail?: string;
   analiseLocal: Array<{
     score: number;
     query_id: string;

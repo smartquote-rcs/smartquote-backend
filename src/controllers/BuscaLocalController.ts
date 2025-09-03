@@ -21,23 +21,6 @@ type BuscaLocalOptions = {
 };
 
 export class BuscaLocalController {
-  private buildArgs(opts: BuscaLocalOptions): string[] {
-    const args: string[] = [];
-    if (opts.limite && Number.isFinite(opts.limite)) {
-      args.push('--limite', String(opts.limite));
-    }
-    if (opts.multilingue === false) {
-      args.push('--no-multilingue');
-    }
-    if (opts.criarCotacao) {
-      args.push('--criar-cotacao');
-    }
-    if(opts.onlyBuscarHibridoPonderado)
-    {
-      args.push('--only-buscar_hibrido_ponderado');
-    }
-    return args;
-  }
 
   async searchLocal(req: Request, res: Response) {
     try {
@@ -160,7 +143,7 @@ export class BuscaLocalController {
 
   let produtosWeb: any[] = [];
   let resultadosCompletos: any[] = [];
-  if (faltantes.length > 0) {
+  if (faltantes.length > 0 && searchWeb) {
     console.log(`🌐 [BUSCA-LOCAL] Iniciando busca web para ${faltantes.length} faltantes`);
     const svc = new WebBuscaJobService();
     const statusUrls = await svc.createJobsForFaltantes(faltantes, solicitacao, ponderacaoWeb_LLM);

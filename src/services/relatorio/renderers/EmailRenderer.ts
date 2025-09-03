@@ -172,6 +172,10 @@ export class EmailRenderer {
    * Gera template de email em texto
    */
   private async gerarTemplateEmailTexto(data: RelatorioData, updateInDb: boolean):  Promise<string> {
+    // Se já veio no payload, usar direto
+    if (data.propostaEmail && data.propostaEmail.trim().length > 0) {
+      return data.propostaEmail;
+    }
     const totalAnalises = data.analiseLocal.length + data.analiseWeb.length;
     const valorTotal = data.orcamentoGeral.toLocaleString('pt-AO', { 
       style: 'currency', 
@@ -179,22 +183,30 @@ export class EmailRenderer {
       minimumFractionDigits: 2 
     });
  
-  const response = await fetch(`${API_BASE_URL}/api/relatorios/proposta-email/${data.cotacaoId}`, {
+  if (!API_BASE_URL) {
+    // Sem API_BASE_URL, seguir com template default e não tentar persistir
+    updateInDb = false;
+  }
+
+  const response = API_BASE_URL ? await fetch(`${API_BASE_URL}/api/relatorios/proposta-email/${data.cotacaoId}`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
     },
-  });
-  if (!response.ok) {
-  const text = await response.text();
-  throw new Error(`Erro na requisição: ${response.status} - ${text}`);
-}
+  }) : undefined;
+  if (response) {
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Erro na requisição: ${response.status} - ${text}`);
+    }
 
-  const result = await response.json() as { success?: boolean; data?: { propostaEmail?: string }; };
-  if (result.success && result.data && result.data.propostaEmail) {
-    const emailTemplate = result.data.propostaEmail;
-    return emailTemplate;
-  } else {
+    const result = await response.json() as { success?: boolean; data?: { propostaEmail?: string }; };
+    if (result.success && result.data && result.data.propostaEmail) {
+      const emailTemplate = result.data.propostaEmail;
+      return emailTemplate;
+    }
+  }
+
     const emailTemplate = `Prezado(a) ${data.cliente?.nome},
 
     Espero que esta mensagem o(a) encontre bem.
@@ -244,7 +256,7 @@ export class EmailRenderer {
     Este é um relatório gerado automaticamente pelo sistema SmartQuote.
     Para mais informações, visite: www.smartquote.ao`;
 
-    if (updateInDb) {
+    if (updateInDb && API_BASE_URL) {
       await fetch(`${API_BASE_URL}/api/relatorios/proposta-email/${data.cotacaoId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -253,6 +265,6 @@ export class EmailRenderer {
     }
   
     return emailTemplate;
-  }
+  
 }
 }

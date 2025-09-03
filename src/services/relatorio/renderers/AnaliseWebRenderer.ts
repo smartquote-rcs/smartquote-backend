@@ -18,9 +18,9 @@ export class AnaliseWebRenderer {
     
     // Título da seção com gradiente visual (mesmo estilo)
     doc
-      .fill('#e74c3c')
+      .fill('#1e40af')
       .rect(margin - 20, doc.y - 10, contentWidth + 40, 45)
-      .fillAndStroke('#e74c3c', '#c0392b');
+      .fillAndStroke('#1e40af', '#1d4ed8');
     
     doc
       .fill('#ffffff')
@@ -55,19 +55,21 @@ export class AnaliseWebRenderer {
     analiseWeb.forEach((relatorioWebItem, webIndex) => {
       // A estrutura da análise web é diferente - não tem llm_relatorio aninhado
       const relatorioWeb = relatorioWebItem;
-      // Verificar espaço para cada relatório web
-      this.verificarEspacoPagina(doc, 150);
-      
+      // nova pagina se for diferente da primeira pagina
+      if (webIndex > 0) {
+        doc.addPage();
+      }
+
       // Card do relatório web
       const webY = doc.y;
       doc
-        .fill('#f8f9fa')
+        .fill('#f8fafc')
         .rect(margin, webY, contentWidth, 80)
-        .fillAndStroke('#f8f9fa', '#e74c3c');
+        .fillAndStroke('#f8fafc', '#93c5fd');
       
       // Ícone da busca web
       doc
-        .fill('#e74c3c')
+        .fill('#2563eb')
         .circle(margin + 20, webY + 20, 12)
         .fill()
         .fill('#ffffff')
@@ -83,8 +85,9 @@ export class AnaliseWebRenderer {
 
       // Informações da busca em linha
       const timestamp = (relatorioWeb as any).timestamp || Date.now();
-      const produtosAnalisados = (relatorioWeb as any).produtos_analisados || 0;
-      const produtosSelecionados = (relatorioWeb as any).produtos_selecionados || 0;
+      // Calcular produtos analisados e selecionados com base nos dados reais
+      const produtosAnalisados = relatorioWeb.top_ranking ? relatorioWeb.top_ranking.length : 0;
+      const produtosSelecionados = relatorioWeb.escolha_principal ? 1 : 0;
       
       doc
         .fill('#7f8c8d')
@@ -185,9 +188,9 @@ export class AnaliseWebRenderer {
         
         // Título do ranking
         doc
-          .fill('#3498db')
+          .fill('#2563eb')
           .rect(margin, doc.y, contentWidth, 35)
-          .fillAndStroke('#3498db', '#2980b9');
+            .fillAndStroke('#2563eb', '#1d4ed8');
         
         doc
           .fill('#ffffff')

@@ -18,9 +18,9 @@ export class AnaliseLocalRenderer {
     
     // Título da seção com gradiente visual
     doc
-      .fill('#8e44ad')
+      .fill('#1e40af')
       .rect(margin - 20, doc.y - 10, contentWidth + 40, 45)
-      .fillAndStroke('#8e44ad', '#7d3c98');
+      .fillAndStroke('#1e40af', '#1d4ed8');
     
     doc
       .fill('#ffffff')
@@ -35,12 +35,12 @@ export class AnaliseLocalRenderer {
     if (analiseLocal.length === 0) {
       // Card de aviso quando não há análises
       doc
-        .fill('#fff3cd')
+        .fill('#f0f9ff')
         .rect(margin, doc.y, contentWidth, 60)
-        .fillAndStroke('#fff3cd', '#ffc107');
+        .fillAndStroke('#f0f9ff', '#93c5fd');
       
       doc
-        .fill('#856404')
+        .fill('#0f172a')
         .fontSize(12)
         .font('Helvetica-Bold')
         .text('AVISO', margin + 20, doc.y + 20)
@@ -95,13 +95,13 @@ export class AnaliseLocalRenderer {
         const totalChoiceHeight = escolhaHeight + 60; // padding + header
         
         doc
-          .fill('#e8f5e8')
+          .fill('#eff6ff')
           .rect(margin, choiceY, contentWidth, totalChoiceHeight)
-          .fillAndStroke('#e8f5e8', '#27ae60');
+          .fillAndStroke('#eff6ff', '#3b82f6');
         
         // Indicador de escolha
         doc
-          .fill('#27ae60')
+          .fill('#1e40af')
           .fontSize(12)
           .font('Helvetica-Bold')
           .text('TOP', margin + 20, choiceY + 18);
@@ -139,13 +139,13 @@ export class AnaliseLocalRenderer {
           
           // Caixa amarela
           doc
-            .fill('#fff3cd')
+            .fill('#e0f2fe')
             .rect(margin, justY, contentWidth, totalJustHeight)
-            .fillAndStroke('#fff3cd', '#ffc107');
+            .fillAndStroke('#e0f2fe', '#93c5fd');
           
           // Título
           doc
-            .fill('#856404')
+            .fill('#1e3a8a')
             .fontSize(11)
             .font('Helvetica-Bold')
             .text('JUSTIFICATIVA DA ESCOLHA', margin + 20, justY + 15);
@@ -171,9 +171,9 @@ export class AnaliseLocalRenderer {
         
         // Título do ranking
         doc
-          .fill('#3498db')
+          .fill('#2563eb')
           .rect(margin, doc.y, contentWidth, 35)
-          .fillAndStroke('#3498db', '#2980b9');
+          .fillAndStroke('#2563eb', '#1d4ed8');
         
         doc
           .fill('#ffffff')
@@ -218,7 +218,7 @@ export class AnaliseLocalRenderer {
           this.verificarEspacoPagina(doc, itemHeight);
           
           const rankY = doc.y;
-          const medalColors = ['#ffd700', '#c0c0c0', '#cd7f32', '#4a90e2', '#9b59b6'];
+          const medalColors = ['#1e40af', '#1d4ed8', '#2563eb', '#3b82f6', '#60a5fa'];
           const medalColor = medalColors[rankIndex] || '#95a5a6';
           
           // Card do ranking
@@ -251,7 +251,7 @@ export class AnaliseLocalRenderer {
           // Score em destaque (posicionado adequadamente)
           if (ranking.score_estimado) {
             doc
-              .fill('#27ae60')
+              .fill('#1e40af')
               .fontSize(16)
               .font('Helvetica-Bold')
               .text(`${(ranking.score_estimado * 100).toFixed(1)}%`, margin + contentWidth - 100, nomeY + 5);
@@ -260,7 +260,7 @@ export class AnaliseLocalRenderer {
           // Preço (abaixo do score)
           if (ranking.preco) {
             doc
-              .fill('#e67e22')
+              .fill('#0ea5e9')
               .fontSize(11)
               .font('Helvetica-Bold')
               .text(`AOA$ ${ranking.preco}`, margin + contentWidth - 100, nomeY + 30);
@@ -302,19 +302,19 @@ export class AnaliseLocalRenderer {
             if (hasFortes) {
               // Card pontos fortes
               doc
-                .fill('#d5f4e6')
+                .fill('#e0f2fe')
                 .rect(margin + 55, cardsY, cardWidth - 5, 35)
-                .fillAndStroke('#d5f4e6', '#27ae60');
+                .fillAndStroke('#e0f2fe', '#38bdf8');
               
               doc
-                .fill('#27ae60')
+                .fill('#0ea5e9')
                 .fontSize(8)
                 .font('Helvetica-Bold')
                 .text('PONTOS FORTES', margin + 60, cardsY + 5);
               
               const fortesText = ranking.pontos_fortes.slice(0, 2).join(', ');
               doc
-                .fill('#2c3e50')
+                .fill('#1e293b')
                 .fontSize(7)
                 .font('Helvetica')
                 .text(fortesText, margin + 60, cardsY + 18, { 
@@ -328,19 +328,19 @@ export class AnaliseLocalRenderer {
               const fracosX = hasFortes ? margin + 55 + cardWidth + 5 : margin + 55;
               
               doc
-                .fill('#fdeaea')
+                .fill('#f1f5f9')
                 .rect(fracosX, cardsY, cardWidth - 5, 35)
-                .fillAndStroke('#fdeaea', '#e74c3c');
+                .fillAndStroke('#f1f5f9', '#94a3b8');
               
               doc
-                .fill('#e74c3c')
+                .fill('#475569')
                 .fontSize(8)
                 .font('Helvetica-Bold')
                 .text('PONTOS FRACOS', fracosX + 5, cardsY + 5);
               
               const fracosText = ranking.pontos_fracos.slice(0, 2).join(', ');
               doc
-                .fill('#2c3e50')
+                .fill('#334155')
                 .fontSize(7)
                 .font('Helvetica')
                 .text(fracosText, fracosX + 5, cardsY + 18, { 

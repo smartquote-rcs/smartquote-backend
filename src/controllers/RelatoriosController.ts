@@ -277,6 +277,8 @@ export default class RelatoriosController {
       .from('relatorios')
       .select('id, proposta_email')
       .eq('cotacao_id', cotacaoIdNum)
+      .order('id', { ascending: false })
+      .limit(1)
       .single();
     if (buscaError) {
       return res.status(500).json({ success: false, message: 'Erro ao buscar proposta de email', error: buscaError.message });

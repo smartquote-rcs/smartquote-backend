@@ -63,21 +63,31 @@ class AuthService {
     };
   }
 
-  async recoverPassword(email: string) {
-    if (!email) {
-      throw new Error("E-mail é obrigatório");
-    }
-
-    const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: "http://localhost:3000/reset-password", 
-    });
-
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    return data;
+async recoverPassword(email: string) {
+  if (!email) {
+    throw new Error("E-mail é obrigatório");
   }
+ 
+  const { data: user, error: userError } = await supabase
+    .from("users") 
+    .select("id, email")
+    .eq("email", email)
+    .single();
+
+  if (userError || !user) {
+    throw new Error("E-mail não encontrado");
+  }
+ 
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: "http://localhost:3000/reset-password",
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return { message: "E-mail de recuperação enviado com sucesso" };
+}
 
   /**
    * Inicia o processo de autenticação de dois fatores

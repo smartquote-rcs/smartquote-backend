@@ -50,7 +50,7 @@ class AuthController {
         result,
       });
     } catch (err: any) {
-      return res.status(400).json({ error: err.message });
+      return res.status(400).json({ error: "Email Invalido!" });
     }
   }
   // Initiate two-factor authentication

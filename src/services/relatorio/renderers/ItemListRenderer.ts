@@ -1,5 +1,6 @@
 import PDFDocument from 'pdfkit';
 import { RelatorioData } from '../types';
+import { theme } from '../theme';
 
 export class ItemListRenderer {
   private doc: PDFKit.PDFDocument;
@@ -33,39 +34,50 @@ export class ItemListRenderer {
     const contentWidth = pageWidth - (margin * 2);
     
     // ========== LISTA DE ITENS ==========
-    const totalItensData = data.analiseLocal.length + data.analiseWeb.length;
-    if (totalItensData > 0) {
+    const analisesLocal = Array.isArray(data.analiseLocal) ? data.analiseLocal : [];
+    const analisesWeb = Array.isArray(data.analiseWeb) ? data.analiseWeb : [];
+    const totalAnalises = analisesLocal.length + analisesWeb.length;
+    if (totalAnalises > 0) {
       this.doc.addPage();
       // Header da seção de itens
       const itemsHeaderY = this.doc.y;
       
       this.doc
-        .fill('#1e293b')
+        .fill(theme.text.labelDark)
         .fontSize(16)
         .font('Helvetica-Bold')
         .text('ITENS INCLUÍDOS NA PROPOSTA', margin, itemsHeaderY);
       
       // Linha decorativa azul moderna
       this.doc
-        .fill('#2563eb')
+        .fill(theme.info.main)
         .rect(margin, itemsHeaderY + 25, 180, 2)
         .fill();
       
       this.doc.y = itemsHeaderY + 40;
       
-      // Processar análises locais como itens
-      data.analiseLocal.forEach((analise, index) => {
-        if (analise.llm_relatorio?.top_ranking && analise.llm_relatorio.top_ranking.length > 0) {
-          const item = analise.llm_relatorio.top_ranking[0]; // Pegar o primeiro item do ranking
-          this.renderizarItemAnalise(item, index, analise.llm_relatorio, true, contentWidth);
+      // Índice sequencial só para blocos exibidos (itens escolhidos ou cards de não encontrado)
+      let seqIndex = 0;
+
+      // Processar análises locais
+      analisesLocal.forEach((analise) => {
+        const rel: any = (analise as any).llm_relatorio || analise;
+        const escolhido = this.encontrarItemEscolhido(rel);
+        if (escolhido) {
+          this.renderizarItemAnalise(escolhido, seqIndex++, rel, true, contentWidth);
+        } else {
+          this.renderizarCardNaoEncontrado(seqIndex++, rel, true, contentWidth);
         }
       });
       
-      // Processar análises web como itens
-      data.analiseWeb.forEach((analise, index) => {
-        if (analise.top_ranking && analise.top_ranking.length > 0) {
-          const item = analise.top_ranking[0]; // Pegar o primeiro item do ranking
-          this.renderizarItemAnalise(item, index + data.analiseLocal.length, analise, false, contentWidth);
+      // Processar análises web
+      analisesWeb.forEach((analise) => {
+        const rel: any = analise;
+        const escolhido = this.encontrarItemEscolhido(rel);
+        if (escolhido) {
+          this.renderizarItemAnalise(escolhido, seqIndex++, rel, false, contentWidth);
+        } else {
+          this.renderizarCardNaoEncontrado(seqIndex++, rel, false, contentWidth);
         }
       });
     }
@@ -132,10 +144,10 @@ export class ItemListRenderer {
     this.doc
       .fill('#ffffff')
       .rect(margin, itemY, contentWidth, itemHeight)
-      .fillAndStroke('#ffffff', '#cbd5e1');
+      .fillAndStroke('#ffffff', theme.card.neutralStroke);
     
     // Borda lateral colorida em tons azuis
-    const borderColors = ['#2563eb', '#1d4ed8', '#1e40af', '#3730a3', '#1e3a8a'];
+  const borderColors = [theme.info.main, theme.info.alt, theme.header.bg, '#3730a3', '#1e3a8a'];
     const borderColor = borderColors[index % borderColors.length];
     
     this.doc
@@ -158,7 +170,7 @@ export class ItemListRenderer {
     
     // Nome do produto (usar a altura já calculada)
     this.doc
-      .fill('#0f172a')
+      .fill(theme.text.labelDark)
       .fontSize(13)
       .font('Helvetica-Bold')
       .text(item.nome, margin + 65, itemHeaderY, { 
@@ -174,7 +186,7 @@ export class ItemListRenderer {
       .fill('#eff6ff')
       .roundedRect(precoBoxX, precoY, 120, 26, 13)
       .fill()
-      .fill('#1e40af')
+      .fill(theme.header.bg)
       .fontSize(13)
       .font('Helvetica-Bold')
       .text(
@@ -248,7 +260,7 @@ export class ItemListRenderer {
       
       // Badge IA
       this.doc
-        .fill('#1e40af')
+        .fill(theme.header.bg)
         .circle(margin + 35, analiseY + 7, 10)
         .fill()
         .fill('#ffffff')
@@ -258,7 +270,7 @@ export class ItemListRenderer {
       
       // Label da análise
       this.doc
-        .fill('#1e40af')
+        .fill(theme.header.bg)
         .fontSize(9)
         .font('Helvetica-Bold')
         .text('ANÁLISE INTELIGENTE', margin + 55, analiseY + 3);
@@ -278,5 +290,92 @@ export class ItemListRenderer {
     
     // Atualizar posição Y
     this.doc.y = itemY + itemHeight + 20;
+  }
+
+  // Seleciona o item escolhido conforme a escolha_principal
+  private encontrarItemEscolhido(analise: any) {
+    const ranking = Array.isArray(analise?.top_ranking) ? analise.top_ranking : [];
+    const escolha = (analise?.escolha_principal || '').toString().trim();
+    if (!escolha) return null;
+    const alvo = this.normalizarTexto(escolha);
+    const encontrado = ranking.find((r: any) => {
+      const nome = this.normalizarTexto((r?.nome || '').toString());
+      return nome && (nome.includes(alvo) || alvo.includes(nome));
+    });
+    return encontrado || null;
+  }
+
+  private normalizarTexto(t: string) {
+    return t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+  }
+
+  // Card de erro quando não há item selecionado/encontrado
+  private renderizarCardNaoEncontrado(index: number, analise: any, isLocal: boolean, contentWidth: number) {
+    const margin = this.margin;
+    const minHeight = 120;
+    this.verificarEspacoPagina(minHeight);
+    const itemY = this.doc.y;
+
+    // Sombra
+    this.doc
+      .fill('#fff1f2')
+      .rect(margin + 2, itemY + 2, contentWidth - 4, minHeight - 4)
+      .fill();
+
+    // Card principal
+    this.doc
+      .fill('#ffffff')
+      .rect(margin, itemY, contentWidth, minHeight)
+      .fillAndStroke('#ffffff', theme.error.stroke);
+
+    // Borda lateral
+    this.doc
+      .fill(theme.error.stroke)
+      .rect(margin, itemY, 5, minHeight)
+      .fill();
+
+    const headerY = itemY + 18;
+
+    // Badge índice
+    this.doc
+      .fill(theme.error.stroke)
+      .roundedRect(margin + 20, headerY - 5, 32, 26, 13)
+      .fill()
+      .fill('#ffffff')
+      .fontSize(12)
+      .font('Helvetica-Bold')
+      .text(`${index + 1}`, margin + 31, headerY + 3);
+
+    // Título
+    this.doc
+      .fill(theme.text.primary)
+      .fontSize(13)
+      .font('Helvetica-Bold')
+      .text('ITEM NÃO ENCONTRADO', margin + 65, headerY);
+
+    // Mensagem
+    const origem = isLocal ? 'análise local' : 'busca web';
+    const mensagem = `Não foi possível identificar um item selecionado nesta ${origem}.`;
+    this.doc
+      .fill('#6b7280')
+      .fontSize(10)
+      .font('Helvetica')
+      .text(mensagem, margin + 20, headerY + 34, { width: contentWidth - 40, lineGap: 2 });
+
+    if (analise?.escolha_principal) {
+      this.doc
+        .fill(theme.warning.bg)
+        .rect(margin + 20, headerY + 60, contentWidth - 40, 28)
+        .fillAndStroke(theme.warning.bg, theme.warning.stroke);
+      this.doc
+        .fill(theme.warning.text)
+        .fontSize(10)
+        .font('Helvetica-Bold')
+        .text('Referência informada:', margin + 28, headerY + 66, { continued: true })
+        .font('Helvetica')
+        .text(` ${analise.escolha_principal}`);
+    }
+
+    this.doc.y = itemY + minHeight + 20;
   }
 }

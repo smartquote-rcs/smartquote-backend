@@ -67,9 +67,11 @@ export class EmailRenderer {
         .fontSize(14)
         .font('Helvetica-Bold')
         .text('@', margin + 25, headerY + 15);
-      
+      if (isContinuation) {
+         return headerY + emailHeaderHeight + 1
+      }
       // Título do email
-      const title = isContinuation ? 'TEMPLATE DE E-MAIL RESPOSTA (CONT.)' : 'TEMPLATE DE E-MAIL RESPOSTA';
+      const title = 'TEMPLATE DE E-MAIL RESPOSTA';
       this.doc
         .fill('#ffffff')
         .fontSize(16)
@@ -100,9 +102,9 @@ export class EmailRenderer {
         .fill();
     };
     
-    // Verificar espaço inicial
-    this.verificarEspacoPagina(emailHeaderHeight + 100);
-    
+    //adicionar nova pagina
+    this.doc.addPage();
+
     // Desenhar header inicial
     let currentY = drawEmailHeader(this.doc.y, false);
     let boxStartY = currentY;
@@ -216,7 +218,6 @@ export class EmailRenderer {
     === RESUMO DA PROPOSTA ===
 
     • Investimento Total: ${valorTotal}
-    • Total de Análises Realizadas: ${totalAnalises}
     • Prazo de Entrega: 5-10 dias úteis
     • Validade da Proposta: 30 dias
 

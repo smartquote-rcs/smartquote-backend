@@ -48,8 +48,8 @@ export class PDFGenerator {
   /**
    * Adiciona seção de proposta comercial
    */
-  public adicionarSecaoProposta(data: RelatorioData) {
-    this.propostaRenderer.render(data);
+  public async adicionarSecaoProposta(data: RelatorioData) {
+    await this.propostaRenderer.render(data);
     this.itemListRenderer.render(data);
   }
 

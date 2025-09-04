@@ -1,5 +1,6 @@
 import PDFKit from 'pdfkit';
 import { RelatorioData } from '../types';
+import { theme } from '../theme';
 
 export class AnaliseLocalRenderer {
   private verificarEspacoPagina(doc: PDFKit.PDFDocument, altura: number) {
@@ -18,16 +19,30 @@ export class AnaliseLocalRenderer {
     
     // Título da seção com gradiente visual
     doc
-      .fill('#1e40af')
+      .fill(theme.header.bg)
       .rect(margin - 20, doc.y - 10, contentWidth + 40, 45)
-      .fillAndStroke('#1e40af', '#1d4ed8');
+      .fillAndStroke(theme.header.bg, theme.header.stroke);
     
     doc
-      .fill('#ffffff')
+      .fill(theme.header.title)
       .fontSize(18)
       .font('Helvetica-Bold')
-      .text('ANALISE INTELIGENTE - TOP 5 PRODUTOS', margin, doc.y + 10)
+      .text('Análise Da Pesquisa Local', margin, doc.y + 10)
       .moveDown(1.5);
+
+    // Subtítulo de rastreabilidade para sinalização rápida
+    this.verificarEspacoPagina(doc, 30);
+    const subY = doc.y;
+    doc
+      .fill(theme.trace.barBg)
+      .rect(margin, subY, contentWidth, 26)
+      .fillAndStroke(theme.trace.barBg, theme.trace.barStroke);
+    doc
+      .fill(theme.trace.barText)
+      .fontSize(11)
+      .font('Helvetica-Bold')
+      .text('RASTREABILIDADE DE DECISÕES E SUGESTÕES', margin + 12, subY + 7);
+    doc.y = subY + 32;
     
     // Verificar se há análises locais
     const analiseLocal = Array.isArray(data.analiseLocal) ? data.analiseLocal : (data.analiseLocal ? [data.analiseLocal] : []);
@@ -57,17 +72,16 @@ export class AnaliseLocalRenderer {
       const analise = analiseItem.llm_relatorio || analiseItem;
       // Verificar espaço para cada análise
       this.verificarEspacoPagina(doc, 150);
-      
       // Card da análise
       const analiseY = doc.y;
       doc
-        .fill('#f8f9fa')
+        .fill(theme.card.neutralBg)
         .rect(margin, analiseY, contentWidth, 40)
-        .fillAndStroke('#f8f9fa', '#8e44ad');
+        .fillAndStroke(theme.card.neutralBg, theme.card.infoStroke);
       
       // Ícone da pesquisa
       doc
-        .fill('#8e44ad')
+        .fill(theme.info.main)
         .circle(margin + 20, analiseY + 20, 12)
         .fill()
         .fill('#ffffff')
@@ -76,13 +90,74 @@ export class AnaliseLocalRenderer {
         .text(`${analiseIndex + 1}`, margin + 16, analiseY + 16);
       
       doc
-        .fill('#2c3e50')
+        .fill(theme.text.primary)
         .fontSize(14)
         .font('Helvetica-Bold')
-        .text(`PESQUISA: ${analiseIndex + 1}`, margin + 45, analiseY + 15)
+        .text(`PESQUISA: ${analise.query}`, margin + 45, analiseY + 15)
         .moveDown(1.5);
-      
-      // Card da escolha principal
+
+      // Resumo de Rastreabilidade (trilha de decisão)
+      const timestamp = (analiseItem as any).timestamp || (analise as any).timestamp || Date.now();
+      const criterios = analise.criterios_avaliacao || {} as any;
+      const criteriosLabelsResumo = [
+        criterios.correspondencia_tipo ? 'Correspondência de Tipo' : undefined,
+        criterios.especificacoes ? 'Especificações' : undefined,
+        criterios.custo_beneficio ? 'Custo-Benefício' : undefined,
+        criterios.disponibilidade ? 'Disponibilidade' : undefined,
+      ].filter(Boolean).join(', ') || '—';
+      const decisaoResumo = analise.escolha_principal ? String(analise.escolha_principal) : 'não encontrada';
+      const evidenciasResumo = Array.isArray(analise.top_ranking) ? `${analise.top_ranking.length} evidência(s) consideradas` : '0 evidência(s) consideradas';
+
+      // Calcular altura dinâmica do resumo
+      doc.fontSize(10).font('Helvetica');
+      const decisaoH = doc.heightOfString(decisaoResumo, { width: contentWidth - 40, lineGap: 2 });
+      const criteriosH = doc.heightOfString(String(criteriosLabelsResumo), { width: contentWidth - 40, lineGap: 2 });
+      const resumoAltura = 30 + decisaoH + criteriosH + 20;
+
+      this.verificarEspacoPagina(doc, resumoAltura + 40);
+      const resumoY = doc.y;
+      // Header do resumo
+      doc
+        .fill(theme.trace.summaryHeaderBg)
+        .rect(margin, resumoY, contentWidth, 28)
+        .fillAndStroke(theme.trace.summaryHeaderBg, theme.trace.summaryHeaderStroke);
+      doc
+        .fill(theme.trace.summaryHeaderText)
+        .fontSize(12)
+        .font('Helvetica-Bold')
+        .text('RESUMO DE RASTREABILIDADE', margin + 12, resumoY + 7);
+
+      // Corpo do resumo
+      const corpoY = resumoY + 33;
+      doc
+        .fill(theme.trace.bodyBg)
+        .rect(margin, corpoY, contentWidth, resumoAltura)
+        .fillAndStroke(theme.trace.bodyBg, theme.trace.bodyStroke);
+      doc
+        .fill(theme.trace.bodyText)
+        .fontSize(10)
+        .font('Helvetica-Bold')
+        .text('Decisão:', margin + 16, corpoY + 12);
+      doc
+        .font('Helvetica')
+        .text(decisaoResumo, margin + 85, corpoY + 12, { width: contentWidth - 100, lineGap: 2 });
+      doc
+        .font('Helvetica-Bold')
+        .text('Critérios considerados:', margin + 16, corpoY + 12 + decisaoH + 8);
+      doc
+        .font('Helvetica')
+        .text(String(criteriosLabelsResumo), margin + 160, corpoY + 12 + decisaoH + 8, { width: contentWidth - 175, lineGap: 2 });
+      doc
+        .font('Helvetica-Bold')
+        .text('Evidências:', margin + 16, corpoY + 12 + decisaoH + 8 + criteriosH + 8);
+      doc
+        .font('Helvetica')
+        .text(`${evidenciasResumo} • Data/hora: ${new Date(timestamp).toLocaleString('pt-BR')}`,
+              margin + 95, corpoY + 12 + decisaoH + 8 + criteriosH + 8, { width: contentWidth - 110, lineGap: 2 });
+
+      doc.y = corpoY + resumoAltura + 15;
+
+      // Card da escolha princi,pal
       if (analise.escolha_principal) {
         const choiceY = doc.y;
         
@@ -93,35 +168,6 @@ export class AnaliseLocalRenderer {
           lineGap: 2
         });
         const totalChoiceHeight = escolhaHeight + 60; // padding + header
-        
-        doc
-          .fill('#eff6ff')
-          .rect(margin, choiceY, contentWidth, totalChoiceHeight)
-          .fillAndStroke('#eff6ff', '#3b82f6');
-        
-        // Indicador de escolha
-        doc
-          .fill('#1e40af')
-          .fontSize(12)
-          .font('Helvetica-Bold')
-          .text('TOP', margin + 20, choiceY + 18);
-        
-        doc
-          .fill('#2c3e50')
-          .fontSize(14)
-          .font('Helvetica-Bold')
-          .text('PRODUTO RECOMENDADO', margin + 50, choiceY + 15);
-        
-        // Texto da escolha principal
-        doc
-          .fontSize(12)
-          .font('Helvetica-Bold')
-          .text(analise.escolha_principal, margin + 20, choiceY + 40, { 
-            width: contentWidth - 40,
-            lineGap: 2
-          });
-        
-        doc.y = choiceY + totalChoiceHeight + 15;
         
         if (analise.justificativa_escolha) {
           // Verificar espaço mínimo antes de desenhar
@@ -139,16 +185,16 @@ export class AnaliseLocalRenderer {
           
           // Caixa amarela
           doc
-            .fill('#e0f2fe')
+            .fill(theme.warning.bg)
             .rect(margin, justY, contentWidth, totalJustHeight)
-            .fillAndStroke('#e0f2fe', '#93c5fd');
+            .fillAndStroke(theme.warning.bg, theme.warning.stroke);
           
           // Título
           doc
-            .fill('#1e3a8a')
+            .fill(theme.warning.text)
             .fontSize(11)
             .font('Helvetica-Bold')
-            .text('JUSTIFICATIVA DA ESCOLHA', margin + 20, justY + 15);
+            .text('JUSTIFICATIVA DA ESCOLHA (EVIDÊNCIA PRINCIPAL)', margin + 20, justY + 15);
           
           // Texto da justificativa
           doc
@@ -171,15 +217,15 @@ export class AnaliseLocalRenderer {
         
         // Título do ranking
         doc
-          .fill('#2563eb')
+          .fill(theme.info.main)
           .rect(margin, doc.y, contentWidth, 35)
-          .fillAndStroke('#2563eb', '#1d4ed8');
+          .fillAndStroke(theme.info.main, theme.info.alt);
         
         doc
-          .fill('#ffffff')
+          .fill(theme.header.title)
           .fontSize(14)
           .font('Helvetica-Bold')
-          .text('RANKING COMPLETO TOP 5', margin + 20, doc.y + 10)
+          .text(`Melhores Resultados Da Pesquisa para "${analise.query}"`, margin + 20, doc.y + 10)
           .moveDown(1.2);
         
         analise.top_ranking.forEach((ranking: any, rankIndex: number) => {
@@ -247,32 +293,41 @@ export class AnaliseLocalRenderer {
               width: contentWidth - 220,
               lineGap: 2
             });
-
-          // Score em destaque (posicionado adequadamente)
-          if (ranking.score_estimado) {
+                      // Destaque se for a escolha principal
+          const isEscolha = analise.escolha_principal && ranking.nome && (ranking.nome === analise.escolha_principal);
+           if (isEscolha) {
             doc
-              .fill('#1e40af')
-              .fontSize(16)
+              .fill('#16a34a')
+              .rect(margin + contentWidth - 100, nomeY - 2, 100, 30)
+              .fill();
+            doc
+              .fill('#ffffff')
+              .fontSize(10)
               .font('Helvetica-Bold')
-              .text(`${(ranking.score_estimado * 100).toFixed(1)}%`, margin + contentWidth - 100, nomeY + 5);
+              .text('ESCOLHA PRINCIPAL', margin + contentWidth - 90, nomeY + 2);
           }
+
+
 
           // Preço (abaixo do score)
           if (ranking.preco) {
             doc
-              .fill('#0ea5e9')
+              .fill(theme.price.main)
               .fontSize(11)
               .font('Helvetica-Bold')
               .text(`AOA$ ${ranking.preco}`, margin + contentWidth - 100, nomeY + 30);
           }
 
-          // ID do produto (pequeno e discreto)
+      // ID do produto como evidência
           if (ranking.id) {
             doc
-              .fill('#95a5a6')
-              .fontSize(8)
-              .font('Helvetica')
-              .text(`ID: ${ranking.id}`, margin + 55, nomeY + Math.max(nomeHeight, 20) + 5);
+        .fill('#0f172a')
+        .fontSize(8)
+        .font('Helvetica-Bold')
+        .text('EVIDÊNCIA (ID): ', margin + 55, nomeY + Math.max(nomeHeight, 20) + 5, { continued: true })
+        .fill('#334155')
+        .font('Helvetica')
+        .text(`${ranking.id}`);
           }
 
           // Justificativa (com espaçamento adequado)
@@ -302,19 +357,19 @@ export class AnaliseLocalRenderer {
             if (hasFortes) {
               // Card pontos fortes
               doc
-                .fill('#e0f2fe')
+                .fill(theme.card.neutralBg)
                 .rect(margin + 55, cardsY, cardWidth - 5, 35)
-                .fillAndStroke('#e0f2fe', '#38bdf8');
+                .fillAndStroke(theme.card.neutralBg, theme.card.neutralStroke);
               
               doc
-                .fill('#0ea5e9')
+                .fill(theme.info.main)
                 .fontSize(8)
                 .font('Helvetica-Bold')
                 .text('PONTOS FORTES', margin + 60, cardsY + 5);
               
               const fortesText = ranking.pontos_fortes.slice(0, 2).join(', ');
               doc
-                .fill('#1e293b')
+                .fill(theme.text.labelDark)
                 .fontSize(7)
                 .font('Helvetica')
                 .text(fortesText, margin + 60, cardsY + 18, { 
@@ -328,19 +383,19 @@ export class AnaliseLocalRenderer {
               const fracosX = hasFortes ? margin + 55 + cardWidth + 5 : margin + 55;
               
               doc
-                .fill('#f1f5f9')
+                .fill(theme.card.neutralBg)
                 .rect(fracosX, cardsY, cardWidth - 5, 35)
-                .fillAndStroke('#f1f5f9', '#94a3b8');
+                .fillAndStroke(theme.card.neutralBg, theme.card.neutralStroke);
               
               doc
-                .fill('#475569')
+                .fill(theme.text.primary)
                 .fontSize(8)
                 .font('Helvetica-Bold')
                 .text('PONTOS FRACOS', fracosX + 5, cardsY + 5);
               
               const fracosText = ranking.pontos_fracos.slice(0, 2).join(', ');
               doc
-                .fill('#334155')
+                .fill(theme.text.labelMuted)
                 .fontSize(7)
                 .font('Helvetica')
                 .text(fracosText, fracosX + 5, cardsY + 18, { 
@@ -354,7 +409,7 @@ export class AnaliseLocalRenderer {
         });
       }
 
-      // Mostrar critérios de avaliação se existirem
+  // Mostrar critérios de avaliação se existirem
       if (analise.criterios_avaliacao) {
         this.verificarEspacoPagina(doc, 100);
         

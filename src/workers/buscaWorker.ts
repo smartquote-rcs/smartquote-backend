@@ -405,7 +405,7 @@ async function processarJob(message: JobMessage) {
         }
       });
       const produtosAntesLLM = todosProdutos.length;
-      const resultadoLLM = await filtrarProdutosComLLM(todosProdutos, termo, quantidade, custo_beneficio, rigor, ponderacao_web_llm);
+      const resultadoLLM = await filtrarProdutosComLLM(todosProdutos, termo , quantidade, custo_beneficio, rigor, ponderacao_web_llm);
       todosProdutos = resultadoLLM.produtos;
       relatorioLLM = resultadoLLM.relatorio; // Capturar o relatório
       log(`Produtos após refinamento LLM: ${todosProdutos.length} de ${produtosAntesLLM}`);
@@ -553,7 +553,10 @@ async function processarJob(message: JobMessage) {
       
       // 6. Enviar resultado final
       const tempoTotal = Date.now() - inicioTempo;
-      
+      if (totalSalvos > 0)
+      {
+        relatorioLLM.query = termo;
+      }
       enviarMensagem({
         status: 'sucesso',
         produtos: todosProdutos,

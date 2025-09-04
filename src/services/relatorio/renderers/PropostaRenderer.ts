@@ -1,5 +1,7 @@
 import PDFDocument from 'pdfkit';
+import CotacoesService from '../../CotacoesService';
 import { RelatorioData } from '../types';
+import { theme } from '../theme';
 
 export class PropostaRenderer {
   private doc: PDFKit.PDFDocument;
@@ -27,7 +29,7 @@ export class PropostaRenderer {
   /**
    * Adiciona seção de proposta comercial
    */
-  public render(data: RelatorioData) {
+  public async render(data: RelatorioData) {
     const margin = this.margin;
     const pageWidth = this.doc.page.width;
     const contentWidth = pageWidth - (margin * 2);
@@ -41,22 +43,22 @@ export class PropostaRenderer {
     
     // Fundo principal com tom azul formal
     this.doc
-      .fill('#1e40af')
+      .fill(theme.header.bg)
       .rect(margin - 15, headerY, contentWidth + 30, headerHeight)
       .fill();
     
     // Linha de destaque superior azul
     this.doc
-      .fill('#2563eb')
+      .fill(theme.info.main)
       .rect(margin - 15, headerY, contentWidth + 30, 4)
       .fill();
     
     // Ícone principal
     this.doc
-      .fill('#ffffff')
+  .fill('#ffffff')
       .circle(margin + 30, headerY + 27, 18)
       .fill()
-      .fill('#1e40af')
+  .fill(theme.header.bg)
       .fontSize(16)
       .font('Helvetica-Bold')
       .text('$', margin + 25, headerY + 19);
@@ -115,17 +117,58 @@ export class PropostaRenderer {
     const colWidth = (contentWidth - 60) / 3;
     
     // Dados da cotação
-    const totalItens = data.analiseLocal.length + data.analiseWeb.length;
+    const normalizarTexto = (s: string) => s
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/\p{Diacritic}+/gu, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    const countEscolhidos = (arr: any[], local: boolean) => arr.reduce((acc, a) => {
+      const rel: any = (local ? (a?.llm_relatorio || a) : a);
+      const escolha = (rel?.escolha_principal || '').toString().trim();
+      const ranking = Array.isArray(rel?.top_ranking) ? rel.top_ranking : [];
+      if (!escolha || ranking.length === 0) return acc;
+      const alvo = normalizarTexto(escolha);
+      const found = ranking.some((r: any) => {
+        const nome = normalizarTexto((r?.nome || '').toString());
+        return nome.includes(alvo) || alvo.includes(nome);
+      });
+      return acc + (found ? 1 : 0);
+    }, 0);
+    const totalItens = countEscolhidos(Array.isArray(data.analiseLocal) ? data.analiseLocal : [], true)
+                     + countEscolhidos(Array.isArray(data.analiseWeb) ? data.analiseWeb : [], false);
     const orcamento = data.orcamentoGeral || 0;
-    const status = totalItens > 0 ? 'COMPLETA' : 'PENDENTE';
-    const statusColor = totalItens > 0 ? '#1e40af' : '#dc2626';
+    let status = 'PENDENTE';
+    let statusColor = theme.error.main;
+    let badgeBg = theme.error.bg;
+    try {
+      const cotacao = await CotacoesService.getById(data.cotacaoId);
+      if (cotacao?.status === 'completa') {
+          status = 'COMPLETA';
+          statusColor = theme.success.stroke;
+          badgeBg = theme.success.bg;
+      }
+      else{
+        status = 'INCOMPLETA';
+        statusColor = theme.error.main;
+        badgeBg = theme.error.bg;
+      }
+    } catch (e) {
+      // fallback para lógica antiga se erro
+      if (totalItens > 0) {
+        status = 'COMPLETA';
+        statusColor = theme.success.stroke;
+        badgeBg = theme.success.bg;
+      }
+    }
     
-    // Coluna 1 - Total de Itens
+    // Coluna 1 - Itens Selecionados
     this.doc
       .fill('#64748b')
       .fontSize(9)
       .font('Helvetica-Bold')
-      .text('TOTAL DE ITENS', margin + 25, infoY);
+      .text('ITENS SELECIONADOS', margin + 25, infoY);
     
     this.doc
       .fill('#1e293b')
@@ -144,7 +187,7 @@ export class PropostaRenderer {
       .text('ORÇAMENTO GERAL', margin + 25 + colWidth, infoY);
     
     this.doc
-      .fill('#1e40af')
+      .fill(theme.header.bg)
       .fontSize(14)
       .font('Helvetica-Bold')
       .text(
@@ -166,7 +209,7 @@ export class PropostaRenderer {
     
     // Badge de status
     this.doc
-      .fill(statusColor === '#1e40af' ? '#eff6ff' : '#fef2f2')
+      .fill(badgeBg)
       .roundedRect(margin + 25 + (colWidth * 2), infoY + 10, 70, 20, 10)
       .fill()
       .fill(statusColor)

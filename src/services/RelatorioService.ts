@@ -197,7 +197,7 @@ export class RelatorioService {
 
         // Gerar conteúdo do PDF
         pdfGenerator.adicionarCabecalho(data);
-        pdfGenerator.adicionarSecaoProposta(data);
+        await pdfGenerator.adicionarSecaoProposta(data);
         
   // Adicionar template de email (aguardando pois é assíncrono)
   await pdfGenerator.adicionarTemplateEmail(data);
@@ -281,7 +281,7 @@ export class RelatorioService {
 
         // Gerar conteúdo do PDF
         pdfGenerator.adicionarCabecalho(data);
-        pdfGenerator.adicionarSecaoProposta(data);
+        await pdfGenerator.adicionarSecaoProposta(data);
         
   // Adicionar template de email (aguardando pois é assíncrono)
   await pdfGenerator.adicionarTemplateEmail(data);

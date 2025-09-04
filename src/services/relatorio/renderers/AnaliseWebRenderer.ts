@@ -1,5 +1,6 @@
 import PDFKit from 'pdfkit';
 import { RelatorioData } from '../types';
+import { theme } from '../theme';
 
 export class AnaliseWebRenderer {
   private verificarEspacoPagina(doc: PDFKit.PDFDocument, altura: number) {
@@ -18,16 +19,30 @@ export class AnaliseWebRenderer {
     
     // Título da seção com gradiente visual (mesmo estilo)
     doc
-      .fill('#1e40af')
+      .fill(theme.header.bg)
       .rect(margin - 20, doc.y - 10, contentWidth + 40, 45)
-      .fillAndStroke('#1e40af', '#1d4ed8');
+      .fillAndStroke(theme.header.bg, theme.header.stroke);
     
     doc
-      .fill('#ffffff')
+  .fill(theme.header.title)
       .fontSize(18)
       .font('Helvetica-Bold')
-      .text('RELATÓRIO DE BUSCA WEB', margin, doc.y + 10)
+      .text('Análise Da Pesquisa Web', margin, doc.y + 10)
       .moveDown(1.5);
+
+    // Subtítulo de rastreabilidade para sinalização rápida
+    this.verificarEspacoPagina(doc, 30);
+    const subY = doc.y;
+    doc
+      .fill(theme.trace.barBg)
+      .rect(margin, subY, contentWidth, 26)
+      .fillAndStroke(theme.trace.barBg, theme.trace.barStroke);
+    doc
+      .fill(theme.trace.barText)
+      .fontSize(11)
+      .font('Helvetica-Bold')
+      .text('RASTREABILIDADE DE DECISÕES E SUGESTÕES', margin + 12, subY + 7);
+    doc.y = subY + 32;
 
     // Verificar se há análises web
     const analiseWeb = Array.isArray(data.analiseWeb) ? data.analiseWeb : (data.analiseWeb ? [data.analiseWeb] : []);
@@ -60,16 +75,16 @@ export class AnaliseWebRenderer {
         doc.addPage();
       }
 
-      // Card do relatório web
+  // Card do relatório web
       const webY = doc.y;
       doc
-        .fill('#f8fafc')
+        .fill(theme.card.neutralBg)
         .rect(margin, webY, contentWidth, 80)
-        .fillAndStroke('#f8fafc', '#93c5fd');
+        .fillAndStroke(theme.card.neutralBg, theme.card.infoStroke);
       
       // Ícone da busca web
       doc
-        .fill('#2563eb')
+        .fill(theme.info.main)
         .circle(margin + 20, webY + 20, 12)
         .fill()
         .fill('#ffffff')
@@ -78,10 +93,10 @@ export class AnaliseWebRenderer {
         .text(`${webIndex + 1}`, margin + 16, webY + 16);
       
       doc
-        .fill('#2c3e50')
+  .fill(theme.text.primary)
         .fontSize(14)
         .font('Helvetica-Bold')
-        .text(`BUSCA WEB: ${webIndex + 1}`, margin + 45, webY + 15);
+        .text(`BUSCA WEB: ${relatorioWeb.query.query_sugerida}`, margin + 45, webY + 15);
 
   // Informações da busca em linha
   const timestamp = (relatorioWeb as any).timestamp || Date.now();
@@ -91,7 +106,7 @@ export class AnaliseWebRenderer {
   const produtosSelecionados = (statusAnalise === 'produto_adicionado' || !!relatorioWeb.escolha_principal) ? 1 : 0;
       
       doc
-        .fill('#7f8c8d')
+        .fill(theme.text.muted)
         .fontSize(9)
         .font('Helvetica')
         .text(`Data: ${new Date(timestamp).toLocaleDateString('pt-BR')} | `, margin + 45, webY + 35)
@@ -110,7 +125,7 @@ export class AnaliseWebRenderer {
           produto_duplicado: '#3b82f6',
           erro_llm: '#0ea5e9'
         };
-        const color = statusColors[statusAnalise] || '#6b7280';
+  const color = statusColors[statusAnalise] || '#6b7280';
         doc
           .fill(color)
           .rect(statusX, statusY, 160, 22)
@@ -124,6 +139,68 @@ export class AnaliseWebRenderer {
       
       doc.y = webY + 95;
 
+      // Resumo de Rastreabilidade (trilha de decisão)
+      const criteriosFonteResumo: any = (relatorioWeb as any).criterios_avaliacao || (relatorioWeb as any).criterios_aplicados;
+      const criteriosLabelsResumo = criteriosFonteResumo ? [
+        criteriosFonteResumo.correspondencia_tipo ? 'Correspondência de Tipo' : undefined,
+        criteriosFonteResumo.especificacoes ? 'Especificações' : undefined,
+        criteriosFonteResumo.custo_beneficio ? 'Custo-Benefício' : undefined,
+        criteriosFonteResumo.disponibilidade ? 'Disponibilidade' : undefined,
+        criteriosFonteResumo.confiabilidade ? 'Confiabilidade da Fonte' : undefined,
+        criteriosFonteResumo.reputacao_vendedor ? 'Reputação do Vendedor' : undefined,
+      ].filter(Boolean).join(', ') : '—';
+      const decisaoResumo = relatorioWeb.escolha_principal ? String(relatorioWeb.escolha_principal) : 'não encontrada';
+      const evidenciasResumo = Array.isArray(relatorioWeb.top_ranking) ? `${relatorioWeb.top_ranking.length} fonte(s) analisadas` : '0 fonte(s) analisadas';
+
+      // Calcular altura dinâmica do resumo
+      doc.fontSize(10).font('Helvetica');
+      const decisaoH = doc.heightOfString(decisaoResumo, { width: contentWidth - 40, lineGap: 2 });
+      const criteriosH = doc.heightOfString(String(criteriosLabelsResumo), { width: contentWidth - 40, lineGap: 2 });
+      const resumoAltura = 30 + decisaoH + criteriosH + 20; // header + textos + padding
+
+      this.verificarEspacoPagina(doc, resumoAltura + 40);
+      const resumoY = doc.y;
+      // Header do resumo
+      doc
+        .fill(theme.trace.summaryHeaderBg)
+        .rect(margin, resumoY, contentWidth, 28)
+        .fillAndStroke(theme.trace.summaryHeaderBg, theme.trace.summaryHeaderStroke);
+      doc
+        .fill(theme.trace.summaryHeaderText)
+        .fontSize(12)
+        .font('Helvetica-Bold')
+        .text('RESUMO DE RASTREABILIDADE', margin + 12, resumoY + 7);
+
+      // Corpo do resumo
+      const corpoY = resumoY + 33;
+      doc
+        .fill(theme.trace.bodyBg)
+        .rect(margin, corpoY, contentWidth, resumoAltura)
+        .fillAndStroke(theme.trace.bodyBg, theme.trace.bodyStroke);
+      doc
+        .fill(theme.trace.bodyText)
+        .fontSize(10)
+        .font('Helvetica-Bold')
+        .text('Decisão:', margin + 16, corpoY + 12);
+      doc
+        .font('Helvetica')
+        .text(decisaoResumo, margin + 85, corpoY + 12, { width: contentWidth - 100, lineGap: 2 });
+      doc
+        .font('Helvetica-Bold')
+        .text('Critérios considerados:', margin + 16, corpoY + 12 + decisaoH + 8);
+      doc
+        .font('Helvetica')
+        .text(String(criteriosLabelsResumo) || '—', margin + 160, corpoY + 12 + decisaoH + 8, { width: contentWidth - 175, lineGap: 2 });
+      doc
+        .font('Helvetica-Bold')
+        .text('Evidências:', margin + 16, corpoY + 12 + decisaoH + 8 + criteriosH + 8);
+      doc
+        .font('Helvetica')
+        .text(`${evidenciasResumo} • Data/hora: ${new Date(timestamp).toLocaleString('pt-BR')}`,
+              margin + 95, corpoY + 12 + decisaoH + 8 + criteriosH + 8, { width: contentWidth - 110, lineGap: 2 });
+
+      doc.y = corpoY + resumoAltura + 15;
+
       // Card da escolha principal
       if (relatorioWeb.escolha_principal) {
         const choiceY = doc.y;
@@ -136,34 +213,6 @@ export class AnaliseWebRenderer {
         });
         const totalChoiceHeight = escolhaHeight + 60; // padding + header
         
-        doc
-          .fill('#e8f5e8')
-          .rect(margin, choiceY, contentWidth, totalChoiceHeight)
-          .fillAndStroke('#e8f5e8', '#27ae60');
-        
-        // Indicador de escolha
-        doc
-          .fill('#27ae60')
-          .fontSize(12)
-          .font('Helvetica-Bold')
-          .text('TOP', margin + 20, choiceY + 18);
-        
-        doc
-          .fill('#2c3e50')
-          .fontSize(14)
-          .font('Helvetica-Bold')
-          .text('PRODUTO RECOMENDADO WEB', margin + 50, choiceY + 15);
-        
-        // Texto da escolha principal
-        doc
-          .fontSize(12)
-          .font('Helvetica-Bold')
-          .text(relatorioWeb.escolha_principal, margin + 20, choiceY + 40, { 
-            width: contentWidth - 40,
-            lineGap: 2
-          });
-        
-        doc.y = choiceY + totalChoiceHeight + 15;
         
         if (relatorioWeb.justificativa_escolha) {
           // Verificar espaço mínimo antes de desenhar
@@ -181,16 +230,16 @@ export class AnaliseWebRenderer {
         
           // Caixa amarela
           doc
-            .fill('#fff3cd')
+            .fill(theme.warning.bg)
             .rect(margin, justY, contentWidth, totalJustHeight)
-            .fillAndStroke('#fff3cd', '#ffc107');
+            .fillAndStroke(theme.warning.bg, theme.warning.stroke);
         
           // Título
           doc
-            .fill('#856404')
+            .fill(theme.warning.text)
             .fontSize(11)
             .font('Helvetica-Bold')
-            .text('JUSTIFICATIVA DA ESCOLHA', margin + 20, justY + 15);
+            .text('JUSTIFICATIVA DA ESCOLHA (EVIDÊNCIA PRINCIPAL)', margin + 20, justY + 15);
         
           // Texto da justificativa
           doc
@@ -240,7 +289,7 @@ export class AnaliseWebRenderer {
           .fill('#ffffff')
           .fontSize(14)
           .font('Helvetica-Bold')
-          .text('RANKING WEB COMPLETO TOP 5', margin + 20, doc.y + 10)
+          .text(`Melhores Resultados Da Pesquisa para "${relatorioWeb.query.query_sugerida}"`, margin + 20, doc.y + 10)
           .moveDown(1.2);
 
   const escolhaTexto: string = (relatorioWeb.escolha_principal || '').toString().toLowerCase();
@@ -285,8 +334,8 @@ export class AnaliseWebRenderer {
           this.verificarEspacoPagina(doc, itemHeight);
           
           const rankY = doc.y;
-          const medalColors = ['#ffd700', '#c0c0c0', '#cd7f32', '#4a90e2', '#9b59b6'];
-          const medalColor = medalColors[rankIndex] || '#95a5a6';
+          const medalColors = theme.medals.colors;
+          const medalColor = medalColors[rankIndex] || theme.medals.fallback;
           
           // Card do ranking
           doc
@@ -317,26 +366,18 @@ export class AnaliseWebRenderer {
 
           // Destaque se for a escolha principal
           const isEscolha = escolhaTexto && ranking?.nome && escolhaTexto.includes((ranking.nome as string).toLowerCase());
-          if (isEscolha) {
+           if (isEscolha) {
             doc
               .fill('#16a34a')
-              .rect(margin + contentWidth - 200, nomeY - 2, 140, 20)
+              .rect(margin + contentWidth - 100, nomeY - 2, 100, 30)
               .fill();
             doc
               .fill('#ffffff')
               .fontSize(10)
               .font('Helvetica-Bold')
-              .text('ESCOLHA PRINCIPAL', margin + contentWidth - 190, nomeY + 2);
+              .text('ESCOLHA PRINCIPAL', margin + contentWidth - 90, nomeY + 2);
           }
 
-          // Score em destaque (posicionado adequadamente)
-          if (ranking.score_estimado) {
-            doc
-              .fill('#27ae60')
-              .fontSize(16)
-              .font('Helvetica-Bold')
-              .text(`${(ranking.score_estimado * 100).toFixed(1)}%`, margin + contentWidth - 100, nomeY + 5);
-          }
 
           // Preço (abaixo do score)
           if (ranking.preco) {
@@ -349,13 +390,16 @@ export class AnaliseWebRenderer {
 
           // URL (pequena e discreta)
           let currentY = nomeY + Math.max(nomeHeight, 20) + 10;
-          if (ranking.url) {
+      if (ranking.url) {
             const urlText = ranking.url;
             doc
-              .fill('#3498db')
-              .fontSize(8)
-              .font('Helvetica')
-              .text(` ${urlText}`, margin + 55, currentY);
+              .fill(theme.info.alt)
+        .fontSize(8)
+        .font('Helvetica-Bold')
+        .text('EVIDÊNCIA (LINK): ', margin + 55, currentY, { continued: true })
+              .fill(theme.info.link)
+        .font('Helvetica')
+        .text(`${urlText}`);
             currentY += 15;
           }
 
@@ -385,19 +429,19 @@ export class AnaliseWebRenderer {
             if (hasFortes) {
               // Card pontos fortes
               doc
-                .fill('#d5f4e6')
+                .fill(theme.card.neutralBg)
                 .rect(margin + 55, cardsY, cardWidth - 5, 35)
-                .fillAndStroke('#d5f4e6', '#27ae60');
+                .fillAndStroke(theme.card.neutralBg, theme.card.neutralStroke);
               
               doc
-                .fill('#27ae60')
+                .fill(theme.info.main)
                 .fontSize(8)
                 .font('Helvetica-Bold')
                 .text('PONTOS FORTES', margin + 60, cardsY + 5);
               
               const fortesText = ranking.pontos_fortes.slice(0, 2).join(', ');
               doc
-                .fill('#2c3e50')
+                .fill(theme.text.labelDark)
                 .fontSize(7)
                 .font('Helvetica')
                 .text(fortesText, margin + 60, cardsY + 18, { 
@@ -411,19 +455,19 @@ export class AnaliseWebRenderer {
               const fracosX = hasFortes ? margin + 55 + cardWidth + 5 : margin + 55;
               
               doc
-                .fill('#fdeaea')
+                .fill(theme.card.neutralBg)
                 .rect(fracosX, cardsY, cardWidth - 5, 35)
-                .fillAndStroke('#fdeaea', '#e74c3c');
+                .fillAndStroke(theme.card.neutralBg, theme.card.neutralStroke);
               
               doc
-                .fill('#e74c3c')
+                .fill(theme.text.primary)
                 .fontSize(8)
                 .font('Helvetica-Bold')
                 .text('PONTOS FRACOS', fracosX + 5, cardsY + 5);
               
               const fracosText = ranking.pontos_fracos.slice(0, 2).join(', ');
               doc
-                .fill('#2c3e50')
+                .fill(theme.text.labelMuted)
                 .fontSize(7)
                 .font('Helvetica')
                 .text(fracosText, fracosX + 5, cardsY + 18, { 
@@ -432,6 +476,7 @@ export class AnaliseWebRenderer {
                 });
             }
           }
+          
           
           doc.y = rankY + itemHeight + 15;
         });
@@ -506,22 +551,22 @@ export class AnaliseWebRenderer {
         });
       }
 
-      // Observações gerais, se houver
+    // Observações gerais, se houver
       const observacoes: string | undefined = (relatorioWeb as any).observacoes;
       if (observacoes) {
         this.verificarEspacoPagina(doc, 80);
         const obsY = doc.y;
         doc
-          .fill('#eef2ff')
+          .fill(theme.audit.bg)
           .rect(margin, obsY, contentWidth, 60)
-          .fillAndStroke('#eef2ff', '#6366f1');
+          .fillAndStroke(theme.audit.bg, theme.audit.stroke);
         doc
-          .fill('#3730a3')
+          .fill(theme.text.auditTitle)
           .fontSize(11)
           .font('Helvetica-Bold')
-          .text('OBSERVAÇÕES', margin + 20, obsY + 12);
+      .text('OBSERVAÇÕES / NOTAS DE AUDITORIA', margin + 20, obsY + 12);
         doc
-          .fill('#1f2937')
+          .fill(theme.text.auditBody)
           .fontSize(10)
           .font('Helvetica')
           .text(observacoes, margin + 20, obsY + 30, { width: contentWidth - 40, lineGap: 2 });

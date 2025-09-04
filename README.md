@@ -8,7 +8,9 @@ O SmartQuote Backend é uma API RESTful desenvolvida em Node.js e TypeScript, re
 
 ## ✨ Funcionalidades Principais
 
--   **Autenticação:** Sistema de login e gerenciamento de usuários com base em tokens.
+-   **Autenticação:**
+    -   Sistema de login e gerenciamento de usuários com base em tokens.
+    -   Autenticação de dois fatores por e-mail para maior segurança.
 -   **Gerenciamento de Cotações:** Criação, leitura, atualização e exclusão de cotações e seus itens.
 -   **Busca de Produtos:**
     -   Busca interna no banco de dados.

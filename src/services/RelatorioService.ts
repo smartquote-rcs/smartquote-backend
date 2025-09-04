@@ -103,6 +103,19 @@ export class RelatorioService {
         ? relatorio.analise_web 
         : relatorio.analise_web ? [relatorio.analise_web] : [];
 
+      // Buscar última proposta de email (se existir)
+      let propostaEmail: string | undefined;
+      try {
+        const { data: relatorioProposta } = await supabase
+          .from('relatorios')
+          .select('proposta_email')
+          .eq('cotacao_id', cotacao.id)
+          .order('id', { ascending: false })
+          .limit(1)
+          .single();
+        propostaEmail = relatorioProposta?.proposta_email || undefined;
+      } catch {}
+
       // Estruturar dados para o relatório
       const data: RelatorioData = {
         cotacaoId: cotacao.id,
@@ -110,6 +123,7 @@ export class RelatorioService {
         solicitacao: (cotacao as any).prompt?.texto_original || 'Solicitação não encontrada',
         orcamentoGeral: cotacao.orcamento_geral,
         cliente: (cotacao as any).prompt?.cliente || {},
+        propostaEmail,
         analiseLocal,
         analiseWeb
       };
@@ -146,7 +160,7 @@ export class RelatorioService {
    * Gera o arquivo PDF como buffer para download direto
    */
   private async gerarPDFBuffer(data: RelatorioData): Promise<Buffer> {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       try {
         // Criar documento PDF
         const doc = new PDFDocument({ 
@@ -185,13 +199,16 @@ export class RelatorioService {
         pdfGenerator.adicionarCabecalho(data);
         pdfGenerator.adicionarSecaoProposta(data);
         
-        // Adicionar template de email
-        pdfGenerator.adicionarTemplateEmail(data);
+  // Adicionar template de email (aguardando pois é assíncrono)
+  await pdfGenerator.adicionarTemplateEmail(data);
         
         // Adicionar análises
         const analiseLocalRenderer = new AnaliseLocalRenderer();
         const analiseWebRenderer = new AnaliseWebRenderer();
+        //nova pagina
+        doc.addPage();
         analiseLocalRenderer.adicionarSecaoAnaliseLocal(doc, data);
+        doc.addPage();
         analiseWebRenderer.adicionarSecaoAnaliseWeb(doc, data);
         
         // Adicionar rodapé
@@ -231,7 +248,7 @@ export class RelatorioService {
    * Gera o arquivo PDF usando os componentes modulares
    */
   private async gerarPDF(data: RelatorioData): Promise<string> {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       try {
         // Criar documento PDF
         const doc = new PDFDocument({ 
@@ -266,8 +283,8 @@ export class RelatorioService {
         pdfGenerator.adicionarCabecalho(data);
         pdfGenerator.adicionarSecaoProposta(data);
         
-        // Adicionar template de email
-        pdfGenerator.adicionarTemplateEmail(data);
+  // Adicionar template de email (aguardando pois é assíncrono)
+  await pdfGenerator.adicionarTemplateEmail(data);
         
         // Adicionar análises
         const analiseLocalRenderer = new AnaliseLocalRenderer();

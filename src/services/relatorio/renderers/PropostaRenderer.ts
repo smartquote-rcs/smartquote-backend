@@ -39,15 +39,15 @@ export class PropostaRenderer {
     const headerHeight = 55;
     const headerY = this.doc.y;
     
-    // Fundo principal com gradiente simulado
+    // Fundo principal com tom azul formal
     this.doc
-      .fill('#27ae60')
+      .fill('#1e40af')
       .rect(margin - 15, headerY, contentWidth + 30, headerHeight)
       .fill();
     
-    // Linha de destaque superior
+    // Linha de destaque superior azul
     this.doc
-      .fill('#2ecc71')
+      .fill('#2563eb')
       .rect(margin - 15, headerY, contentWidth + 30, 4)
       .fill();
     
@@ -56,7 +56,7 @@ export class PropostaRenderer {
       .fill('#ffffff')
       .circle(margin + 30, headerY + 27, 18)
       .fill()
-      .fill('#27ae60')
+      .fill('#1e40af')
       .fontSize(16)
       .font('Helvetica-Bold')
       .text('$', margin + 25, headerY + 19);
@@ -79,9 +79,9 @@ export class PropostaRenderer {
     const resumoY = this.doc.y;
     const resumoHeight = 110;
     
-    // Fundo do card com sombra simulada
+    // Fundo do card com sombra simulada azul
     this.doc
-      .fill('#f8fffe')
+      .fill('#f1f5f9')
       .rect(margin + 3, resumoY + 3, contentWidth - 6, resumoHeight - 6)
       .fill();
     
@@ -89,23 +89,23 @@ export class PropostaRenderer {
     this.doc
       .fill('#ffffff')
       .rect(margin, resumoY, contentWidth, resumoHeight)
-      .fillAndStroke('#ffffff', '#d5e8d4');
+      .fillAndStroke('#ffffff', '#cbd5e1');
     
-    // Borda lateral verde
+    // Borda lateral azul
     this.doc
-      .fill('#27ae60')
+      .fill('#1e40af')
       .rect(margin, resumoY, 6, resumoHeight)
       .fill();
     
     // Header do card
     const cardHeaderY = resumoY + 15;
     
-    // Badge do resumo
+    // Badge do resumo com tom azul
     this.doc
-      .fill('#e8f5e8')
+      .fill('#eff6ff')
       .roundedRect(margin + 25, cardHeaderY - 3, 140, 28, 14)
       .fill()
-      .fill('#27ae60')
+      .fill('#1e40af')
       .fontSize(12)
       .font('Helvetica-Bold')
       .text('RESUMO EXECUTIVO', margin + 35, cardHeaderY + 5);
@@ -118,17 +118,17 @@ export class PropostaRenderer {
     const totalItens = data.analiseLocal.length + data.analiseWeb.length;
     const orcamento = data.orcamentoGeral || 0;
     const status = totalItens > 0 ? 'COMPLETA' : 'PENDENTE';
-    const statusColor = totalItens > 0 ? '#27ae60' : '#e74c3c';
+    const statusColor = totalItens > 0 ? '#1e40af' : '#dc2626';
     
     // Coluna 1 - Total de Itens
     this.doc
-      .fill('#7f8c8d')
+      .fill('#64748b')
       .fontSize(9)
       .font('Helvetica-Bold')
       .text('TOTAL DE ITENS', margin + 25, infoY);
     
     this.doc
-      .fill('#2c3e50')
+      .fill('#1e293b')
       .fontSize(16)
       .font('Helvetica-Bold')
       .text(`${totalItens}`, margin + 25, infoY + 12)
@@ -138,13 +138,13 @@ export class PropostaRenderer {
     
     // Coluna 2 - Orçamento
     this.doc
-      .fill('#7f8c8d')
+      .fill('#64748b')
       .fontSize(9)
       .font('Helvetica-Bold')
       .text('ORÇAMENTO GERAL', margin + 25 + colWidth, infoY);
     
     this.doc
-      .fill('#27ae60')
+      .fill('#1e40af')
       .fontSize(14)
       .font('Helvetica-Bold')
       .text(
@@ -159,14 +159,14 @@ export class PropostaRenderer {
     
     // Coluna 3 - Status
     this.doc
-      .fill('#7f8c8d')
+      .fill('#64748b')
       .fontSize(9)
       .font('Helvetica-Bold')
       .text('STATUS', margin + 25 + (colWidth * 2), infoY);
     
     // Badge de status
     this.doc
-      .fill(statusColor === '#27ae60' ? '#e8f5e8' : '#ffeaea')
+      .fill(statusColor === '#1e40af' ? '#eff6ff' : '#fef2f2')
       .roundedRect(margin + 25 + (colWidth * 2), infoY + 10, 70, 20, 10)
       .fill()
       .fill(statusColor)

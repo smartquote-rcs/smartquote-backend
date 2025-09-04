@@ -135,54 +135,84 @@ export default class WebBuscaJobService {
 
   async insertJobResultsInCotacao(cotacaoId: number, resultadosCompletos: JobResultado[]): Promise<number> {
     let inseridos = 0;
-    // Buscar a cotação atual para obter os faltantes
-    const { data: cotacao, error: cotacaoError } = await supabase
-      .from('cotacoes')
-      .select('faltantes, status')
-      .eq('id', Number(cotacaoId))
-      .single();
-
-    if (cotacaoError) {
-      console.error('❌ [COTACAO] Erro ao buscar cotação:', cotacaoError);
-      return 0;
+    // Carregar placeholders atuais (status=false) em cotacoes_itens
+    let placeholdersRestantes: any[] = [];
+    try {
+      const { data: placeholders, error } = await supabase
+        .from('cotacoes_itens')
+        .select('id, item_nome, pedido, quantidade')
+        .eq('cotacao_id', Number(cotacaoId))
+        .eq('status', false);
+      if (!error) placeholdersRestantes = placeholders || [];
+    } catch (e) {
+      console.warn('⚠️ [PLACEHOLDER] Falha ao carregar placeholders:', (e as any)?.message || e);
     }
-
-    const faltantesAtuais = Array.isArray(cotacao.faltantes) ? cotacao.faltantes : [];
-    const novosFaltantes = [...faltantesAtuais];
 
     for (const resultadoJob of resultadosCompletos) {
       try {
-        const adicionados = await CotacoesItensService.insertJobResultItems(Number(cotacaoId), resultadoJob as any);
-        inseridos += adicionados;
+        // Construir mapa de nome -> produto_id salvo, se existir no job
+        const produtoIdMap = new Map<string, number>();
+        const salvamento: any = (resultadoJob as any).salvamento;
+        if (salvamento?.detalhes && Array.isArray(salvamento.detalhes)) {
+          for (const detalhe of salvamento.detalhes) {
+            if (detalhe.detalhes && Array.isArray(detalhe.detalhes)) {
+              for (const item of detalhe.detalhes) {
+                if (item.produto && item.id) {
+                  produtoIdMap.set(item.produto, item.id);
+                }
+              }
+            }
+          }
+        }
 
-        // Remover os itens faltantes correspondentes aos produtos inseridos
-        if (adicionados > 0 && resultadoJob.produtos) {
+        // Para cada produto retornado, tentar cumprir um placeholder correspondente (status=true + update)
+        if (resultadoJob.produtos && resultadoJob.produtos.length > 0) {
           for (const produto of resultadoJob.produtos) {
-            // Usar o ID do faltante diretamente se disponível
-            if (produto.faltante_id) {
-              const indexToRemove = novosFaltantes.findIndex((faltante: any) => 
-                faltante.id === produto.faltante_id
+            try {
+              const nome = (produto.name || produto.nome || '').toString();
+              const baseQuery = (produto.base_query || produto.query || '').toString();
+
+              // Recarregar placeholders pendentes
+              const { data: phs } = await supabase
+                .from('cotacoes_itens')
+                .select('id, item_nome, pedido, quantidade')
+                .eq('cotacao_id', Number(cotacaoId))
+                .eq('status', false);
+              placeholdersRestantes = Array.isArray(phs) ? phs : [];
+
+              const alvo = placeholdersRestantes.find((p: any) =>
+                (p.pedido && nome && p.pedido.toLowerCase().includes(nome.toLowerCase())) ||
+                (p.item_nome && nome && p.item_nome.toLowerCase().includes(nome.toLowerCase())) ||
+                (baseQuery && p.pedido && p.pedido.toLowerCase().includes(baseQuery.toLowerCase()))
               );
 
-              if (indexToRemove !== -1) {
-                const faltanteRemovido = novosFaltantes.splice(indexToRemove, 1)[0];
-                resultadoJob.relatorio.query = faltanteRemovido;
-                console.log(`🗑️ [FALTANTES] Removido item faltante ID ${produto.faltante_id} para produto: ${produto.name}`);
-              }
-            } else {
-              // Fallback: busca por nome ou query (mantido para compatibilidade)
-              const indexToRemove = novosFaltantes.findIndex((faltante: any) => {
-                return (faltante.nome && produto.name && 
-                        faltante.nome.toLowerCase().includes(produto.name.toLowerCase())) ||
-                       (faltante.query_sugerida && produto.name && 
-                        produto.name.toLowerCase().includes(faltante.query_sugerida.toLowerCase()));
-              });
+              const quantidade = (resultadoJob as any)?.quantidade || alvo?.quantidade || 1;
+              const produtoIdSalvo = produtoIdMap.get((produto.name || produto.nome || '').toString());
 
-              if (indexToRemove !== -1) {
-                const faltanteRemovido = novosFaltantes.splice(indexToRemove, 1)[0];
-                resultadoJob.relatorio.query = faltanteRemovido;
-                console.log(`🗑️ [FALTANTES] Removido item faltante (fallback) para produto: ${produto.name}`);
+              if (alvo) {
+                // Cumprir placeholder: atualizar registro com dados do produto web
+                await CotacoesItensService.fulfillPlaceholderWithWebProduct(
+                  Number(cotacaoId),
+                  alvo.id,
+                  produto,
+                  quantidade,
+                  produtoIdSalvo
+                );
+                inseridos++;
+                if ((resultadoJob as any).relatorio) {
+                  (resultadoJob as any).relatorio.id_item_cotacao = alvo.id;
+                }
+                console.log(`✅ [PLACEHOLDER] Cumprido placeholder ${alvo.id} com produto: ${nome}`);
+              } else if (produtoIdSalvo) {
+                // Fallback: sem placeholder correspondente, inserir como novo item vinculado ao produto salvo
+                await CotacoesItensService.insertWebItemById(Number(cotacaoId), produtoIdSalvo, produto, quantidade);
+                inseridos++;
+                console.log(`➕ [COTACAO-ITEM] Inserido item web sem placeholder correspondente: ${nome}`);
+              } else {
+                console.log(`ℹ️ [PLACEHOLDER] Sem correspondência para produto: ${nome}`);
               }
+            } catch (e) {
+              console.warn('⚠️ [PLACEHOLDER] Falha ao cumprir placeholder/inserir item:', (e as any)?.message || e);
             }
           }
         }
@@ -230,34 +260,28 @@ export default class WebBuscaJobService {
       }
     }
 
-    // Atualizar os faltantes na cotação
-    const precisaAtualizar = JSON.stringify(faltantesAtuais) !== JSON.stringify(novosFaltantes);
-
-    if (precisaAtualizar) {
-      const novoStatus = novosFaltantes.length === 0 ? 'completa' : 'incompleta';
-
+    // Atualizar status da cotação com base em placeholders restantes
+    try {
+      const { data: phsFinais } = await supabase
+        .from('cotacoes_itens')
+        .select('id')
+        .eq('cotacao_id', Number(cotacaoId))
+        .eq('status', false);
+      const restantes = (phsFinais || []).length;
+      const novoStatus = restantes === 0 ? 'completa' : 'incompleta';
       const { error: updateError } = await supabase
         .from('cotacoes')
-        .update({ 
-            faltantes: novosFaltantes,
-            status: novoStatus
-          })
-          .eq('id', Number(cotacaoId));
-
+        .update({ status: novoStatus })
+        .eq('id', Number(cotacaoId));
       if (updateError) {
-        console.error('❌ [COTACAO] Erro ao atualizar cotação:', updateError);
-      } else {
-        console.log(`✅ [COTACAO] Cotação atualizada: ${novosFaltantes.length} faltantes`);
-        if (novoStatus === 'completa') {
-          console.log(`🎉 [COTACAO] Cotação ${cotacaoId} marcada como completa`);
-
-            // Se a cotação está completa, verificar se há itens para calcular orçamento
-            if (novosFaltantes.length === 0) {
-              console.log(`💰 [COTACAO] Recalculando orçamento final da cotação ${cotacaoId}`);
-              await this.recalcOrcamento(Number(cotacaoId));
-            }
-        }
+        console.error('❌ [COTACAO] Erro ao atualizar status:', updateError);
+      } else if (novoStatus === 'completa') {
+        console.log(`🎉 [COTACAO] Cotação ${cotacaoId} marcada como completa`);
+        console.log(`💰 [COTACAO] Recalculando orçamento final da cotação ${cotacaoId}`);
+        await this.recalcOrcamento(Number(cotacaoId));
       }
+    } catch (e) {
+      console.warn('⚠️ [COTACAO] Falha ao atualizar status com base em placeholders:', (e as any)?.message || e);
     }
 
     return inseridos;

@@ -18,9 +18,9 @@ export class AnaliseWebRenderer {
     
     // Título da seção com gradiente visual (mesmo estilo)
     doc
-      .fill('#e74c3c')
+      .fill('#1e40af')
       .rect(margin - 20, doc.y - 10, contentWidth + 40, 45)
-      .fillAndStroke('#e74c3c', '#c0392b');
+      .fillAndStroke('#1e40af', '#1d4ed8');
     
     doc
       .fill('#ffffff')
@@ -55,19 +55,21 @@ export class AnaliseWebRenderer {
     analiseWeb.forEach((relatorioWebItem, webIndex) => {
       // A estrutura da análise web é diferente - não tem llm_relatorio aninhado
       const relatorioWeb = relatorioWebItem;
-      // Verificar espaço para cada relatório web
-      this.verificarEspacoPagina(doc, 150);
-      
+      // nova pagina se for diferente da primeira pagina
+      if (webIndex > 0) {
+        doc.addPage();
+      }
+
       // Card do relatório web
       const webY = doc.y;
       doc
-        .fill('#f8f9fa')
+        .fill('#f8fafc')
         .rect(margin, webY, contentWidth, 80)
-        .fillAndStroke('#f8f9fa', '#e74c3c');
+        .fillAndStroke('#f8fafc', '#93c5fd');
       
       // Ícone da busca web
       doc
-        .fill('#e74c3c')
+        .fill('#2563eb')
         .circle(margin + 20, webY + 20, 12)
         .fill()
         .fill('#ffffff')
@@ -81,10 +83,12 @@ export class AnaliseWebRenderer {
         .font('Helvetica-Bold')
         .text(`BUSCA WEB: ${webIndex + 1}`, margin + 45, webY + 15);
 
-      // Informações da busca em linha
-      const timestamp = (relatorioWeb as any).timestamp || Date.now();
-      const produtosAnalisados = (relatorioWeb as any).produtos_analisados || 0;
-      const produtosSelecionados = (relatorioWeb as any).produtos_selecionados || 0;
+  // Informações da busca em linha
+  const timestamp = (relatorioWeb as any).timestamp || Date.now();
+  // Calcular produtos analisados e selecionados com base nos dados reais
+  const produtosAnalisados = Array.isArray(relatorioWeb.top_ranking) ? relatorioWeb.top_ranking.length : 0;
+  const statusAnalise: string | undefined = (relatorioWeb as any).status;
+  const produtosSelecionados = (statusAnalise === 'produto_adicionado' || !!relatorioWeb.escolha_principal) ? 1 : 0;
       
       doc
         .fill('#7f8c8d')
@@ -93,6 +97,30 @@ export class AnaliseWebRenderer {
         .text(`Data: ${new Date(timestamp).toLocaleDateString('pt-BR')} | `, margin + 45, webY + 35)
         .text(`Analisados: ${produtosAnalisados} | `, margin + 180, webY + 35)
         .text(`Selecionados: ${produtosSelecionados}`, margin + 300, webY + 35);
+
+      // Badge de status da análise, se houver
+      if (statusAnalise) {
+        const statusX = margin + contentWidth - 180;
+        const statusY = webY + 12;
+        const statusColors: any = {
+          produto_adicionado: '#22c55e',
+          rejeitado_por_llm: '#ef4444',
+          sem_produtos_encontrados: '#f59e0b',
+          produto_sem_id: '#f97316',
+          produto_duplicado: '#3b82f6',
+          erro_llm: '#0ea5e9'
+        };
+        const color = statusColors[statusAnalise] || '#6b7280';
+        doc
+          .fill(color)
+          .rect(statusX, statusY, 160, 22)
+          .fill();
+        doc
+          .fill('#ffffff')
+          .fontSize(10)
+          .font('Helvetica-Bold')
+          .text(`STATUS: ${statusAnalise}`, statusX + 8, statusY + 6);
+      }
       
       doc.y = webY + 95;
 
@@ -178,16 +206,35 @@ export class AnaliseWebRenderer {
         }
       }
 
+      // Se não houver produtos e o status indicar ausência, mostrar card informativo
+      if ((!relatorioWeb.top_ranking || relatorioWeb.top_ranking.length === 0) && statusAnalise === 'sem_produtos_encontrados') {
+        this.verificarEspacoPagina(doc, 80);
+        const emptyY = doc.y;
+        doc
+          .fill('#fff3cd')
+          .rect(margin, emptyY, contentWidth, 60)
+          .fillAndStroke('#fff3cd', '#ffc107');
+        doc
+          .fill('#856404')
+          .fontSize(12)
+          .font('Helvetica-Bold')
+          .text('SEM PRODUTOS ENCONTRADOS', margin + 20, emptyY + 15)
+          .fontSize(10)
+          .font('Helvetica')
+          .text('A busca web não retornou produtos para esta consulta.', margin + 20, emptyY + 35);
+        doc.y = emptyY + 75;
+      }
+
       // Mostrar ranking completo top 5 com design aprimorado
-      if (relatorioWeb.top_ranking && Array.isArray(relatorioWeb.top_ranking)) {
+      if (relatorioWeb.top_ranking && Array.isArray(relatorioWeb.top_ranking) && relatorioWeb.top_ranking.length > 0) {
         // Verificar espaço para título do ranking
         this.verificarEspacoPagina(doc, 50);
         
         // Título do ranking
         doc
-          .fill('#3498db')
+          .fill('#2563eb')
           .rect(margin, doc.y, contentWidth, 35)
-          .fillAndStroke('#3498db', '#2980b9');
+            .fillAndStroke('#2563eb', '#1d4ed8');
         
         doc
           .fill('#ffffff')
@@ -196,7 +243,8 @@ export class AnaliseWebRenderer {
           .text('RANKING WEB COMPLETO TOP 5', margin + 20, doc.y + 10)
           .moveDown(1.2);
 
-        relatorioWeb.top_ranking.forEach((ranking: any, rankIndex: number) => {
+  const escolhaTexto: string = (relatorioWeb.escolha_principal || '').toString().toLowerCase();
+  relatorioWeb.top_ranking.forEach((ranking: any, rankIndex: number) => {
           // Calcular altura dinâmica para cada item do ranking
           let itemHeight = 40; // padding inicial
           
@@ -266,6 +314,20 @@ export class AnaliseWebRenderer {
               width: contentWidth - 220,
               lineGap: 2
             });
+
+          // Destaque se for a escolha principal
+          const isEscolha = escolhaTexto && ranking?.nome && escolhaTexto.includes((ranking.nome as string).toLowerCase());
+          if (isEscolha) {
+            doc
+              .fill('#16a34a')
+              .rect(margin + contentWidth - 200, nomeY - 2, 140, 20)
+              .fill();
+            doc
+              .fill('#ffffff')
+              .fontSize(10)
+              .font('Helvetica-Bold')
+              .text('ESCOLHA PRINCIPAL', margin + contentWidth - 190, nomeY + 2);
+          }
 
           // Score em destaque (posicionado adequadamente)
           if (ranking.score_estimado) {
@@ -375,8 +437,9 @@ export class AnaliseWebRenderer {
         });
       }
 
-      // Mostrar critérios de avaliação se existirem
-      if (relatorioWeb.criterios_avaliacao) {
+      // Mostrar critérios de avaliação se existirem (criterios_avaliacao ou criterios_aplicados)
+      const criteriosFonte: any = (relatorioWeb as any).criterios_avaliacao || (relatorioWeb as any).criterios_aplicados;
+      if (criteriosFonte) {
         this.verificarEspacoPagina(doc, 100);
         
         // Header dos critérios
@@ -389,10 +452,9 @@ export class AnaliseWebRenderer {
           .fill('#ffffff')
           .fontSize(12)
           .font('Helvetica-Bold')
-          .text('CRITÉRIOS DE AVALIAÇÃO WEB', margin + 20, doc.y + 8)
+          .text('CRITÉRIOS - ANÁLISE LLM', margin + 20, doc.y + 8)
           .moveDown(1.2);
-
-        const criterios = relatorioWeb.criterios_avaliacao;
+        const criterios = criteriosFonte;
         const criteriosList = [
           { key: 'correspondencia_tipo', label: 'Correspondência de Tipo' },
           { key: 'especificacoes', label: 'Especificações' },
@@ -402,7 +464,7 @@ export class AnaliseWebRenderer {
           { key: 'reputacao_vendedor', label: 'Reputação do Vendedor' }
         ];
 
-        criteriosList.forEach(criterio => {
+  criteriosList.forEach(criterio => {
           if ((criterios as any)[criterio.key]) {
             // Verificar espaço para cada critério
             this.verificarEspacoPagina(doc, 60);
@@ -442,6 +504,28 @@ export class AnaliseWebRenderer {
             doc.y = criterioY + totalHeight + 10;
           }
         });
+      }
+
+      // Observações gerais, se houver
+      const observacoes: string | undefined = (relatorioWeb as any).observacoes;
+      if (observacoes) {
+        this.verificarEspacoPagina(doc, 80);
+        const obsY = doc.y;
+        doc
+          .fill('#eef2ff')
+          .rect(margin, obsY, contentWidth, 60)
+          .fillAndStroke('#eef2ff', '#6366f1');
+        doc
+          .fill('#3730a3')
+          .fontSize(11)
+          .font('Helvetica-Bold')
+          .text('OBSERVAÇÕES', margin + 20, obsY + 12);
+        doc
+          .fill('#1f2937')
+          .fontSize(10)
+          .font('Helvetica')
+          .text(observacoes, margin + 20, obsY + 30, { width: contentWidth - 40, lineGap: 2 });
+        doc.y = obsY + 75;
       }
 
       // Mostrar erro se houver

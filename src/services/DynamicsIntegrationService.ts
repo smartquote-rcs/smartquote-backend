@@ -139,52 +139,47 @@ class DynamicsIntegrationService {
   /**
    * Transforma dados da cotação para formato do Dynamics
    */
-  private transformCotacaoToDynamicsSimples(cotacao: CotacaoDTO, entidade: string): DynamicsEntity {
-    console.log(`🔄 [DYNAMICS] Transformando cotação ${cotacao.id} para entidade ${entidade}`);
-
-    const entity: DynamicsEntity = {};
-
-    if (entidade === 'quotes') {
-      entity.name = `Cotação #${cotacao.id} - SmartQuote`;
-      entity.description = cotacao.motivo || `Cotação gerada no SmartQuote - ID ${cotacao.id}`;
-      entity.quotenumber = `SQ-${cotacao.id}`;
-      if (cotacao.orcamento_geral) entity.totalamount = cotacao.orcamento_geral;
-      entity.statecode = 0; // Ativo
-      entity.statuscode = 1; // Em progresso
-    }
-
-    if (entidade === 'opportunities') {
-      entity.name = `Oportunidade #${cotacao.id} - SmartQuote`;
-      entity.description = cotacao.motivo || `Oportunidade gerada no SmartQuote - ID ${cotacao.id}`;
-      if (cotacao.orcamento_geral) entity.estimatedvalue = cotacao.orcamento_geral;
-      entity.statecode = 0; // Aberto
-      entity.statuscode = 1; // Em progresso
-    }
-
-    if (entidade === 'incidents') {
-      entity.title = `Ticket #${cotacao.id} - SmartQuote`;
-      entity.description = cotacao.motivo || `Ticket gerado no SmartQuote - ID ${cotacao.id}`;
-      entity.ticketnumber = `SQ-${cotacao.id}`;
-      entity.prioritycode = 2; // Normal
-      entity.severitycode = 1; // Padrão (valor válido)
-      entity.statecode = 0; // Ativo
-      entity.statuscode = 1; // Em progresso
-    }
-
-    if (entidade === 'leads') {
-      entity.fullname = `Lead SmartQuote #${cotacao.id}`;
-      entity.subject = `Lead da cotação #${cotacao.id}`;
-      entity.description = cotacao.motivo || `Lead gerado no SmartQuote - ID ${cotacao.id}`;
-      entity.firstname = 'SmartQuote';
-      entity.lastname = `Lead ${cotacao.id}`;
-      entity.companyname = 'SmartQuote System';
-      if (cotacao.orcamento_geral) entity.budgetamount = cotacao.orcamento_geral;
-      entity.statecode = 0; // Ativo
-      entity.statuscode = 1; // Novo
-    }
-
-    console.log(`✅ [DYNAMICS] Payload simples criado:`, JSON.stringify(entity, null, 2));
-    return entity;
+  private transformCotacaoToDynamics(cotacao: CotacaoDTO): DynamicsEntity {
+    return {
+      // Mapeamento básico - ajuste conforme sua estrutura no Dynamics
+      name: `Cotação #${cotacao.id} - ${cotacao.produto?.nome || 'Produto'}`,
+      quotenumber: `COT-${cotacao.id}`,
+      description: `Cotação aprovada para ${cotacao.produto?.nome || 'produto'} - ${cotacao.motivo || ''}`,
+      
+      // Dados do produto
+      productname: cotacao.produto?.nome || '',
+      productid: cotacao.produto?.id || null,
+      
+      // Dados financeiros (usar orcamento_geral se disponível)
+      totalamount: cotacao.orcamento_geral || 0,
+      quotetotalamount: cotacao.orcamento_geral || 0,
+      
+      // Status da cotação
+      statuscode: cotacao.aprovacao ? 'approved' : 'pending',
+      approvalstatus: cotacao.aprovacao ? 'Aprovada' : 'Pendente',
+      quotationstatus: cotacao.status || 'incompleta',
+      
+      // Dados de auditoria
+      quotecreateddate: cotacao.cadastrado_em || new Date().toISOString(),
+      approvaldate: cotacao.data_aprovacao || new Date().toISOString(),
+      validitydate: cotacao.prazo_validade || null,
+      requestdate: cotacao.data_solicitacao || null,
+      
+      // Observações e condições
+      description_extended: cotacao.observacao || cotacao.observacoes || '',
+      conditions: JSON.stringify(cotacao.condicoes || {}),
+      missingitems: JSON.stringify(cotacao.faltantes || []),
+      
+      // IDs de relacionamento
+      prompt_id: cotacao.prompt_id || null,
+      produto_id: cotacao.produto_id || null,
+      aprovado_por: cotacao.aprovado_por || null,
+      
+      // Metadados de integração
+      externalsourceid: cotacao.id.toString(),
+      externalsource: 'SmartQuote',
+      integrationtimestamp: new Date().toISOString()
+    };
   }
 
   /**

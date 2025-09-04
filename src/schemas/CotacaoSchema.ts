@@ -12,7 +12,8 @@ export const cotacaoSchema = z.object({
   // novos campos essenciais
   status: z.enum(['completa', 'incompleta']).optional(),
   orcamento_geral: z.number().nonnegative().optional(),
-  faltantes: z.any().optional(), // jsonb
+  // DEPRECATED: faltantes deixou de ser usado. Itens não encontrados viram placeholders em cotacoes_itens (status=false, pedido=text)
+  faltantes: z.any().optional(), // jsonb (legado)
 
   // observações
   observacao: z.string().optional(),

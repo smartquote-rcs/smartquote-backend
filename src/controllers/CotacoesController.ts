@@ -212,7 +212,8 @@ class CotacoesController {
   }
 
   /**
-   * Remove um elemento específico do campo faltantes da cotação
+   * Remove um placeholder (faltante) da cotação.
+   * Agora os faltantes são representados por registros em cotacoes_itens com status=false e campo pedido.
    */
   async removeFaltante(req: Request, res: Response): Promise<Response> {
     try {
@@ -224,58 +225,36 @@ class CotacoesController {
           error: 'É necessário fornecer index, query ou nome para identificar o elemento a ser removido' 
         });
       }
-
-      const cotacao = await CotacoesService.getById(Number(id));
-      if (!cotacao) {
-        return res.status(404).json({ error: 'Cotação não encontrada' });
-      }
-
-      const faltantesAtuais = Array.isArray(cotacao.faltantes) ? cotacao.faltantes : [];
-      let novosFaltantes = [...faltantesAtuais];
-      let elementoRemovido = null;
-
+      
+      // Remover placeholder em cotacoes_itens
+      const svc = require('../services/CotacoesItensService').default as typeof import('../services/CotacoesItensService').default;
+      let elementoRemovido: any = null;
       if (index !== undefined) {
-        // Remover por índice
-        if (index >= 0 && index < novosFaltantes.length) {
-          elementoRemovido = novosFaltantes.splice(index, 1)[0];
-        } else {
-          return res.status(400).json({ error: 'Índice inválido' });
-        }
+        const removed = await svc.removePlaceholderByIndex(Number(id), Number(index));
+        if (removed) elementoRemovido = removed;
+        else return res.status(400).json({ error: 'Índice inválido ou placeholder não encontrado' });
       } else if (query) {
-        // Remover por query sugerida
-        const indexToRemove = novosFaltantes.findIndex((faltante: any) => 
-          faltante.query_sugerida && faltante.query_sugerida.toLowerCase().includes(query.toLowerCase())
-        );
-        if (indexToRemove !== -1) {
-          elementoRemovido = novosFaltantes.splice(indexToRemove, 1)[0];
-        }
+        const removed = await svc.removePlaceholderByPedido(Number(id), String(query));
+        if (removed) elementoRemovido = removed;
       } else if (nome) {
-        // Remover por nome
-        const indexToRemove = novosFaltantes.findIndex((faltante: any) => 
-          faltante.nome && faltante.nome.toLowerCase().includes(nome.toLowerCase())
-        );
-        if (indexToRemove !== -1) {
-          elementoRemovido = novosFaltantes.splice(indexToRemove, 1)[0];
-        }
+        const removed = await svc.removePlaceholderByNome(Number(id), String(nome));
+        if (removed) elementoRemovido = removed;
       }
 
       if (!elementoRemovido) {
-        return res.status(404).json({ error: 'Elemento não encontrado nos faltantes' });
+        return res.status(404).json({ error: 'Placeholder não encontrado' });
       }
 
-      // Atualizar status se necessário
-      const novoStatus = novosFaltantes.length === 0 ? 'completa' : 'incompleta';
-
-      const cotacaoAtualizada = await CotacoesService.updatePartial(Number(id), {
-        faltantes: novosFaltantes,
-        status: novoStatus
-      });
+      // Atualizar status da cotação com base nos placeholders restantes
+      const placeholdersRestantes = await svc.listPlaceholders(Number(id));
+      const novoStatus = placeholdersRestantes.length === 0 ? 'completa' : 'incompleta';
+      const cotacaoAtualizada = await CotacoesService.updatePartial(Number(id), { status: novoStatus });
 
       return res.status(200).json({
-        message: 'Elemento removido dos faltantes com sucesso.',
+        message: 'Placeholder removido com sucesso.',
         data: {
           elementoRemovido,
-          faltantesRestantes: novosFaltantes.length,
+          faltantesRestantes: placeholdersRestantes.length,
           novoStatus,
           cotacao: cotacaoAtualizada
         }

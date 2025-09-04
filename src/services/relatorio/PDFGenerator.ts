@@ -57,8 +57,12 @@ export class PDFGenerator {
   /**
    * Adiciona template de email com design contínuo
    */
-  public adicionarTemplateEmail(data: RelatorioData) {
-    this.emailRenderer.render(data);
+  public async adicionarTemplateEmail(data: RelatorioData) {
+    try {
+      await this.emailRenderer.render(data);
+    } catch (err) {
+      console.error('[PDF] Falha ao renderizar template de e-mail, seguindo sem esta seção:', err);
+    }
   }
 
 

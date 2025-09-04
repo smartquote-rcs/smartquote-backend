@@ -6,8 +6,7 @@ src/credentials.json
 .env.production
 src/tData.json
 src/cData.json 
-.vercel
-dist/
+.vercel 
 src/data
 temp/
 uploads/

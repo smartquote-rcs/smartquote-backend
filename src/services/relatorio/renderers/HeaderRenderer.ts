@@ -18,16 +18,16 @@ export class HeaderRenderer {
     const pageWidth = this.doc.page.width;
     const contentWidth = pageWidth - (margin * 2);
     
-    // Cabeçalho com fundo colorido
+    // Cabeçalho com fundo azul formal
     this.doc
       .rect(margin - 20, 20, contentWidth + 40, 120)
-      .fillAndStroke('#2c3e50', '#34495e')
+      .fillAndStroke('#1e3a5f', '#2c5282')
       .fill('#ffffff');
     
     // Logo placeholder (círculo com iniciais)
     this.doc
       .circle(margin + 40, 60, 25)
-      .fillAndStroke('#3498db', '#2980b9')
+      .fillAndStroke('#2563eb', '#1d4ed8')
       .fill('#ffffff')
       .fontSize(16)
       .font('Helvetica-Bold')
@@ -46,14 +46,14 @@ export class HeaderRenderer {
       .font('Helvetica')
       .text('Analise Tecnica e Proposta Comercial', margin + 100, 75, { width: contentWidth - 120 });
     
-    // Informações da cotação em caixa
+    // Informações da cotação em caixa com tons azuis
     this.doc
-      .fill('#ecf0f1')
+      .fill('#f1f5f9')
       .rect(margin, 160, contentWidth, 80)
-      .fillAndStroke('#ecf0f1', '#bdc3c7');
+      .fillAndStroke('#f1f5f9', '#94a3b8');
     
     this.doc
-      .fill('#2c3e50')
+      .fill('#1e293b')
       .fontSize(12)
       .font('Helvetica-Bold')
       .text('INFORMAÇÕES DA COTAÇÃO', margin + 20, 175);
@@ -79,17 +79,17 @@ export class HeaderRenderer {
       )
       .text(`Total de Análises: ${data.analiseLocal.length + data.analiseWeb.length}`, -margin - 20, 210, { align: 'right' });
     
-    // Seção de solicitação com estilo aprimorado
+    // Seção de solicitação com estilo formal azul
     this.doc
-      .fill('#34495e')
+      .fill('#1e293b')
       .fontSize(16)
       .font('Helvetica-Bold')
       .text('SOLICITAÇÃO DO CLIENTE', margin, 270)
       .moveDown(0.3);
     
-    // Linha decorativa
+    // Linha decorativa azul
     this.doc
-      .strokeColor('#3498db')
+      .strokeColor('#2563eb')
       .lineWidth(3)
       .moveTo(margin, 290)
       .lineTo(margin + 150, 290)
@@ -98,12 +98,12 @@ export class HeaderRenderer {
     // Caixa para solicitação com altura dinâmica
     const solicitacaoHeight = Math.max(60, Math.min(data.solicitacao.length / 3, 120));
     this.doc
-      .fill('#f8f9fa')
+      .fill('#f8fafc')
       .rect(margin, 305, contentWidth, solicitacaoHeight)
-      .fillAndStroke('#f8f9fa', '#dee2e6');
+      .fillAndStroke('#f8fafc', '#cbd5e1');
     
     this.doc
-      .fill('#2c3e50')
+      .fill('#1e293b')
       .fontSize(11)
       .font('Helvetica')
       .text(data.solicitacao, margin + 15, 320, { 

@@ -74,7 +74,7 @@ POST /api/relatorios/gerar/123
 
 ### Com curl:
 ```bash
-curl -X POST http://localhost:2000/api/relatorios/gerar/123 -o relatorio.pdf
+curl -X POST {$API_BASE_URL}/api/relatorios/gerar/123 -o relatorio.pdf
 ```
 
 ### Com JavaScript (fetch):

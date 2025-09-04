@@ -27,6 +27,123 @@ class CotacoesItensService {
     }
   }
 
+  /**
+   * Insere um placeholder de item de cotação representando um "faltante".
+   * Campos principais:
+   *  - status: false (não encontrado ainda)
+   *  - pedido: texto original (ex: query_sugerida)
+   */
+  async insertPlaceholderItem(cotacaoId: number, faltante: any): Promise<number | null> {
+    const payload: any = {
+      cotacao_id: cotacaoId,
+  // origem precisa respeitar o CHECK CONSTRAINT da tabela (ex.: 'local' | 'web').
+  // Para placeholders, usamos 'web' como padrão, indicando que será buscado externamente.
+  origem: 'web',
+      provider: undefined,
+      external_url: undefined,
+      item_nome: faltante?.nome || 'Item não encontrado',
+      item_descricao: faltante?.categoria
+        ? `Pedido de categoria: ${faltante.categoria}`
+        : 'Item solicitado não encontrado na base local',
+      item_preco: undefined,
+      item_moeda: 'AOA',
+      quantidade: Number(faltante?.quantidade || 1),
+      status: false,
+      pedido: faltante?.query_sugerida || faltante?.nome || '',
+    };
+
+    const { data, error } = await supabase
+      .from('cotacoes_itens')
+      .insert(payload)
+      .select('id')
+      .single();
+
+    if (error) {
+      throw new Error(`Falha ao inserir placeholder na cotação ${cotacaoId}: ${error.message}`);
+    }
+
+    return data?.id ?? null;
+  }
+
+  /**
+   * Retorna todos os placeholders (status=false) de uma cotação
+   */
+  async listPlaceholders(cotacaoId: number): Promise<any[]> {
+    const { data, error } = await supabase
+      .from('cotacoes_itens')
+      .select('*')
+      .eq('cotacao_id', cotacaoId)
+      .eq('status', false);
+    if (error) throw new Error(error.message);
+    return data || [];
+  }
+
+  /**
+   * Remove placeholders por índice na lista ordenada por id asc
+   */
+  async removePlaceholderByIndex(cotacaoId: number, index: number): Promise<any | null> {
+    const placeholders = await this.listPlaceholders(cotacaoId);
+    if (index < 0 || index >= placeholders.length) return null;
+    const alvo = placeholders.sort((a, b) => a.id - b.id)[index];
+    const { data, error } = await supabase
+      .from('cotacoes_itens')
+      .delete()
+      .eq('id', alvo.id)
+      .select('*')
+      .single();
+    if (error) throw new Error(error.message);
+    return data || null;
+  }
+
+  /**
+   * Remove placeholder por pedido (query) aproximado
+   */
+  async removePlaceholderByPedido(cotacaoId: number, query: string): Promise<any | null> {
+    // Buscar um placeholder cujo pedido contenha a query
+    const { data: candidatos, error } = await supabase
+      .from('cotacoes_itens')
+      .select('*')
+      .eq('cotacao_id', cotacaoId)
+      .eq('status', false)
+      .ilike('pedido', `%${query}%`)
+      .limit(1);
+    if (error) throw new Error(error.message);
+    const alvo = (candidatos || [])[0];
+    if (!alvo) return null;
+    const { data, error: delErr } = await supabase
+      .from('cotacoes_itens')
+      .delete()
+      .eq('id', alvo.id)
+      .select('*')
+      .single();
+    if (delErr) throw new Error(delErr.message);
+    return data || null;
+  }
+
+  /**
+   * Remove placeholder por nome aproximado
+   */
+  async removePlaceholderByNome(cotacaoId: number, nome: string): Promise<any | null> {
+    const { data: candidatos, error } = await supabase
+      .from('cotacoes_itens')
+      .select('*')
+      .eq('cotacao_id', cotacaoId)
+      .eq('status', false)
+      .ilike('item_nome', `%${nome}%`)
+      .limit(1);
+    if (error) throw new Error(error.message);
+    const alvo = (candidatos || [])[0];
+    if (!alvo) return null;
+    const { data, error: delErr } = await supabase
+      .from('cotacoes_itens')
+      .delete()
+      .eq('id', alvo.id)
+      .select('*')
+      .single();
+    if (delErr) throw new Error(delErr.message);
+    return data || null;
+  }
+
   async buildPrompt(cotacaoId: number, produto: Product): Promise<number | null> {
     const item_preco = this.parseNumero(produto.price);
     const provider = this.providerFromUrl(produto.product_url);
@@ -103,6 +220,47 @@ class CotacoesItensService {
   }
 
   /**
+   * Atualiza um placeholder (status=false) com dados de um produto web, marcando status=true
+   * e preenchendo colunas (produto_id, provider, external_url, item_nome, descricao, preco, moeda, quantidade).
+   */
+  async fulfillPlaceholderWithWebProduct(
+    cotacaoId: number,
+    placeholderId: number,
+    produto: any,
+    quantidade: number,
+    produtoId?: number
+  ): Promise<number | null> {
+    const item_preco = this.parseNumero(produto?.price);
+    const provider = this.providerFromUrl(produto?.product_url || produto?.url);
+
+    const updatePayload: any = {
+      cotacao_id: cotacaoId,
+      produto_id: produtoId || null,
+      origem: 'web',
+      provider: provider || undefined,
+      external_url: produto?.product_url || produto?.url || undefined,
+      item_nome: produto?.name || produto?.nome || 'Produto web',
+      item_descricao: produto?.description || produto?.descricao || null,
+      item_preco: item_preco ?? null,
+      item_moeda: 'AOA',
+      quantidade: Number(quantidade || 1),
+      status: true,
+    };
+
+    const { data, error } = await supabase
+      .from('cotacoes_itens')
+      .update(updatePayload)
+      .eq('id', placeholderId)
+      .select('id')
+      .single();
+
+    if (error) {
+      throw new Error(`Falha ao atualizar placeholder ${placeholderId} na cotação ${cotacaoId}: ${error.message}`);
+    }
+
+    return data?.id ?? null;
+  }
+  /**
    * Insere itens de um job completo na cotação, aproveitando os IDs salvos
    */
   async insertJobResultItems(cotacaoId: number, jobResult: any): Promise<number> {
@@ -172,22 +330,22 @@ class CotacoesItensService {
     return data;
   }
   async getSugeridosWeb(id: number): Promise<any[]> {
-    const { data: cotacaoItem, error } = await supabase
-      .from('cotacoes_itens')
-      .select('*')
-      .eq('id', id)
-      .single();
-    const relatorio = await RelatorioService.gerarDadosRelatorio(cotacaoItem?.cotacao_id);
-    
-    if (relatorio.analiseWeb && Array.isArray(relatorio.analiseWeb)) {
-
-      const webIndex = relatorio.analiseWeb.findIndex((item: any) =>
-        item.escolha_principal === cotacaoItem.item_nome
-      );
-      if (webIndex !== -1) {
-        ////sugerir produtos no top_raking da analise_web
-        const topRanking = relatorio.analiseWeb[webIndex]?.top_ranking || [];
-        const sugestoes = topRanking.map((item: any) => ({
+    try {
+      const { data: cotacaoItem, error } = await supabase
+        .from('cotacoes_itens')
+        .select('*')
+        .eq('id', id)
+        .single();
+      if (error || !cotacaoItem) {
+        console.error('[getSugeridosWeb] Erro ao buscar cotacaoItem:', error);
+        throw new Error('Item de cotação não encontrado');
+      }
+      const relatorio = await RelatorioService.gerarDadosRelatorio(cotacaoItem?.cotacao_id);
+      console.log('[getSugeridosWeb] cotacaoItem:', cotacaoItem);
+      console.log('[getSugeridosWeb] relatorio:', relatorio);
+      if (relatorio && relatorio.analiseWeb && Array.isArray(relatorio.analiseWeb)) {
+        const allSugs = relatorio.analiseWeb.flatMap((item: any) => item.top_ranking || []);
+        const sugestoes = allSugs.map((item: any) => ({
           nome: item.nome,
           url: item.url,
           preco: item.preco,
@@ -197,45 +355,53 @@ class CotacoesItensService {
           pontos_fracos: item.pontos_fracos,
           score_estimado: item.score_estimado,
         })) || [];
+        console.log('[getSugeridosWeb] sugestões (todos):', sugestoes);
         return sugestoes;
+      } else {
+        console.warn('[getSugeridosWeb] Relatório não possui analiseWeb ou está vazio:', relatorio);
+        return [];
       }
+    } catch (err) {
+      console.error('[getSugeridosWeb] Erro geral:', err);
+      throw err;
     }
-    return [];
   }
   async getSugeridosLocal(id: number): Promise<any[]> {
-      // Busca o item de cotação pelo id
+    try {
       const { data: cotacaoItem, error } = await supabase
         .from('cotacoes_itens')
         .select('*')
         .eq('id', id)
         .single();
-      if (error) throw new Error(error.message);
-
-      // Gera o relatório relacionado à cotação
-      const relatorio = await RelatorioService.gerarDadosRelatorio(cotacaoItem?.cotacao_id);
-
-      if (relatorio.analiseLocal && Array.isArray(relatorio.analiseLocal)) {
-        // Busca o índice do item local correspondente ao nome do item
-        const localIndex = relatorio.analiseLocal.findIndex((item: any) =>
-          item.llm_relatorio?.escolha_principal === cotacaoItem.item_nome
-        );
-        if (localIndex !== -1) {
-          // Sugere produtos do top_ranking da análise local
-          const topRanking = relatorio.analiseLocal[localIndex]?.llm_relatorio?.top_ranking || [];
-          const sugestoes = topRanking.map((item: any) => ({
-            nome: item.nome,
-            id: item.id,
-            preco: item.preco,
-            posicao: item.posicao,
-            justificativa: item.justificativa,
-            pontos_fortes: item.pontos_fortes,
-            pontos_fracos: item.pontos_fracos,
-            score_estimado: item.score_estimado,
-          })) || [];
-          return sugestoes;
-        }
+      if (error || !cotacaoItem) {
+        console.error('[getSugeridosLocal] Erro ao buscar cotacaoItem:', error);
+        throw new Error('Item de cotação não encontrado');
       }
-      return [];
+      const relatorio = await RelatorioService.gerarDadosRelatorio(cotacaoItem?.cotacao_id);
+      console.log('[getSugeridosLocal] cotacaoItem:', cotacaoItem);
+      console.log('[getSugeridosLocal] relatorio:', relatorio);
+      if (relatorio && relatorio.analiseLocal && Array.isArray(relatorio.analiseLocal)) {
+        const allSugs = relatorio.analiseLocal.flatMap((item: any) => item.llm_relatorio?.top_ranking || []);
+        const sugestoes = allSugs.map((item: any) => ({
+          nome: item.nome,
+          id: item.id,
+          preco: item.preco,
+          posicao: item.posicao,
+          justificativa: item.justificativa,
+          pontos_fortes: item.pontos_fortes,
+          pontos_fracos: item.pontos_fracos,
+          score_estimado: item.score_estimado,
+        })) || [];
+        console.log('[getSugeridosLocal] sugestões (todos):', sugestoes);
+        return sugestoes;
+      } else {
+        console.warn('[getSugeridosLocal] Relatório não possui analiseLocal ou está vazio:', relatorio);
+        return [];
+      }
+    } catch (err) {
+      console.error('[getSugeridosLocal] Erro geral:', err);
+      throw err;
+    }
   }
 }
 export default new CotacoesItensService();

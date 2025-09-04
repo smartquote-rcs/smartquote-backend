@@ -12,7 +12,8 @@ class CotacoesService {
     const { data, error } = await supabase
       .from('cotacoes')
       .delete()
-      .lt('prazo_validade', todayStr);
+      .lt('prazo_validade', todayStr)
+      .select(); // Adicionar select para retornar os registros deletados
     if (error) {
       throw new Error(`Failed to delete expired cotacoes: ${error.message}`);
     }
@@ -21,6 +22,9 @@ class CotacoesService {
     }
     return 0;
   }
+
+
+
   async create( CotacaoData: Cotacao): Promise<CotacaoDTO> {
     const { data, error } = await supabase
       .from('cotacoes')

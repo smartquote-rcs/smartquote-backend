@@ -18,7 +18,8 @@ export interface Cotacao {
   // novos campos essenciais do script de migração
   status?: 'completa' | 'incompleta';
   orcamento_geral?: number; // numeric no BD
-  faltantes?: any; // jsonb no BD (lista/objeto)
+  // DEPRECATED: itens faltantes agora são representados por registros em cotacoes_itens com status=false e campo pedido
+  faltantes?: any; // jsonb no BD (legado)
 
   // campos diversos (se existirem na tabela)
   observacao?: string;
@@ -33,6 +34,7 @@ export interface CotacaoDTO extends Cotacao {
     id: number;
     texto_original: string;
   };
+  produto_id:number;
   produto?: {
     id: number;
     nome: string;

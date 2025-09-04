@@ -15,6 +15,20 @@ const router = Router();
  */
 //router.post('/gerar/:cotacaoId', authMiddleware, RelatoriosController.gerarRelatorio);
 router.post('/gerar/:cotacaoId', RelatoriosController.gerarRelatorio);
+
+/**
+ * @route POST /api/relatorios/gerar-csv/:cotacaoId
+ * @desc Gera e faz download direto do relatório em CSV para uma cotação
+ * @access Private
+ */
+router.post('/gerar-csv/:cotacaoId', RelatoriosController.gerarRelatorioCSV);
+
+/**
+ * @route POST /api/relatorios/gerar-xlsx/:cotacaoId
+ * @desc Gera e faz download direto do relatório em XLSX para uma cotação
+ * @access Private
+ */
+router.post('/gerar-xlsx/:cotacaoId', RelatoriosController.gerarRelatorioXLSX);
 /**
  * @route GET /api/relatorios/download/:filename
  * @desc Download do arquivo PDF gerado

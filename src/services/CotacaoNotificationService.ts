@@ -5,6 +5,7 @@ import DynamicsIntegrationService from './DynamicsIntegrationService';
 
 export class CotacaoNotificationService {
   private notificationService = new NotificationService();
+  private dynamicsService = new DynamicsIntegrationService();
 
   /**
    * Cria notificação quando uma nova cotação é criada
@@ -43,7 +44,7 @@ export class CotacaoNotificationService {
       // Integração com Dynamics 365 - enviar dados da cotação aprovada
       try {
         console.log(`🔄 [COTACAO-NOTIF] Enviando cotação aprovada para Dynamics 365...`);
-        const dynamicsSuccess = await DynamicsIntegrationService.processarCotacaoAprovada(cotacao);
+        const dynamicsSuccess = await this.dynamicsService.processarCotacaoAprovada(cotacao);
         
         if (dynamicsSuccess) {
           console.log(`🎉 [COTACAO-NOTIF] Cotação ${cotacao.id} enviada para Dynamics com sucesso!`);

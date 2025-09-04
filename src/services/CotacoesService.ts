@@ -55,20 +55,37 @@ class CotacoesService {
   }
 
   async getById(id: number): Promise<CotacaoDTO | null> {
+    console.log(`🔍 [COTACOES-SERVICE] Buscando cotação ID: ${id}`);
+    
     const { data, error } = await supabase
       .from('cotacoes')
       .select(`
         *,
         prompt:prompts(id, texto_original)
       `)
-      .eq('id', id)
-      .single();
+      .eq('id', id);
 
     if (error) {
+      console.error(`❌ [COTACOES-SERVICE] Erro ao buscar cotação ${id}:`, error);
       throw new Error(`Failed to get cotacao by ID: ${error.message}`);
     }
 
-    return data as unknown as CotacaoDTO;
+    if (!data || data.length === 0) {
+      console.warn(`⚠️ [COTACOES-SERVICE] Cotação ${id} não encontrada`);
+      return null;
+    }
+
+    if (data.length > 1) {
+      console.warn(`⚠️ [COTACOES-SERVICE] Múltiplas cotações encontradas para ID ${id}, usando a primeira`);
+    }
+
+    console.log(`✅ [COTACOES-SERVICE] Cotação ${id} encontrada:`, {
+      id: data[0].id,
+      aprovacao: data[0].aprovacao,
+      orcamento_geral: data[0].orcamento_geral
+    });
+
+    return data[0] as unknown as CotacaoDTO;
   }
 
   async delete(id: number): Promise<void> {

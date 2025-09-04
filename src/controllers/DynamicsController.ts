@@ -4,12 +4,18 @@ import CotacoesService from '../services/CotacoesService';
 import { CotacaoDTO } from '../models/Cotacao';
 
 class DynamicsController {
+  private dynamicsService: DynamicsIntegrationService;
+
+  constructor() {
+    this.dynamicsService = new DynamicsIntegrationService();
+  }
+
   /**
    * Testa a conexão com Dynamics 365
    */
   async testarConexao(req: Request, res: Response): Promise<Response> {
     try {
-      const sucesso = await DynamicsIntegrationService.testarConexao();
+      const sucesso = await this.dynamicsService.testarConexao();
       
       if (sucesso) {
         return res.status(200).json({
@@ -35,7 +41,7 @@ class DynamicsController {
    */
   async obterInformacoesAmbiente(req: Request, res: Response): Promise<Response> {
     try {
-      const info = await DynamicsIntegrationService.obterInformacoesAmbiente();
+      const info = await this.dynamicsService.obterInformacoesAmbiente();
       
       if (info) {
         return res.status(200).json({
@@ -60,7 +66,7 @@ class DynamicsController {
    */
   async obterConfiguracoes(req: Request, res: Response): Promise<Response> {
     try {
-      const config = DynamicsIntegrationService.obterConfig();
+      const config = this.dynamicsService.obterConfig();
       
       return res.status(200).json({
         message: 'Configurações do Dynamics 365',
@@ -75,29 +81,72 @@ class DynamicsController {
   }
 
   /**
-   * Atualiza configurações do Dynamics
+   * Atualiza configurações do Dynamics (método desabilitado temporariamente)
    */
   async atualizarConfiguracoes(req: Request, res: Response): Promise<Response> {
     try {
-      const { organizationId, environmentId, webApiEndpoint, discoveryEndpoint, accessToken } = req.body;
-
-      const novaConfig = {
-        ...(organizationId && { organizationId }),
-        ...(environmentId && { environmentId }),
-        ...(webApiEndpoint && { webApiEndpoint }),
-        ...(discoveryEndpoint && { discoveryEndpoint }),
-        ...(accessToken && { accessToken })
-      };
-
-      DynamicsIntegrationService.atualizarConfig(novaConfig);
-
-      return res.status(200).json({
-        message: 'Configurações atualizadas com sucesso',
-        updatedFields: Object.keys(novaConfig)
+      return res.status(501).json({
+        message: 'Método temporariamente desabilitado - configurações são carregadas do .env',
+        hint: 'Use as variáveis de ambiente: AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, DYNAMICS_WEB_API_ENDPOINT'
       });
     } catch (error: any) {
       return res.status(500).json({
         message: 'Erro ao atualizar configurações',
+        error: error.message
+      });
+    }
+  }
+
+  /**
+   * Consulta entidades disponíveis no Dynamics para descobrir nomes corretos
+   */
+  async consultarEntidadesDisponiveis(req: Request, res: Response): Promise<Response> {
+    try {
+      console.log('🔍 [DYNAMICS] Consultando entidades disponíveis...');
+      
+      const entidades = await this.dynamicsService.consultarEntidadesDisponiveis();
+
+      return res.status(200).json({
+        message: 'Entidades disponíveis consultadas com sucesso',
+        data: entidades,
+        instructions: {
+          message: "Procure por entidades relacionadas a cotações/quotes",
+          suggestion: "Use uma das entidades 'quotesRelated' ou 'salesRelated' no lugar de 'quotes'",
+          commonNames: [
+            "quotes (padrão)",
+            "quotations", 
+            "opportunities (vendas)",
+            "salesorders (pedidos)",
+            "invoices (faturas)"
+          ]
+        }
+      });
+    } catch (error: any) {
+      return res.status(500).json({
+        message: 'Erro interno ao consultar entidades disponíveis',
+        error: error.message
+      });
+    }
+  }
+  async consultarEntidadesPadrao(req: Request, res: Response): Promise<Response> {
+    try {
+      console.log('🔍 [DYNAMICS] Consultando entidades padrão para configuração...');
+      
+      const entidades = await this.dynamicsService.consultarEntidadesPadrao();
+
+      return res.status(200).json({
+        message: 'Entidades padrão consultadas com sucesso',
+        data: entidades,
+        instructions: {
+          message: "Use os GUIDs abaixo no método transformCotacaoToDynamics",
+          accounts: "Escolha um accountid para usar como customerid_account",
+          currencies: "Escolha um transactioncurrencyid para usar como moeda",
+          pricelevels: "Escolha um pricelevelid para usar como lista de preços"
+        }
+      });
+    } catch (error: any) {
+      return res.status(500).json({
+        message: 'Erro interno ao consultar entidades padrão',
         error: error.message
       });
     }
@@ -110,6 +159,8 @@ class DynamicsController {
     try {
       const { id } = req.params;
       
+      console.log(`📋 [DYNAMICS CONTROLLER] Recebida solicitação para enviar cotação ID: ${id}`);
+      
       if (!id || isNaN(Number(id))) {
         return res.status(400).json({
           message: 'ID da cotação é obrigatório e deve ser um número'
@@ -117,6 +168,7 @@ class DynamicsController {
       }
 
       // Buscar cotação
+      console.log(`🔍 [DYNAMICS CONTROLLER] Buscando cotação ID: ${id}`);
       const cotacao = await CotacoesService.getById(Number(id));
       
       if (!cotacao) {
@@ -138,7 +190,7 @@ class DynamicsController {
       }
 
       // Enviar para Dynamics
-      const sucesso = await DynamicsIntegrationService.processarCotacaoAprovada(cotacao);
+      const sucesso = await this.dynamicsService.processarCotacaoAprovada(cotacao);
 
       if (sucesso) {
         return res.status(200).json({
@@ -194,7 +246,7 @@ class DynamicsController {
       // Processar cada cotação
       for (const cotacao of cotacoesAprovadas) {
         try {
-          const sucesso = await DynamicsIntegrationService.processarCotacaoAprovada(cotacao);
+          const sucesso = await this.dynamicsService.processarCotacaoAprovada(cotacao);
           
           if (sucesso) {
             enviadas++;
@@ -232,6 +284,58 @@ class DynamicsController {
     } catch (error: any) {
       return res.status(500).json({
         message: 'Erro interno na sincronização',
+        error: error.message
+      });
+    }
+  }
+
+  /**
+   * Lista todas as entidades disponíveis no Dynamics
+   */
+  async listarTodasEntidades(req: Request, res: Response) {
+    try {
+      console.log('🔍 [DYNAMICS CONTROLLER] Listando todas as entidades...');
+      
+      const entidades = await this.dynamicsService.listarEntidadesDisponiveis();
+      
+      return res.status(200).json({
+        success: true,
+        message: 'Entidades listadas com sucesso',
+        data: {
+          total: entidades.length,
+          entidades: entidades.slice(0, 100) // Primeiras 100 para não sobrecarregar
+        }
+      });
+    } catch (error: any) {
+      console.error('❌ [DYNAMICS CONTROLLER] Erro ao listar entidades:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Erro interno do servidor',
+        error: error.message
+      });
+    }
+  }
+
+  /**
+   * Lista todas as oportunidades (opportunities) do Dynamics 365
+   */
+  async listarOportunidades(req: Request, res: Response): Promise<Response> {
+    try {
+      console.log('🔍 [DYNAMICS CONTROLLER] Buscando oportunidades...');
+      
+      const oportunidades = await this.dynamicsService.listarOportunidades();
+      
+      return res.status(200).json({
+        success: true,
+        message: 'Oportunidades listadas com sucesso',
+        total: oportunidades.length,
+        data: oportunidades
+      });
+    } catch (error: any) {
+      console.error('❌ [DYNAMICS CONTROLLER] Erro ao listar oportunidades:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Erro ao buscar oportunidades',
         error: error.message
       });
     }

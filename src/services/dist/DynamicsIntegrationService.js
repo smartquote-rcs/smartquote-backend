@@ -174,41 +174,49 @@ var DynamicsIntegrationService = /** @class */ (function () {
     /**
      * Transforma dados da cotação para formato do Dynamics
      */
-    DynamicsIntegrationService.prototype.transformCotacaoToDynamics = function (cotacao) {
-        var _a, _b, _c, _d;
-        return {
-            // Mapeamento básico - ajuste conforme sua estrutura no Dynamics
-            name: "Cota\u00E7\u00E3o #" + cotacao.id + " - " + (((_a = cotacao.produto) === null || _a === void 0 ? void 0 : _a.nome) || 'Produto'),
-            quotenumber: "COT-" + cotacao.id,
-            description: "Cota\u00E7\u00E3o aprovada para " + (((_b = cotacao.produto) === null || _b === void 0 ? void 0 : _b.nome) || 'produto') + " - " + (cotacao.motivo || ''),
-            // Dados do produto
-            productname: ((_c = cotacao.produto) === null || _c === void 0 ? void 0 : _c.nome) || '',
-            productid: ((_d = cotacao.produto) === null || _d === void 0 ? void 0 : _d.id) || null,
-            // Dados financeiros (usar orcamento_geral se disponível)
-            totalamount: cotacao.orcamento_geral || 0,
-            quotetotalamount: cotacao.orcamento_geral || 0,
-            // Status da cotação
-            statuscode: cotacao.aprovacao ? 'approved' : 'pending',
-            approvalstatus: cotacao.aprovacao ? 'Aprovada' : 'Pendente',
-            quotationstatus: cotacao.status || 'incompleta',
-            // Dados de auditoria
-            quotecreateddate: cotacao.cadastrado_em || new Date().toISOString(),
-            approvaldate: cotacao.data_aprovacao || new Date().toISOString(),
-            validitydate: cotacao.prazo_validade || null,
-            requestdate: cotacao.data_solicitacao || null,
-            // Observações e condições
-            description_extended: cotacao.observacao || cotacao.observacoes || '',
-            conditions: JSON.stringify(cotacao.condicoes || {}),
-            missingitems: JSON.stringify(cotacao.faltantes || []),
-            // IDs de relacionamento
-            prompt_id: cotacao.prompt_id || null,
-            produto_id: cotacao.produto_id || null,
-            aprovado_por: cotacao.aprovado_por || null,
-            // Metadados de integração
-            externalsourceid: cotacao.id.toString(),
-            externalsource: 'SmartQuote',
-            integrationtimestamp: new Date().toISOString()
-        };
+    DynamicsIntegrationService.prototype.transformCotacaoToDynamicsSimples = function (cotacao, entidade) {
+        console.log("\uD83D\uDD04 [DYNAMICS] Transformando cota\u00E7\u00E3o " + cotacao.id + " para entidade " + entidade);
+        var entity = {};
+        if (entidade === 'quotes') {
+            entity.name = "Cota\u00E7\u00E3o #" + cotacao.id + " - SmartQuote";
+            entity.description = cotacao.motivo || "Cota\u00E7\u00E3o gerada no SmartQuote - ID " + cotacao.id;
+            entity.quotenumber = "SQ-" + cotacao.id;
+            if (cotacao.orcamento_geral)
+                entity.totalamount = cotacao.orcamento_geral;
+            entity.statecode = 0; // Ativo
+            entity.statuscode = 1; // Em progresso
+        }
+        if (entidade === 'opportunities') {
+            entity.name = "Oportunidade #" + cotacao.id + " - SmartQuote";
+            entity.description = cotacao.motivo || "Oportunidade gerada no SmartQuote - ID " + cotacao.id;
+            if (cotacao.orcamento_geral)
+                entity.estimatedvalue = cotacao.orcamento_geral;
+            entity.statecode = 0; // Aberto
+            entity.statuscode = 1; // Em progresso
+        }
+        if (entidade === 'incidents') {
+            entity.title = "Ticket #" + cotacao.id + " - SmartQuote";
+            entity.description = cotacao.motivo || "Ticket gerado no SmartQuote - ID " + cotacao.id;
+            entity.ticketnumber = "SQ-" + cotacao.id;
+            entity.prioritycode = 2; // Normal
+            entity.severitycode = 1; // Padrão (valor válido)
+            entity.statecode = 0; // Ativo
+            entity.statuscode = 1; // Em progresso
+        }
+        if (entidade === 'leads') {
+            entity.fullname = "Lead SmartQuote #" + cotacao.id;
+            entity.subject = "Lead da cota\u00E7\u00E3o #" + cotacao.id;
+            entity.description = cotacao.motivo || "Lead gerado no SmartQuote - ID " + cotacao.id;
+            entity.firstname = 'SmartQuote';
+            entity.lastname = "Lead " + cotacao.id;
+            entity.companyname = 'SmartQuote System';
+            if (cotacao.orcamento_geral)
+                entity.budgetamount = cotacao.orcamento_geral;
+            entity.statecode = 0; // Ativo
+            entity.statuscode = 1; // Novo
+        }
+        console.log("\u2705 [DYNAMICS] Payload simples criado:", JSON.stringify(entity, null, 2));
+        return entity;
     };
     /**
      * Envia dados para o Dynamics 365

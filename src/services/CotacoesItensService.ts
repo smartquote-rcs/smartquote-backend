@@ -330,22 +330,22 @@ class CotacoesItensService {
     return data;
   }
   async getSugeridosWeb(id: number): Promise<any[]> {
-    const { data: cotacaoItem, error } = await supabase
-      .from('cotacoes_itens')
-      .select('*')
-      .eq('id', id)
-      .single();
-    const relatorio = await RelatorioService.gerarDadosRelatorio(cotacaoItem?.cotacao_id);
-    
-    if (relatorio.analiseWeb && Array.isArray(relatorio.analiseWeb)) {
-
-      const webIndex = relatorio.analiseWeb.findIndex((item: any) =>
-        item.escolha_principal === cotacaoItem.item_nome
-      );
-      if (webIndex !== -1) {
-        ////sugerir produtos no top_raking da analise_web
-        const topRanking = relatorio.analiseWeb[webIndex]?.top_ranking || [];
-        const sugestoes = topRanking.map((item: any) => ({
+    try {
+      const { data: cotacaoItem, error } = await supabase
+        .from('cotacoes_itens')
+        .select('*')
+        .eq('id', id)
+        .single();
+      if (error || !cotacaoItem) {
+        console.error('[getSugeridosWeb] Erro ao buscar cotacaoItem:', error);
+        throw new Error('Item de cotação não encontrado');
+      }
+      const relatorio = await RelatorioService.gerarDadosRelatorio(cotacaoItem?.cotacao_id);
+      console.log('[getSugeridosWeb] cotacaoItem:', cotacaoItem);
+      console.log('[getSugeridosWeb] relatorio:', relatorio);
+      if (relatorio && relatorio.analiseWeb && Array.isArray(relatorio.analiseWeb)) {
+        const allSugs = relatorio.analiseWeb.flatMap((item: any) => item.top_ranking || []);
+        const sugestoes = allSugs.map((item: any) => ({
           nome: item.nome,
           url: item.url,
           preco: item.preco,
@@ -355,45 +355,53 @@ class CotacoesItensService {
           pontos_fracos: item.pontos_fracos,
           score_estimado: item.score_estimado,
         })) || [];
+        console.log('[getSugeridosWeb] sugestões (todos):', sugestoes);
         return sugestoes;
+      } else {
+        console.warn('[getSugeridosWeb] Relatório não possui analiseWeb ou está vazio:', relatorio);
+        return [];
       }
+    } catch (err) {
+      console.error('[getSugeridosWeb] Erro geral:', err);
+      throw err;
     }
-    return [];
   }
   async getSugeridosLocal(id: number): Promise<any[]> {
-      // Busca o item de cotação pelo id
+    try {
       const { data: cotacaoItem, error } = await supabase
         .from('cotacoes_itens')
         .select('*')
         .eq('id', id)
         .single();
-      if (error) throw new Error(error.message);
-
-      // Gera o relatório relacionado à cotação
-      const relatorio = await RelatorioService.gerarDadosRelatorio(cotacaoItem?.cotacao_id);
-
-      if (relatorio.analiseLocal && Array.isArray(relatorio.analiseLocal)) {
-        // Busca o índice do item local correspondente ao nome do item
-        const localIndex = relatorio.analiseLocal.findIndex((item: any) =>
-          item.llm_relatorio?.escolha_principal === cotacaoItem.item_nome
-        );
-        if (localIndex !== -1) {
-          // Sugere produtos do top_ranking da análise local
-          const topRanking = relatorio.analiseLocal[localIndex]?.llm_relatorio?.top_ranking || [];
-          const sugestoes = topRanking.map((item: any) => ({
-            nome: item.nome,
-            id: item.id,
-            preco: item.preco,
-            posicao: item.posicao,
-            justificativa: item.justificativa,
-            pontos_fortes: item.pontos_fortes,
-            pontos_fracos: item.pontos_fracos,
-            score_estimado: item.score_estimado,
-          })) || [];
-          return sugestoes;
-        }
+      if (error || !cotacaoItem) {
+        console.error('[getSugeridosLocal] Erro ao buscar cotacaoItem:', error);
+        throw new Error('Item de cotação não encontrado');
       }
-      return [];
+      const relatorio = await RelatorioService.gerarDadosRelatorio(cotacaoItem?.cotacao_id);
+      console.log('[getSugeridosLocal] cotacaoItem:', cotacaoItem);
+      console.log('[getSugeridosLocal] relatorio:', relatorio);
+      if (relatorio && relatorio.analiseLocal && Array.isArray(relatorio.analiseLocal)) {
+        const allSugs = relatorio.analiseLocal.flatMap((item: any) => item.llm_relatorio?.top_ranking || []);
+        const sugestoes = allSugs.map((item: any) => ({
+          nome: item.nome,
+          id: item.id,
+          preco: item.preco,
+          posicao: item.posicao,
+          justificativa: item.justificativa,
+          pontos_fortes: item.pontos_fortes,
+          pontos_fracos: item.pontos_fracos,
+          score_estimado: item.score_estimado,
+        })) || [];
+        console.log('[getSugeridosLocal] sugestões (todos):', sugestoes);
+        return sugestoes;
+      } else {
+        console.warn('[getSugeridosLocal] Relatório não possui analiseLocal ou está vazio:', relatorio);
+        return [];
+      }
+    } catch (err) {
+      console.error('[getSugeridosLocal] Erro geral:', err);
+      throw err;
+    }
   }
 }
 export default new CotacoesItensService();

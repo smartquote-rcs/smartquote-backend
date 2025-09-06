@@ -1,0 +1,8 @@
+
+POST http://localhost:2000/api/auth/forget
+Content-Type: application/json
+
+{
+  "email": "bartolomeugasparbg@gmail.com"
+}
+

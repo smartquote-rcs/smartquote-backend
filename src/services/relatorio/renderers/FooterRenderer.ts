@@ -1,4 +1,5 @@
 import PDFDocument from 'pdfkit';
+import { theme } from '../theme';
 
 export class FooterRenderer {
   private doc: PDFKit.PDFDocument;
@@ -34,9 +35,9 @@ export class FooterRenderer {
         
         const footerY = this.doc.page.height - this.doc.page.margins.bottom - 30;
         
-        // Linha decorativa no rodapé azul
+        // Linha sutil no rodapé
         this.doc
-          .strokeColor('#2563eb')
+          .strokeColor(theme.card.neutralStroke)
           .lineWidth(1)
           .moveTo(margin, footerY)
           .lineTo(margin + contentWidth, footerY)
@@ -44,7 +45,7 @@ export class FooterRenderer {
         
         // Informações do rodapé
         this.doc
-          .fill('#64748b')
+          .fill('#6b7280')
           .fontSize(9)
           .font('Helvetica')
           .text(

@@ -304,6 +304,7 @@ DADOS DO EMAIL:
                 const statusUrls = await svc.createJobsForFaltantes(faltantes, interpretation.solicitacao, true);
                 const { resultadosCompletos, produtosWeb } = await svc.waitJobs(statusUrls);
                 console.log(`🧠 [LLM-FILTER] ${produtosWeb.length} produtos selecionados pelos jobs`);
+                console.log(`🧠 [LLM-FILTER] Atualizando a coluna de analise_web em cotações_itens`) ;
 
                 // Se não há cotação principal ainda, criar uma para receber itens/faltantes
                 if (!cotacaoPrincipalId && (produtosWeb.length > 0 || faltantes.length > 0)) {
@@ -313,7 +314,6 @@ DADOS DO EMAIL:
                     tipo_de_solucao: 'sistema',
                     itens_a_comprar: faltantes.map((f: any) => ({
                       nome: f.nome || 'Item não especificado',
-                      natureza_componente: 'software',
                       prioridade: 'media',
                       categoria: f.categoria || 'Geral',
                       quantidade: f.quantidade || 1

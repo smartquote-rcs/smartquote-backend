@@ -65,26 +65,14 @@ export class RelatorioService {
    */
   public async gerarDadosRelatorio(cotacaoId: number): Promise<RelatorioData> {
        try {
-      // Buscar dados do relatório da tabela relatorios
-      const { data: relatorio, error } = await supabase
-        .from('relatorios')
-        .select('analise_web, analise_local, status, versao')
-        .eq('cotacao_id', cotacaoId)
-        .order('id', { ascending: false })
-        .limit(1)
-        .single();
-
-      if (error || !relatorio) {
-        throw new Error(`Dados do relatório não encontrados: ${error?.message}`);
-      }
-
-      // Buscar dados básicos da cotação
+      // Buscar dados básicos da cotação incluindo proposta_email
       const { data: cotacao, error: cotacaoError } = await supabase
         .from('cotacoes')
         .select(`
           id, 
           prompt_id, 
           orcamento_geral,
+          proposta_email,
           prompt:prompts(id, texto_original, cliente)
         `)
         .eq('id', cotacaoId)
@@ -94,27 +82,80 @@ export class RelatorioService {
         throw new Error(`Dados da cotação não encontrados: ${cotacaoError?.message}`);
       }
 
-      // Processar dados das análises
-      const analiseLocal = Array.isArray(relatorio.analise_local) 
-        ? relatorio.analise_local 
-        : relatorio.analise_local ? [relatorio.analise_local] : [];
+      // Buscar analise_web e analise_local dos itens individuais da cotação
+      const { data: itensComAnaliseWeb, error: itensWebError } = await supabase
+        .from('cotacoes_itens')
+        .select('id, item_nome, analise_web')
+        .eq('cotacao_id', cotacaoId)
+        .not('analise_web', 'is', null);
 
-      const analiseWeb = Array.isArray(relatorio.analise_web) 
-        ? relatorio.analise_web 
-        : relatorio.analise_web ? [relatorio.analise_web] : [];
+      const { data: itensComAnaliseLocal, error: itensLocalError } = await supabase
+        .from('cotacoes_itens')
+        .select('id, item_nome, analise_local, pedido')
+        .eq('cotacao_id', cotacaoId)
+        .not('analise_local', 'is', null);
 
-      // Buscar última proposta de email (se existir)
-      let propostaEmail: string | undefined;
-      try {
-        const { data: relatorioProposta } = await supabase
-          .from('relatorios')
-          .select('proposta_email')
-          .eq('cotacao_id', cotacao.id)
-          .order('id', { ascending: false })
-          .limit(1)
-          .single();
-        propostaEmail = relatorioProposta?.proposta_email || undefined;
-      } catch {}
+      // Processar dados das análises locais
+      const analiseLocal: any[] = [];
+      if (!itensLocalError && itensComAnaliseLocal) {
+        for (const item of itensComAnaliseLocal) {
+          if (item.analise_local) {
+            // Se analise_local é um array
+            if (Array.isArray(item.analise_local)) {
+              for (const analiseItem of item.analise_local) {
+                if (analiseItem) {
+                  const analiseComItem = {
+                    ...analiseItem,
+                    id_item_cotacao: item.id,
+                    item_nome: item.item_nome,
+                    pedido: (item as any).pedido
+                  };
+                  analiseLocal.push(analiseComItem);
+                }
+              }
+            } else {
+              // Se analise_local é um objeto único
+              const analiseComItem = {
+                ...item.analise_local,
+                id_item_cotacao: item.id,
+                item_nome: item.item_nome,
+                pedido: (item as any).pedido
+              };
+              analiseLocal.push(analiseComItem);
+            }
+          }
+        }
+      }
+
+      // Agregar analise_web de todos os itens
+      const analiseWeb: any[] = [];
+      if (!itensWebError && itensComAnaliseWeb) {
+        for (const item of itensComAnaliseWeb) {
+          if (item.analise_web) {
+            // Se analise_web é um array
+            if (Array.isArray(item.analise_web)) {
+              for (const analiseItem of item.analise_web) {
+                if (analiseItem) {
+                  const analiseComItem = {
+                    ...analiseItem,
+                    id_item_cotacao: item.id,
+                    item_nome: item.item_nome
+                  };
+                  analiseWeb.push(analiseComItem);
+                }
+              }
+            } else {
+              // Se analise_web é um objeto único
+              const analiseComItem = {
+                ...item.analise_web,
+                id_item_cotacao: item.id,
+                item_nome: item.item_nome
+              };
+              analiseWeb.push(analiseComItem);
+            }
+          }
+        }
+      }
 
       // Estruturar dados para o relatório
       const data: RelatorioData = {
@@ -123,15 +164,15 @@ export class RelatorioService {
         solicitacao: (cotacao as any).prompt?.texto_original || 'Solicitação não encontrada',
         orcamentoGeral: cotacao.orcamento_geral,
         cliente: (cotacao as any).prompt?.cliente || {},
-        propostaEmail,
+        propostaEmail: (cotacao as any).proposta_email,
         analiseLocal,
         analiseWeb
       };
 
-      console.log(`📋 [RELATORIO] Dados processados - Local: ${analiseLocal.length}, Web: ${analiseWeb.length}`);
+      console.log(`📋 [RELATORIO] Dados processados - Local: ${analiseLocal.length}, Web: ${analiseWeb.length} (de ${itensComAnaliseLocal?.length || 0} + ${itensComAnaliseWeb?.length || 0} itens)`);
       return data;
-    } catch {
-        console.error('❌ [RELATORIO] Erro ao gerar dados do relatório');
+    } catch (error) {
+        console.error('❌ [RELATORIO] Erro ao gerar dados do relatório:', error);
         return null as any;
     }
   }
@@ -197,7 +238,10 @@ export class RelatorioService {
 
         // Gerar conteúdo do PDF
         pdfGenerator.adicionarCabecalho(data);
-        pdfGenerator.adicionarSecaoProposta(data);
+        await pdfGenerator.adicionarSecaoProposta(data);
+        
+        // Adicionar condições comerciais
+        pdfGenerator.adicionarCondicoesComerciais(data);
         
   // Adicionar template de email (aguardando pois é assíncrono)
   await pdfGenerator.adicionarTemplateEmail(data);
@@ -281,7 +325,10 @@ export class RelatorioService {
 
         // Gerar conteúdo do PDF
         pdfGenerator.adicionarCabecalho(data);
-        pdfGenerator.adicionarSecaoProposta(data);
+        await pdfGenerator.adicionarSecaoProposta(data);
+        
+        // Adicionar condições comerciais
+        pdfGenerator.adicionarCondicoesComerciais(data);
         
   // Adicionar template de email (aguardando pois é assíncrono)
   await pdfGenerator.adicionarTemplateEmail(data);

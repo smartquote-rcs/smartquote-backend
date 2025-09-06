@@ -1,5 +1,6 @@
 import PDFDocument from 'pdfkit';
 import { RelatorioData } from '../types';
+import { theme } from '../theme';
 
 export class HeaderRenderer {
   private doc: PDFKit.PDFDocument;
@@ -18,99 +19,141 @@ export class HeaderRenderer {
     const pageWidth = this.doc.page.width;
     const contentWidth = pageWidth - (margin * 2);
     
-    // Cabeçalho com fundo azul formal
+    // Cabeçalho corporativo formal
     this.doc
-      .rect(margin - 20, 20, contentWidth + 40, 120)
-      .fillAndStroke('#1e3a5f', '#2c5282')
-      .fill('#ffffff');
-    
-    // Logo placeholder (círculo com iniciais)
-    this.doc
-      .circle(margin + 40, 60, 25)
-      .fillAndStroke('#2563eb', '#1d4ed8')
-      .fill('#ffffff')
-      .fontSize(16)
+      .fill(theme.text.primary)
+      .fontSize(18)
       .font('Helvetica-Bold')
-      .text('SQ', margin + 30, 52, { width: 20, align: 'center' });
+      .text(`RELATÓRIO INTERNO DE COTAÇÃO — ID ${data.cotacaoId}`, margin, 35, { width: contentWidth });
+
+    this.doc
+      .strokeColor(theme.info.main)
+      .lineWidth(2)
+      .moveTo(margin, 65)
+      .lineTo(margin + contentWidth, 65)
+      .stroke();
+
+    // Linha de apoio mais sutil
+    this.doc
+      .strokeColor(theme.card.neutralStroke)
+      .lineWidth(1)
+      .moveTo(margin, 68)
+      .lineTo(margin + contentWidth, 68)
+      .stroke();
     
-    // Título principal
+    // ========== DADOS GERAIS DA COTAÇÃO ==========
+    const infoTop = 95;
+    const infoHeight = 100;
+    
+    // Card principal com informações organizadas
     this.doc
       .fill('#ffffff')
-      .fontSize(28)
-      .font('Helvetica-Bold')
-      .text('RELATÓRIO DE COTAÇÃO', margin + 100, 40, { width: contentWidth - 120 });
-    
-    // Subtítulo
+      .rect(margin, infoTop, contentWidth, infoHeight)
+      .fillAndStroke('#ffffff', theme.info.main);
+
     this.doc
-      .fontSize(14)
+      .fill(theme.info.main)
+      .fontSize(11)
+      .font('Helvetica-Bold')
+      .text('DADOS GERAIS DA COTAÇÃO', margin + 16, infoTop + 16);
+
+    // Grid organizado de informações - Coluna 1
+    this.doc
+      .fontSize(9)
       .font('Helvetica')
-      .text('Analise Tecnica e Proposta Comercial', margin + 100, 75, { width: contentWidth - 120 });
-    
-    // Informações da cotação em caixa com tons azuis
+      .fill(theme.text.muted)
+      .text('ID da Cotação:', margin + 16, infoTop + 40)
+      .fill(theme.text.primary)
+      .font('Helvetica-Bold')
+      .text(`#${data.cotacaoId}`, margin + 16, infoTop + 54);
+
+    // Grid organizado de informações - Coluna 2 (centro)
+    const centerX = margin + (contentWidth / 2) - 80;
     this.doc
-      .fill('#f1f5f9')
-      .rect(margin, 160, contentWidth, 80)
-      .fillAndStroke('#f1f5f9', '#94a3b8');
-    
+      .fontSize(9)
+      .font('Helvetica')
+      .fill(theme.text.muted)
+      .text('Data de Geração:', centerX, infoTop + 40)
+      .fill(theme.text.primary)
+      .font('Helvetica-Bold')
+      .text(
+        `${new Date().toLocaleDateString('pt-BR', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        })}`,
+        centerX,
+        infoTop + 54
+      );
+
+    // Grid organizado de informações - Coluna 3 (direita)
+    const rightX = margin + contentWidth - 160;
     this.doc
-      .fill('#1e293b')
+      .fontSize(9)
+      .font('Helvetica')
+      .fill(theme.text.muted)
+      .text('Valor Total da Proposta:', rightX, infoTop + 40)
+      .fill(theme.info.main)
       .fontSize(12)
       .font('Helvetica-Bold')
-      .text('INFORMAÇÕES DA COTAÇÃO', margin + 20, 175);
-      this.doc
-      .fontSize(11)
+      .text(
+        `${data.orcamentoGeral.toLocaleString('pt-AO', { style: 'currency', currency: 'AOA', minimumFractionDigits: 2 })}`,
+        rightX,
+        infoTop + 54
+      );
+
+    // Linha separadora sutil
+    this.doc
+      .strokeColor(theme.card.neutralStroke)
+      .lineWidth(1)
+      .moveTo(margin + 16, infoTop + 78)
+      .lineTo(margin + contentWidth - 16, infoTop + 78)
+      .stroke();
+
+    // Informação adicional na parte inferior
+    this.doc
+      .fill(theme.text.muted)
+      .fontSize(8)
       .font('Helvetica')
-      .text(`Cotação ID: #${data.cotacaoId}`, margin + 20, 195)
       .text(
-        `Data de Geração: ${new Date().toLocaleDateString('pt-BR', { 
-          weekday: 'long', 
-          year: 'numeric', 
-          month: 'long', 
-          day: 'numeric' 
-        })}`,
-        margin + 20,
-        210
-      )
-      .text(
-        `Orçamento Total: AOA$ ${data.orcamentoGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
-        -margin - 20, // joga para o lado direito
-        195,
-        { align: 'right' }
-      )
-      .text(`Total de Análises: ${data.analiseLocal.length + data.analiseWeb.length}`, -margin - 20, 210, { align: 'right' });
+        `Total de itens analisados: ${data.analiseLocal.length + data.analiseWeb.length}`,
+        margin + 16,
+        infoTop + 85
+      );
     
-    // Seção de solicitação com estilo formal azul
+    // ========== SOLICITAÇÃO DO CLIENTE ==========
+    const solicitacaoTitleY = infoTop + infoHeight + 25;
     this.doc
-      .fill('#1e293b')
-      .fontSize(16)
+      .fill(theme.info.main)
+      .fontSize(11)
       .font('Helvetica-Bold')
-      .text('SOLICITAÇÃO DO CLIENTE', margin, 270)
-      .moveDown(0.3);
-    
-    // Linha decorativa azul
+      .text('SOLICITAÇÃO DO CLIENTE', margin, solicitacaoTitleY);
+
     this.doc
-      .strokeColor('#2563eb')
-      .lineWidth(3)
-      .moveTo(margin, 290)
-      .lineTo(margin + 150, 290)
+      .strokeColor(theme.info.main)
+      .lineWidth(1)
+      .moveTo(margin, solicitacaoTitleY + 16)
+      .lineTo(margin + 180, solicitacaoTitleY + 16)
       .stroke();
     
     // Caixa para solicitação com altura dinâmica
-    const solicitacaoHeight = Math.max(60, Math.min(data.solicitacao.length / 3, 120));
+    const solicitacaoHeight = Math.max(70, Math.min(data.solicitacao.length / 3, 140));
+    const solicitacaoBoxTop = solicitacaoTitleY + 26;
     this.doc
-      .fill('#f8fafc')
-      .rect(margin, 305, contentWidth, solicitacaoHeight)
-      .fillAndStroke('#f8fafc', '#cbd5e1');
-    
+      .fill('#ffffff')
+      .rect(margin, solicitacaoBoxTop, contentWidth, solicitacaoHeight)
+      .fillAndStroke('#ffffff', theme.card.neutralStroke);
+
     this.doc
-      .fill('#1e293b')
-      .fontSize(11)
+      .fill(theme.text.primary)
+      .fontSize(10)
       .font('Helvetica')
-      .text(data.solicitacao, margin + 15, 320, { 
-        width: contentWidth - 30,
-        lineGap: 3
+      .text(data.solicitacao, margin + 16, solicitacaoBoxTop + 16, {
+        width: contentWidth - 32,
+        lineGap: 4,
+        align: 'justify'
       });
-    
-    this.doc.y = 305 + solicitacaoHeight + 20; // Posicionar dinamicamente para próximo conteúdo
+
+    this.doc.y = solicitacaoBoxTop + solicitacaoHeight + 30; // Espaçamento para próximo conteúdo
   }
 }

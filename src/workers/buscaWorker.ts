@@ -194,8 +194,8 @@ async function filtrarProdutosComLLM(produtos: any[], termoBusca: string, quanti
 
     const client = new Groq({ apiKey });
     const resp = await client.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
-      //model: "llama-3.1-8b-instant",
+      //model: "llama-3.3-70b-versatile",
+      model: "openai/gpt-oss-120b",
       messages: [
         { role: "system", content: prompt_sistema },
         { role: "user", content: userMsg }
@@ -287,6 +287,86 @@ async function filtrarProdutosComLLM(produtos: any[], termoBusca: string, quanti
   }
 }
 
+// Classificar produto selecionado em uma categoria de negócio usando LLM (Groq)
+async function classificarCategoriaProduto(produto: any, termoBusca: string): Promise<string | null> {
+  try {
+    // @ts-ignore
+    const { Groq } = require('groq-sdk');
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) {
+      log('❌ [LLM-CATEG] GROQ_API_KEY não encontrada');
+      return null;
+    }
+
+    const categorias = [
+      'Hardware de Servidores e Storage',
+      'Hardware de Posto de Trabalho',
+      'Serviços de Cloud',
+      'Networking',
+      'Cibersegurança',
+      'Videovigilância (CCTV)',
+      'Controle de Acesso',
+      'Software de Produtividade e Colaboração',
+      'Business Intelligence (BI)',
+      'Software de Conformidade (Compliance)',
+      'Software de Gestão (ERP/CRM)',
+      'Automação de Postos de Combustível',
+      'Quiosques e Autoatendimento',
+      'Internet das Coisas (IoT)',
+      'Realidade Virtual e Aumentada (VR/AR)',
+      'Soluções para Saúde (Health Tech)'
+    ];
+
+    const promptSistema = 'Você é um classificador de produtos de TI. Escolha EXATAMENTE uma categoria da lista fornecida.';
+    const userMsg = `TERM0: ${termoBusca}\n` +
+      `PRODUTO: ${JSON.stringify({
+        nome: produto.name || produto.nome,
+        descricao: (produto.description || produto.descricao || '').substring(0, 500),
+        url: produto.product_url || produto.url || '',
+      })}\n` +
+      `CATEGORIAS: ${JSON.stringify(categorias)}\n` +
+      'Responda APENAS com um JSON: {"categoria": "<uma das categorias exatamente>"}';
+
+    const client = new Groq({ apiKey });
+    const resp = await client.chat.completions.create({
+      model: 'llama-3.1-8b-instant',
+      messages: [
+        { role: 'system', content: promptSistema },
+        { role: 'user', content: userMsg },
+      ],
+      temperature: 0,
+      max_tokens: 512,
+      stream: false,
+    });
+
+    const content = (resp.choices?.[0]?.message?.content || '').trim();
+    let categoria: string | null = null;
+    try {
+      const match = content.match(/\{[\s\S]*\}/);
+      const jsonText = match ? match[0] : content;
+      const parsed = JSON.parse(jsonText);
+      if (parsed && typeof parsed.categoria === 'string') {
+        categoria = parsed.categoria;
+      }
+    } catch {
+      // fallback: tenta casar diretamente uma das categorias
+      for (const cat of categorias) {
+        if (content.includes(cat)) { categoria = cat; break; }
+      }
+    }
+
+    if (categoria && categorias.includes(categoria)) {
+      log(`🏷️ [LLM-CATEG] Categoria atribuída: ${categoria}`);
+      return categoria;
+    }
+    log(`⚠️ [LLM-CATEG] Não foi possível determinar categoria. Resposta: ${content.substring(0,200)}...`);
+    return null;
+  } catch (e) {
+    log(`❌ [LLM-CATEG] Erro ao classificar categoria: ${e}`);
+    return null;
+  }
+}
+
 // Escutar mensagens via stdin
 process.stdin.setEncoding('utf8');
 process.stdin.on('data', async (data: string) => {
@@ -368,7 +448,7 @@ async function processarJob(message: JobMessage) {
     log(`Buscando "${termo}" em ${sitesParaBusca.length} sites`);
     
     const resultados = await buscaService.buscarProdutosMultiplosSites(
-      termo,
+      termo.split('|')[0] || termo,
       sitesParaBusca,
       numResultados
     );
@@ -405,10 +485,20 @@ async function processarJob(message: JobMessage) {
         }
       });
       const produtosAntesLLM = todosProdutos.length;
-      const resultadoLLM = await filtrarProdutosComLLM(todosProdutos, termo, quantidade, custo_beneficio, rigor, ponderacao_web_llm);
+      const resultadoLLM = await filtrarProdutosComLLM(todosProdutos, termo , quantidade, custo_beneficio, rigor, ponderacao_web_llm);
       todosProdutos = resultadoLLM.produtos;
       relatorioLLM = resultadoLLM.relatorio; // Capturar o relatório
       log(`Produtos após refinamento LLM: ${todosProdutos.length} de ${produtosAntesLLM}`);
+
+      // Classificar categoria do(s) produto(s) selecionado(s)
+      if (todosProdutos.length > 0) {
+        for (const p of todosProdutos) {
+          const categoria = await classificarCategoriaProduto(p, termo);
+          if (categoria) {
+            p.categoria = categoria;
+          }
+        }
+      }
 
       if (todosProdutos.length === 0) {
         log(`🧠 [LLM-FILTER] Nenhum produto aprovado pelo LLM para salvamento`);
@@ -553,7 +643,8 @@ async function processarJob(message: JobMessage) {
       
       // 6. Enviar resultado final
       const tempoTotal = Date.now() - inicioTempo;
-      
+    
+      relatorioLLM.query = termo;
       enviarMensagem({
         status: 'sucesso',
         produtos: todosProdutos,

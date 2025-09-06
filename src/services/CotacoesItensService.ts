@@ -8,9 +8,31 @@ class CotacoesItensService {
   private parseNumero(precoStr?: string): number | null {
     if (!precoStr) return null;
     try {
-      const numeroLimpo = precoStr.replace(/[^\d.,]/g, '');
-      const normalizado = numeroLimpo.replace(/\.(?=\d{3}(\D|$))/g, '').replace(',', '.');
-      const n = parseFloat(normalizado);
+      // Remove tudo que não seja dígito, ponto ou vírgula
+      let numeroLimpo = precoStr.replace(/[^\d.,]/g, '');
+      
+      // Normalizar separadores decimais
+      // Se tem vírgula, assumir que é separador decimal
+      if (numeroLimpo.includes(',')) {
+        // Se tem ponto E vírgula, ponto é separador de milhar
+        if (numeroLimpo.includes('.')) {
+          numeroLimpo = numeroLimpo.replace(/\./g, '').replace(',', '.');
+        } else {
+          // Só vírgula, converter para ponto decimal
+          numeroLimpo = numeroLimpo.replace(',', '.');
+        }
+      }
+      // Se só tem pontos, verificar se é separador de milhar ou decimal
+      else if (numeroLimpo.includes('.')) {
+        const partes = numeroLimpo.split('.');
+        if (partes.length > 2 || (partes.length === 2 && partes[1] && partes[1].length === 3)) {
+          // Múltiplos pontos ou último tem 3 dígitos = separador de milhar
+          numeroLimpo = numeroLimpo.replace(/\./g, '');
+        }
+        // Senão, assumir que é separador decimal
+      }
+      
+      const n = parseFloat(numeroLimpo);
       return isNaN(n) ? null : n;
     } catch {
       return null;
@@ -176,7 +198,7 @@ class CotacoesItensService {
   /**
    * Insere item na cotação usando ID do produto já salvo na base de dados
    */
-  async insertWebItemById(cotacaoId: number, produtoId: number, produto: Product, quantidade: number): Promise<number | null> {
+  async insertWebItemById(cotacaoId: number, produtoId: number, produto: Product, quantidade: number, relatorio?: RelatorioData): Promise<number | null> {
     const item_preco = this.parseNumero(produto.price);
     const provider = this.providerFromUrl(produto.product_url);
 
@@ -191,6 +213,7 @@ class CotacoesItensService {
       item_preco: item_preco ?? undefined,
       item_moeda: 'AOA',
       quantidade: quantidade,
+      analise_web: relatorio,
     };
 
     const { data, error } = await supabase
@@ -204,6 +227,55 @@ class CotacoesItensService {
     }
 
     return data?.id ?? null;
+  }
+
+  /**
+   * Insere item local na cotação com análise local
+   */
+  async insertLocalItemById(cotacaoId: number, produtoId: number, produto: any, quantidade: number, analiseLocal?: any): Promise<number | null> {
+    const item_preco = this.parseNumero(produto.preco || produto.price);
+
+    const payload: any = {
+      cotacao_id: cotacaoId,
+      produto_id: produtoId,
+      origem: 'local',
+      item_nome: produto.nome || produto.name,
+      item_descricao: produto.descricao || produto.description,
+      item_preco: item_preco ?? undefined,
+      item_moeda: 'AOA',
+      quantidade: quantidade,
+      analise_local: analiseLocal,
+    };
+
+    const { data, error } = await supabase
+      .from('cotacoes_itens')
+      .insert(payload)
+      .select('id')
+      .single();
+
+    if (error) {
+      throw new Error(`Falha ao inserir item local com ID ${produtoId} na cotação ${cotacaoId}: ${error.message}`);
+    }
+
+    return data?.id ?? null;
+  }
+
+  /**
+   * Atualiza um item existente com análise local
+   */
+  async updateItemWithAnaliseLocal(itemId: number, analiseLocal: any): Promise<boolean> {
+    const { data, error } = await supabase
+      .from('cotacoes_itens')
+      .update({ analise_local: analiseLocal })
+      .eq('id', itemId)
+      .select('id')
+      .single();
+
+    if (error) {
+      throw new Error(`Falha ao atualizar item ${itemId} com análise local: ${error.message}`);
+    }
+
+    return !!data;
   }
 
   /**
@@ -228,8 +300,46 @@ class CotacoesItensService {
     placeholderId: number,
     produto: any,
     quantidade: number,
-    produtoId?: number
+    produtoId?: number,
+    relatorio?: RelatorioData
   ): Promise<number | null> {
+    // Primeiro, buscar o placeholder existente para verificar se já tem relatório
+    const { data: existingPlaceholder, error: fetchError } = await supabase
+      .from('cotacoes_itens')
+      .select('analise_web')
+      .eq('id', placeholderId)
+      .single();
+
+    if (fetchError) {
+      throw new Error(`Falha ao buscar placeholder ${placeholderId}: ${fetchError.message}`);
+    }
+
+        // Normalizar analise_web existente para array
+        const existingAnalise = Array.isArray((existingPlaceholder as any)?.analise_web)
+        ? (existingPlaceholder as any).analise_web
+        : ((existingPlaceholder as any)?.analise_web ? [(existingPlaceholder as any).analise_web] : []);
+  
+      const analiseAtualizada = typeof relatorio !== 'undefined' && relatorio !== null
+        ? [...existingAnalise, relatorio]
+        : existingAnalise;
+  
+      // Se não há produto (nenhuma correspondência), apenas anexar análise e manter status inalterado
+      if (!produto) {
+        const { data, error } = await supabase
+          .from('cotacoes_itens')
+          .update({ analise_web: analiseAtualizada })
+          .eq('id', placeholderId)
+          .select('id')
+          .single();
+  
+        if (error) {
+          throw new Error(`Falha ao anexar análise web ao placeholder ${placeholderId} na cotação ${cotacaoId}: ${error.message}`);
+        }
+  
+        return data?.id ?? null;
+      }
+  
+
     const item_preco = this.parseNumero(produto?.price);
     const provider = this.providerFromUrl(produto?.product_url || produto?.url);
 
@@ -245,6 +355,7 @@ class CotacoesItensService {
       item_moeda: 'AOA',
       quantidade: Number(quantidade || 1),
       status: true,
+      analise_web: analiseAtualizada,
     };
 
     const { data, error } = await supabase
@@ -328,8 +439,7 @@ class CotacoesItensService {
     const { data, error } = await supabase.from('cotacoes_itens').select('*').eq('id', id).single();
     if (error) throw new Error(error.message);
     return data;
-  }
-  async getSugeridosWeb(id: number): Promise<any[]> {
+  }async getSugeridosWeb(id: number): Promise<any[]> {
     try {
       const { data: cotacaoItem, error } = await supabase
         .from('cotacoes_itens')

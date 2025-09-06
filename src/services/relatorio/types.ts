@@ -28,6 +28,7 @@ export interface RelatorioData {
         correspondencia_tipo: string;
       };
       justificativa_escolha: string;
+      query: string;
     };
   }>;
   analiseWeb: Array<{

@@ -5,6 +5,7 @@ import { PropostaRenderer } from './renderers/PropostaRenderer';
 import { ItemListRenderer } from './renderers/ItemListRenderer';
 import { EmailRenderer } from './renderers/EmailRenderer';
 import { FooterRenderer } from './renderers/FooterRenderer';
+import { TermsRenderer } from './renderers/TermsRenderer';
 
 export class PDFGenerator {
   private doc: PDFKit.PDFDocument;
@@ -14,6 +15,7 @@ export class PDFGenerator {
   private itemListRenderer: ItemListRenderer;
   private emailRenderer: EmailRenderer;
   private footerRenderer: FooterRenderer;
+  private termsRenderer: TermsRenderer;
 
   constructor(doc: PDFKit.PDFDocument) {
     this.doc = doc;
@@ -22,6 +24,7 @@ export class PDFGenerator {
     this.itemListRenderer = new ItemListRenderer(doc, this.margin);
     this.emailRenderer = new EmailRenderer(doc, this.margin);
     this.footerRenderer = new FooterRenderer(doc, this.margin);
+    this.termsRenderer = new TermsRenderer(doc, this.margin);
   }
 
   /**
@@ -48,9 +51,16 @@ export class PDFGenerator {
   /**
    * Adiciona seção de proposta comercial
    */
-  public adicionarSecaoProposta(data: RelatorioData) {
-    this.propostaRenderer.render(data);
-    this.itemListRenderer.render(data);
+  public async adicionarSecaoProposta(data: RelatorioData) {
+    await this.propostaRenderer.render(data);
+    await this.itemListRenderer.render(data);
+  }
+
+  /**
+   * Adiciona seção de condições comerciais
+   */
+  public adicionarCondicoesComerciais(data: RelatorioData) {
+    this.termsRenderer.render(data);
   }
 
 

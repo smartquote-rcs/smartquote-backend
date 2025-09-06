@@ -50,6 +50,7 @@ exports.__esModule = true;
 var CotacoesService_1 = require("../services/CotacoesService");
 var CotacaoSchema_1 = require("../schemas/CotacaoSchema");
 var CotacaoNotificationService_1 = require("../services/CotacaoNotificationService");
+var DynamicsIntegrationService_1 = require("../services/DynamicsIntegrationService");
 var CotacoesController = /** @class */ (function () {
     function CotacoesController() {
     }
@@ -203,7 +204,7 @@ var CotacoesController = /** @class */ (function () {
     CotacoesController.prototype.patch = function (req, res) {
         var _a, _b, _c, _d, _e, _f, _g, _h, _j;
         return __awaiter(this, void 0, Promise, function () {
-            var id, updates, aprov, usuarioId, usuarioRole, usuarioPosition, userSvc, u, _k, LIMITE_MANAGER, valorReferencia, atual, _l, numeroValor, acao, permitido, cotacaoAnterior, error_2, cotacaoAtualizada, notifError_3, DynamicsIntegrationService, resultado, dynError_1, err_5;
+            var id, updates, aprov, usuarioId, usuarioRole, usuarioPosition, userSvc, u, _k, LIMITE_MANAGER, valorReferencia, atual, _l, numeroValor, acao, permitido, cotacaoAnterior, error_2, cotacaoAtualizada, notifError_3, dynamicsService, resultado, dynError_1, err_5;
             return __generator(this, function (_m) {
                 switch (_m.label) {
                     case 0:
@@ -336,8 +337,8 @@ var CotacoesController = /** @class */ (function () {
                     case 19:
                         _m.trys.push([19, 21, , 22]);
                         console.log("\uD83D\uDE80 [DYNAMICS-AUTO] Cota\u00E7\u00E3o " + id + " foi aprovada, enviando para Dynamics...");
-                        DynamicsIntegrationService = require('../services/DynamicsIntegrationService')["default"];
-                        return [4 /*yield*/, DynamicsIntegrationService.processarCotacaoAprovada(cotacaoAtualizada)];
+                        dynamicsService = new DynamicsIntegrationService_1["default"]();
+                        return [4 /*yield*/, dynamicsService.processarCotacaoAprovada(cotacaoAtualizada)];
                     case 20:
                         resultado = _m.sent();
                         if (resultado) {

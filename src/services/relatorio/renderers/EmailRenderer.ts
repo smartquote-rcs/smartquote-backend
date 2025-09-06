@@ -27,148 +27,149 @@ export class EmailRenderer {
   }
 
   /**
-   * Adiciona template de email com design contínuo
-   */
-  public async render(data: RelatorioData) {
-    const margin = this.margin;
-    const pageWidth = this.doc.page.width;
-    const contentWidth = pageWidth - (margin * 2);
-    
+ * Adiciona template de email com design suave
+ */
+public async render(data: RelatorioData) {
+  const margin = this.margin;
+  const pageWidth = this.doc.page.width;
+  const contentWidth = pageWidth - (margin * 2);
+  
   // Gerar template de email
   const emailTemplate = await this.gerarTemplateEmailTexto(data, true);
-  const emailHeaderHeight = 45;
-  const padding = 20;
+  const emailHeaderHeight = 35;
+  const padding = 15;
     
   // Dividir o texto em linhas para controle manual de quebra
   const lines = emailTemplate.split('\n');
     
-    // Função para desenhar header do email
-    const drawEmailHeader = (y: number, isContinuation = false) => {
-      const headerY = y;
-      
-      // Fundo do header azul
-      this.doc
-        .fill('#1e40af')
-        .rect(margin - 15, headerY, contentWidth + 30, emailHeaderHeight)
-        .fill();
-      
-      // Linha de destaque superior azul
-      this.doc
-        .fill('#2563eb')
-        .rect(margin - 15, headerY, contentWidth + 30, 3)
-        .fill();
-      
-      // Ícone do email
-      this.doc
-        .fill('#ffffff')
-        .circle(margin + 30, headerY + 22, 16)
-        .fill()
-        .fill('#1e40af')
-        .fontSize(14)
-        .font('Helvetica-Bold')
-        .text('@', margin + 25, headerY + 15);
-      if (isContinuation) {
-         return headerY + emailHeaderHeight + 1
-      }
-      // Título do email
-      const title = 'TEMPLATE DE E-MAIL RESPOSTA';
-      this.doc
-        .fill('#ffffff')
-        .fontSize(16)
-        .font('Helvetica-Bold')
-        .text(title, margin + 60, headerY + 18);
-      
-      return headerY + emailHeaderHeight + 15;
-    };
+  // Função para desenhar header do email
+  const drawEmailHeader = (y: number, isContinuation = false) => {
+    const headerY = y;
     
-    // Função para desenhar box do email com bordas azuis
-    const drawEmailBox = (startY: number, height: number) => {
-      // Sombra
-      this.doc
-        .fill('#f0f9ff')
-        .rect(margin + 2, startY + 2, contentWidth - 4, height - 4)
-        .fill();
-      
-      // Box principal
-      this.doc
-        .fill('#fefefe')
-        .rect(margin, startY, contentWidth, height)
-        .fillAndStroke('#fefefe', '#2563eb');
-      
-      // Borda lateral decorativa azul
-      this.doc
-        .fill('#1e40af')
-        .rect(margin, startY, 5, height)
-        .fill();
-    };
+    // Fundo do header suave
+    this.doc
+      .fill('#f8fafc')
+      .rect(margin, headerY, contentWidth, emailHeaderHeight)
+      .fillAndStroke('#f8fafc', '#e2e8f0');
     
-    //adicionar nova pagina
-    this.doc.addPage();
-
-    // Desenhar header inicial
-    let currentY = drawEmailHeader(this.doc.y, false);
-    let boxStartY = currentY;
-    let textY = currentY + padding;
+    // Linha de destaque superior discreta
+    this.doc
+      .fill('#94a3b8')
+      .rect(margin, headerY, contentWidth, 1)
+      .fill();
     
-    // Desenhar box de fundo primeiro (estimativa inicial)
-    const estimatedHeight = Math.min(600, lines.length * 15 + padding * 2);
-    drawEmailBox(boxStartY, estimatedHeight);
-    
-    // Desenhar texto linha por linha
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i] || '';
+    // Ícone do email simples
+    this.doc
+      .fill('#64748b')
+      .fontSize(12)
+      .font('Helvetica-Bold')
+      .text('✉', margin + 15, headerY + 12);
       
-      if (line.trim() === '') {
-        textY += 10; // Espaço para linhas vazias
-        continue;
-      }
-      
-      // Verificar se precisa quebrar página
-      const availableSpace = this.doc.page.height - textY - this.doc.page.margins.bottom - 50;
-      
-      if (availableSpace < 30 && i > 0) {
-        // Quebrar página
-        this.doc.addPage();
-        
-        // Desenhar header de continuação
-        currentY = drawEmailHeader(this.doc.page.margins.top, true);
-        boxStartY = currentY;
-        textY = currentY + padding;
-        
-        // Desenhar nova box para a página
-        const remainingLines = lines.length - i;
-        const newBoxHeight = Math.min(650, remainingLines * 20 + padding * 2);
-        drawEmailBox(boxStartY, newBoxHeight);
-      }
-      
-      // Desenhar o texto da linha
-      this.doc
-        .fill('#1e293b')
-        .fontSize(10)
-        .font('Helvetica')
-        .text(line, margin + 20, textY, {
-          width: contentWidth - 40,
-          lineGap: 3,
-          continued: false
-        });
-      
-      // Calcular altura real da linha e atualizar posição
-      const lineHeight = this.doc.heightOfString(line, {
-        width: contentWidth - 40,
-        lineGap: 3
-      });
-      textY += lineHeight + 3;
+    if (isContinuation) {
+       return headerY + emailHeaderHeight + 5;
     }
     
-    // Atualizar posição final
-    this.doc.y = textY + 20;
+    // Título do email
+    const title = 'TEMPLATE DE E-MAIL RESPOSTA';
+    this.doc
+      .fill('#334155')
+      .fontSize(11)
+      .font('Helvetica-Bold')
+      .text(title, margin + 35, headerY + 13);
     
-    // Linha final decorativa azul
+    return headerY + emailHeaderHeight + 10;
+  };
+    
+  // Função para desenhar box do email com bordas suaves
+  const drawEmailBox = (startY: number, height: number) => {
+    // Sombra muito sutil
     this.doc
       .fill('#f1f5f9')
-      .rect(margin, this.doc.y - 10, contentWidth, 2)
+      .rect(margin + 1, startY + 1, contentWidth - 2, height - 2)
       .fill();
+    
+    // Box principal com borda suave
+    this.doc
+      .fill('#ffffff')
+      .rect(margin, startY, contentWidth, height)
+      .fillAndStroke('#ffffff', '#cbd5e1');
+    
+    // Borda lateral discreta
+    this.doc
+      .fill('#e2e8f0')
+      .rect(margin, startY, 2, height)
+      .fill();
+  };
+    
+  // Adicionar nova página
+  this.doc.addPage();
+
+  // Desenhar header inicial
+  let currentY = drawEmailHeader(this.doc.y, false);
+  let boxStartY = currentY;
+  let textY = currentY + padding;
+    
+  // Desenhar box de fundo primeiro (estimativa inicial)
+  const estimatedHeight = Math.min(620, lines.length * 18 + padding * 2);
+  drawEmailBox(boxStartY, estimatedHeight);
+    
+  // Desenhar texto linha por linha
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i] || '';
+    
+    if (line.trim() === '') {
+      textY += 8; // Espaço para linhas vazias
+      continue;
+    }
+    
+    // Verificar se precisa quebrar página
+    const availableSpace = this.doc.page.height - textY - this.doc.page.margins.bottom - 50;
+    
+    if (availableSpace < 25 && i > 0) {
+      // Quebrar página
+      this.doc.addPage();
+      
+      // Desenhar header de continuação
+      currentY = drawEmailHeader(this.doc.page.margins.top, true);
+      boxStartY = currentY;
+      textY = currentY + padding;
+      
+      // Desenhar nova box para a página
+      const remainingLines = lines.length - i;
+      const newBoxHeight = Math.min(650, remainingLines * 18 + padding * 2);
+      drawEmailBox(boxStartY, newBoxHeight);
+    }
+    
+    // Desenhar o texto da linha
+    this.doc
+      .fill('#374151')
+      .fontSize(9)
+      .font('Helvetica')
+      .text(line, margin + 15, textY, {
+        width: contentWidth - 30,
+        lineGap: 2,
+        continued: false
+      });
+    
+    // Calcular altura real da linha e atualizar posição
+    const lineHeight = this.doc.heightOfString(line, {
+      width: contentWidth - 30,
+      lineGap: 2
+    });
+    textY += lineHeight + 2;
   }
+    
+  // Atualizar posição final
+  this.doc.y = textY + 15;
+    
+  // Linha final discreta
+  this.doc
+    .strokeColor('#f1f5f9')
+    .lineWidth(0.5)
+    .moveTo(margin, this.doc.y - 5)
+    .lineTo(margin + contentWidth, this.doc.y - 5)
+    .stroke();
+}
 
   /**
    * Gera template de email em texto
@@ -223,7 +224,7 @@ export class EmailRenderer {
 
     === NOSSA METODOLOGIA ===
 
-    Utilizamos tecnologia de ponta com análise inteligente para garantir:
+    Nossa equipe técnica realizou análise detalhada para garantir:
     ✓ Melhor custo-benefício do mercado
     ✓ Produtos de qualidade comprovada
     ✓ Análise comparativa detalhada

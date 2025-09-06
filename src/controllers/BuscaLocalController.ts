@@ -149,7 +149,8 @@ export class BuscaLocalController {
       const placeholdersDB = await CotacoesItensService.listPlaceholders(Number(cotacoesInfo.principal_id));
       if (placeholdersDB.length > 0) {
         faltantes = placeholdersDB.map((p: any) => ({
-          id: p.id,
+          id: p.id, // legado
+          item_id: p.id, // novo: será usado como faltante_id
           nome: p.item_nome,
           quantidade: p.quantidade,
           query_sugerida: p.pedido
@@ -202,7 +203,6 @@ export class BuscaLocalController {
           tipo_de_solucao: 'sistema',
           itens_a_comprar: faltantes.map((f: any) => ({
             nome: f.nome || 'Item não especificado',
-            natureza_componente: 'software',
             prioridade: 'media',
             categoria: f.categoria || 'Geral',
             quantidade: f.quantidade || 1

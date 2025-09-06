@@ -15,9 +15,10 @@ const exemploSubstituicaoProduto = {
   // NOTA: A rota automaticamente:
   // 1. Busca os dados do produto na tabela 'produtos' usando o newProductId
   // 2. Atualiza o cotacao_item com os dados do novo produto
-  // 3. Encontra o relatório correspondente à cotacaoId
-  // 4. Procura nos arrays analise_local e analise_web o elemento com escolha_principal igual ao nome do produto antigo
-  // 5. Substitui esse elemento com:
+  // 3. Encontra o relatório correspondente à cotacaoId (analise_local na tabela relatorios)
+  // 4. Procura no array analise_local o elemento com escolha_principal igual ao nome do produto antigo
+  // 5. Atualiza o relatório web do próprio item (campo relatorio em cotacoes_itens)
+  // 6. Substitui os elementos com:
   //    - escolha_principal: nome do novo produto
   //    - justificativa_escolha: "Seleção natural - produto substituído por escolha do usuário"
   //    - top_ranking[0]: atualizado com dados do novo produto

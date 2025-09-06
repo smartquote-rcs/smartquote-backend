@@ -1,75 +1,76 @@
 export const theme = {
+	// Paleta corporativa minimalista
 	header: {
-		bg: '#1e40af', // indigo-800
-		stroke: '#1d4ed8', // indigo-600
+		bg: '#0f172a', // navy-900 discreto
+		stroke: '#0f172a',
 		title: '#ffffff',
 	},
 	trace: {
-		barBg: '#111827', // gray-900
-		barStroke: '#374151', // gray-700
-		barText: '#e5e7eb', // gray-200
-		summaryHeaderBg: '#0f766e', // teal-700
-		summaryHeaderStroke: '#115e59', // teal-800
-		summaryHeaderText: '#ecfeff', // cyan-50
-		bodyBg: '#f8f9fa', // neutral card
-		bodyStroke: '#cbd5e1',
-		bodyText: '#0f172a',
+		barBg: '#ffffff',
+		barStroke: '#e5e7eb',
+		barText: '#6b7280',
+		summaryHeaderBg: '#ffffff',
+		summaryHeaderStroke: '#e5e7eb',
+		summaryHeaderText: '#111827',
+		bodyBg: '#ffffff',
+		bodyStroke: '#e5e7eb',
+		bodyText: '#111827',
 	},
 	card: {
-		neutralBg: '#f8f9fa',
-		neutralStroke: '#bdc3c7',
-		infoStroke: '#93c5fd',
+		neutralBg: '#ffffff',
+		neutralStroke: '#e5e7eb',
+		infoStroke: '#d1d5db',
 	},
 	info: {
-		main: '#2563eb',
-		alt: '#1d4ed8',
-		link: '#2563eb',
+		main: '#0f3d91', // azul corporativo discreto
+		alt: '#1e5bb8',
+		link: '#0f3d91',
 	},
 	text: {
-		primary: '#2c3e50',
-		muted: '#7f8c8d',
+		primary: '#111827',
+		muted: '#6b7280',
 		lightHeading: '#ffffff',
-		auditTitle: '#3730a3',
-		auditBody: '#1f2937',
-		labelDark: '#0f172a',
-		labelMuted: '#334155',
+		auditTitle: '#0f3d91',
+		auditBody: '#111827',
+		labelDark: '#111827',
+		labelMuted: '#374151',
 	},
 	success: {
-		main: '#22c55e',
-		bg: '#e8f5e8',
-		stroke: '#22c55e',
+		main: '#16a34a',
+		bg: '#f0fdf4',
+		stroke: '#16a34a',
 	},
 	warning: {
-		main: '#f59e0b',
-		bg: '#fff3cd',
-		stroke: '#f59e0b',
-		text: '#856404',
+		main: '#d97706',
+		bg: '#fffbeb',
+		stroke: '#d97706',
+		text: '#92400e',
 	},
 	error: {
-		main: '#e74c3c',
-		bg: '#fdeaea',
-		stroke: '#e74c3c',
+		main: '#dc2626',
+		bg: '#fef2f2',
+		stroke: '#dc2626',
 	},
 	audit: {
-		bg: '#eef2ff',
-		stroke: '#6366f1',
+		bg: '#f9fafb',
+		stroke: '#e5e7eb',
 	},
 	choice: {
-		bg: '#e8f5e8',
-		stroke: '#22c55e',
-		tagBg: '#22c55e',
+		bg: '#f0fdf4',
+		stroke: '#16a34a',
+		tagBg: '#16a34a',
 		tagText: '#ffffff',
-		title: '#2c3e50',
-		text: '#2c3e50',
+		title: '#111827',
+		text: '#111827',
 	},
 	price: {
-		main: '#e67e22',
+		main: '#0f3d91',
 	},
-		medals: {
-			// Usado em Local e Web para manter harmonia visual
-			colors: ['#1e40af', '#1d4ed8', '#2563eb', '#3b82f6', '#60a5fa'],
-			fallback: '#95a5a6',
-		},
+	medals: {
+		// Mantém harmonia visual, mas com variações discretas do azul corporativo
+		colors: ['#0f3d91', '#1e5bb8', '#3b82f6', '#60a5fa', '#93c5fd'],
+		fallback: '#9ca3af',
+	},
 };
 
 export type Theme = typeof theme;

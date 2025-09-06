@@ -17,6 +17,7 @@ interface ProdutoParaSalvar {
   cadastrado_em: string;
   atualizado_por: number;
   atualizado_em: string;
+  categoria?: string;
 }
 
 export class ProdutosService {
@@ -78,54 +79,42 @@ export class ProdutosService {
   // ===== MÉTODOS PARA BUSCA AUTOMÁTICA =====
 
   /**
-   * Converte preço de string para centavos
+   * Converte preço de string para float
    */
-  private converterPrecoParaCentavos(precoString: string | null | undefined): number {
-    try {
-      // Se preço é null, undefined ou string vazia, retorna 0
-      if (!precoString || precoString.trim() === '') {
-        console.warn('Preço vazio ou nulo, usando 0');
-        return 0;
+  // Simular as funções corrigidas
+private parseNumero(precoStr?: string): number | null {
+  if (!precoStr) return null;
+  try {
+    // Remove tudo que não seja dígito, ponto ou vírgula
+    let numeroLimpo = precoStr.replace(/[^\d.,]/g, '');
+    
+    // Normalizar separadores decimais
+    // Se tem vírgula, assumir que é separador decimal
+    if (numeroLimpo.includes(',')) {
+      // Se tem ponto E vírgula, ponto é separador de milhar
+      if (numeroLimpo.includes('.')) {
+        numeroLimpo = numeroLimpo.replace(/\./g, '').replace(',', '.');
+      } else {
+        // Só vírgula, converter para ponto decimal
+        numeroLimpo = numeroLimpo.replace(',', '.');
       }
-      
-      // Remove símbolos de moeda e espaços, mantém apenas números, vírgulas e pontos
-      const numeroLimpo = precoString.replace(/[^\d.,]/g, '');
-      
-      // Se after limpeza não sobrou nada
-      if (!numeroLimpo) {
-        console.warn('Preço sem números válidos:', precoString);
-        return 0;
-      }
-      
-      // Se tem vírgula, assume formato brasileiro (1.500,00)
-      if (numeroLimpo.includes(',')) {
-        const partes = numeroLimpo.split(',');
-        if (partes.length === 2 && partes[0] && partes[1]) {
-          // Remove pontos da parte inteira e reconstroi
-          const parteInteira = partes[0].replace(/\./g, '');
-          const parteDecimal = partes[1].substring(0, 2); // máximo 2 casas decimais
-          const numeroFinal = parseFloat(`${parteInteira}.${parteDecimal}`);
-          return Math.round(numeroFinal * 100); // converte para centavos
-        }
-      }
-      
-      // Formato americano ou sem vírgula
-      const numero = parseFloat(numeroLimpo.replace(/\./g, ''));
-      const resultado = Math.round(numero * 100); // converte para centavos
-      
-      // Validar se é um número válido
-      if (isNaN(resultado)) {
-        console.warn('Resultado de conversão inválido:', precoString, '→', resultado);
-        return 0;
-      }
-      
-      return resultado;
-    } catch (error) {
-      console.warn('Erro ao converter preço:', precoString, error);
-      return 0; // preço padrão em caso de erro
     }
+    // Se só tem pontos, verificar se é separador de milhar ou decimal
+    else if (numeroLimpo.includes('.')) {
+      const partes = numeroLimpo.split('.');
+      if (partes.length > 2 || (partes.length === 2 && partes[1] && partes[1].length === 3)) {
+        // Múltiplos pontos ou último tem 3 dígitos = separador de milhar
+        numeroLimpo = numeroLimpo.replace(/\./g, '');
+      }
+      // Senão, assumir que é separador decimal
+    }
+    
+    const n = parseFloat(numeroLimpo);
+    return isNaN(n) ? null : n;
+  } catch {
+    return null;
   }
-
+}
   /**
    * Gera código único para o produto baseado no nome
    */
@@ -169,7 +158,7 @@ export class ProdutosService {
       nome: produto.name.substring(0, 250), // limite do CHAR(255)
       modelo: this.extrairModelo(produto.name).substring(0, 250),
       descricao: produto.description || 'Produto encontrado via busca automática',
-      preco: this.converterPrecoParaCentavos(produto.price),
+      preco: this.parseNumero(produto.price) || 0,
       estoque: 200, // produtos da busca começam com estoque 200
       origem: 'externo',
       image_url: produto.image_url || undefined, // URL da imagem do produto
@@ -177,7 +166,8 @@ export class ProdutosService {
       cadastrado_por: usuarioId,
       cadastrado_em: agora,
       atualizado_por: usuarioId,
-      atualizado_em: agora
+      atualizado_em: agora,
+      categoria: produto.categoria
     };
   }
 

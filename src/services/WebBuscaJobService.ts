@@ -6,6 +6,7 @@ import PonderacaoWebService from './PonderacaoWebService';
 
 type Faltante = {
   id?: number;
+  item_id?: number; // novo: id do registro em cotacoes_itens (placeholder)
   query_sugerida?: string;
   nome?: string;
   categoria?: string;
@@ -49,7 +50,8 @@ export default class WebBuscaJobService {
   private apiBaseUrl: string;
 
   constructor() {
-    this.apiBaseUrl = process.env.API_BASE_URL || '';
+  // Fallback padrão para o servidor Node desta própria API
+  this.apiBaseUrl = process.env.API_BASE_URL || 'http://localhost:2000';
   }
 
   private sleep(ms: number) {
@@ -69,30 +71,63 @@ export default class WebBuscaJobService {
       (faltantesProcessados || []).map(async (f) => {
         const termo = f.query_sugerida || solicitacaoFallback;
         try {
+          console.log(`🌐 [WEB-BUSCA] Criando job para: "${termo}" (ID: ${f.id})`);
+          console.log(`🔗 [WEB-BUSCA] URL base: ${this.apiBaseUrl}`);
           
+          // Montagem do payload respeitando o BuscaSchema (zod)
+          const payload: any = {
+            produto: termo,
+            quantidade: Number.isFinite(Number(f.quantidade)) && Number(f.quantidade) > 0
+              ? Math.floor(Number(f.quantidade))
+              : 1,
+            salvamento: true,
+            refinamento: true,
+          };
+
+          if (typeof f.custo_beneficio !== 'undefined') {
+            payload.custo_beneficio = f.custo_beneficio;
+          }
+          if (typeof (f as any).rigor === 'number' && isFinite((f as any).rigor)) {
+            const r = Math.round((f as any).rigor);
+            payload.rigor = Math.max(0, Math.min(5, r));
+          }
+          if (typeof f.ponderacao_busca_externa === 'number' && isFinite(f.ponderacao_busca_externa)) {
+            payload.ponderacao_web_llm = Math.max(0, Math.min(1, f.ponderacao_busca_externa));
+          }
+          // Preferir o item_id (id do item em cotacoes_itens); fallback para id legado
+          const faltId = (typeof (f as any).item_id !== 'undefined' && (f as any).item_id !== null)
+            ? (f as any).item_id
+            : f.id;
+          if (typeof faltId !== 'undefined' && faltId !== null) {
+            payload.faltante_id = String(faltId);
+          }
+
           const resp = await fetch(`${this.apiBaseUrl}/api/busca-automatica/background`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              faltante_id: f.id, // Incluir o ID do faltante
-              produto: termo,
-              quantidade: f.quantidade,
-              custo_beneficio: f.custo_beneficio,
-              rigor: f.rigor,
-              ponderacao_web_llm: f.ponderacao_busca_externa,
-              salvamento: true,
-              refinamento: true,
-
-            })
+            body: JSON.stringify(payload)
           });
+          
+          if (!resp.ok) {
+            let errorBody = '';
+            try {
+              errorBody = await resp.text();
+            } catch {}
+            throw new Error(`HTTP ${resp.status}: ${resp.statusText}${errorBody ? ` - ${errorBody}` : ''}`);
+          }
+          
           const data = (await resp.json()) as BackgroundBuscaResponse;
+          console.log(`✅ [WEB-BUSCA] Job criado para "${termo}":`, data);
+          
           if (data?.statusUrl) {
             statusUrls.push(`${this.apiBaseUrl}${data.statusUrl}`);
           } else if (data?.jobId) {
             statusUrls.push(`${this.apiBaseUrl}/api/busca-automatica/job/${data.jobId}`);
+          } else {
+            console.warn(`⚠️ [WEB-BUSCA] Job criado mas sem statusUrl/jobId para "${termo}":`, data);
           }
         } catch (e: any) {
-          console.error('❌ [WEB-BUSCA] Erro ao criar job:', e?.message || e);
+          console.error(`❌ [WEB-BUSCA] Erro ao criar job para "${termo}":`, e?.message || e);
         }
       })
     );
@@ -150,20 +185,6 @@ export default class WebBuscaJobService {
 
     for (const resultadoJob of resultadosCompletos) {
       try {
-        // Construir mapa de nome -> produto_id salvo, se existir no job
-        const produtoIdMap = new Map<string, number>();
-        const salvamento: any = (resultadoJob as any).salvamento;
-        if (salvamento?.detalhes && Array.isArray(salvamento.detalhes)) {
-          for (const detalhe of salvamento.detalhes) {
-            if (detalhe.detalhes && Array.isArray(detalhe.detalhes)) {
-              for (const item of detalhe.detalhes) {
-                if (item.produto && item.id) {
-                  produtoIdMap.set(item.produto, item.id);
-                }
-              }
-            }
-          }
-        }
 
         // Para cada produto retornado, tentar cumprir um placeholder correspondente (status=true + update)
         if (resultadoJob.produtos && resultadoJob.produtos.length > 0) {
@@ -171,6 +192,7 @@ export default class WebBuscaJobService {
             try {
               const nome = (produto.name || produto.nome || '').toString();
               const baseQuery = (produto.base_query || produto.query || '').toString();
+              const faltanteIdFromProduto = (produto as any)?.faltante_id ? Number((produto as any).faltante_id) : null;
 
               // Recarregar placeholders pendentes
               const { data: phs } = await supabase
@@ -180,14 +202,13 @@ export default class WebBuscaJobService {
                 .eq('status', false);
               placeholdersRestantes = Array.isArray(phs) ? phs : [];
 
-              const alvo = placeholdersRestantes.find((p: any) =>
-                (p.pedido && nome && p.pedido.toLowerCase().includes(nome.toLowerCase())) ||
-                (p.item_nome && nome && p.item_nome.toLowerCase().includes(nome.toLowerCase())) ||
-                (baseQuery && p.pedido && p.pedido.toLowerCase().includes(baseQuery.toLowerCase()))
-              );
+              // Preferir correspondência direta por ID do faltante (item_id)
+              let alvo = faltanteIdFromProduto
+                ? placeholdersRestantes.find((p: any) => Number(p.id) === Number(faltanteIdFromProduto))
+                : undefined;
 
               const quantidade = (resultadoJob as any)?.quantidade || alvo?.quantidade || 1;
-              const produtoIdSalvo = produtoIdMap.get((produto.name || produto.nome || '').toString());
+              const produtoIdSalvo = produto.id;
 
               if (alvo) {
                 // Cumprir placeholder: atualizar registro com dados do produto web
@@ -196,70 +217,64 @@ export default class WebBuscaJobService {
                   alvo.id,
                   produto,
                   quantidade,
-                  produtoIdSalvo
+                  produtoIdSalvo,
+                  resultadoJob.relatorio
                 );
                 inseridos++;
                 if ((resultadoJob as any).relatorio) {
                   (resultadoJob as any).relatorio.id_item_cotacao = alvo.id;
                 }
                 console.log(`✅ [PLACEHOLDER] Cumprido placeholder ${alvo.id} com produto: ${nome}`);
-              } else if (produtoIdSalvo) {
-                // Fallback: sem placeholder correspondente, inserir como novo item vinculado ao produto salvo
-                await CotacoesItensService.insertWebItemById(Number(cotacaoId), produtoIdSalvo, produto, quantidade);
-                inseridos++;
-                console.log(`➕ [COTACAO-ITEM] Inserido item web sem placeholder correspondente: ${nome}`);
-              } else {
-                console.log(`ℹ️ [PLACEHOLDER] Sem correspondência para produto: ${nome}`);
               }
             } catch (e) {
               console.warn('⚠️ [PLACEHOLDER] Falha ao cumprir placeholder/inserir item:', (e as any)?.message || e);
             }
           }
-        }
-        // Inserir ou atualizar relatório na tabela relatorios se disponível
-        if (resultadoJob.relatorio) {
-          // Verifica se já existe relatorio rascunho para essa cotação
-          const { data: relatorioExistente, error: relatorioError } = await supabase
-            .from('relatorios')
-            .select('id, analise_web')
-            .eq('cotacao_id', Number(cotacaoId))
-            .eq('status', 'rascunho')
-            .single();
+        } else if ((resultadoJob as any)?.relatorio) {
+          // Sem produtos, mas com relatório: anexar análise ao placeholder correspondente
+          try {
+            // Recarregar placeholders pendentes
+            const { data: phs } = await supabase
+              .from('cotacoes_itens')
+              .select('id, item_nome, pedido, quantidade')
+              .eq('cotacao_id', Number(cotacaoId))
+              .eq('status', false);
+            placeholdersRestantes = Array.isArray(phs) ? phs : [];
 
-          if (relatorioExistente && relatorioExistente.id) {
-            // Atualiza o campo analise_web acumulando no array
-            const analiseWebAtual = Array.isArray(relatorioExistente.analise_web) ? relatorioExistente.analise_web : [];
-            const novoAnaliseWeb = [...analiseWebAtual, resultadoJob.relatorio];
-            await supabase
-              .from('relatorios')
-              .update({
-                analise_web: novoAnaliseWeb,
-                atualizado_em: new Date().toISOString()
-              })
-              .eq('id', relatorioExistente.id);
-            console.log(`📊 [WEB-REPORT] Relatório atualizado (analise_web ARRAY) na tabela relatorios para cotação ${cotacaoId}`);
-          } else {
-            // Cria novo registro com analise_web como array
-            const relatorioPayload = {
-              cotacao_id: Number(cotacaoId),
-              versao: 1,
-              status: 'rascunho',
-              analise_local: null, // Se houver análise local, preencher
-              analise_web: [resultadoJob.relatorio],
-              criado_em: new Date().toISOString(),
-              atualizado_em: new Date().toISOString(),
-              criado_por: null // Se houver usuário logado, preencher
-            };
-            await supabase.from('relatorios').insert([relatorioPayload]);
-            console.log(`📊 [WEB-REPORT] Relatório inserido (analise_web ARRAY) na tabela relatorios para cotação ${cotacaoId}`);
+            const rel: any = (resultadoJob as any).relatorio;
+            const faltanteIdFromRel = typeof rel?.faltante_id === 'number' ? Number(rel.faltante_id) : null;
+            const relQueryNome = (rel?.query?.nome || rel?.query || '').toString();
+
+            // Preferir correspondência por ID do faltante; fallback por pedido aproximado
+            let alvo = faltanteIdFromRel
+              ? placeholdersRestantes.find((p: any) => Number(p.id) === Number(faltanteIdFromRel))
+              : undefined;
+            if (!alvo && relQueryNome) {
+              alvo = placeholdersRestantes.find((p: any) => p.pedido && p.pedido.toLowerCase().includes(relQueryNome.toLowerCase()));
+            }
+
+            if (alvo) {
+              await CotacoesItensService.fulfillPlaceholderWithWebProduct(
+                Number(cotacaoId),
+                alvo.id,
+                null, // sem produto, apenas anexar análise
+                0,
+                undefined,
+                rel
+              );
+              console.log(`📝 [ANALISE] Análise web anexada ao placeholder ${alvo.id} (sem produto)`);
+            } else {
+              console.log('ℹ️ [ANALISE] Não foi possível localizar placeholder para anexar análise web (sem produto)');
+            }
+          } catch (e) {
+            console.warn('⚠️ [ANALISE] Falha ao anexar análise web sem produto:', (e as any)?.message || e);
           }
-        }
-
-      } catch (e) {
+        }}
+      catch (e) {
         console.error('❌ [COTACAO-ITEM] Erro ao inserir itens do job:', (e as any)?.message || e);
       }
     }
-
+    
     // Atualizar status da cotação com base em placeholders restantes
     try {
       const { data: phsFinais } = await supabase

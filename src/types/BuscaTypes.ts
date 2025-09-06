@@ -9,6 +9,7 @@ export interface Product {
   image_url: string;
   description: string;
   product_url: string;
+  categoria?: string; // Categoria atribuída via LLM
 }
 
 export interface ProductsResponse {

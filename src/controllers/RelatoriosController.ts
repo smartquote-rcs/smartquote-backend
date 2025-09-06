@@ -73,47 +73,59 @@ export default class RelatoriosController {
       if (error || !cotacao) {
         return res.status(404).json({ success: false, message: 'Cotação não encontrada' });
       }
-      const { data: relatoriosData, error: relatoriosError } = await supabase
-        .from('relatorios')
-        .select('status, versao, analise_local, analise_web, criado_em')
+      // Buscar analise_web dos itens individuais da cotação
+      const { data: itensComAnaliseWeb, error: itensWebError } = await supabase
+        .from('cotacoes_itens')
+        .select('analise_web')
         .eq('cotacao_id', cotacaoIdNum)
-        .order('id', { ascending: false })
-        .limit(1)
-        .single();
+        .not('analise_web', 'is', null);
+
+      // Buscar analise_local dos itens individuais da cotação
+      const { data: itensComAnaliseLocal, error: itensLocalError } = await supabase
+        .from('cotacoes_itens')
+        .select('analise_local')
+        .eq('cotacao_id', cotacaoIdNum)
+        .not('analise_local', 'is', null);
+      
       let temAnalises = false;
       let statusAnalises = 'sem_dados';
-      if (!relatoriosError && relatoriosData) {
-        const analiseLocal = Array.isArray(relatoriosData.analise_local) ? relatoriosData.analise_local : [];
-        const analiseWeb = Array.isArray(relatoriosData.analise_web) ? relatoriosData.analise_web : [];
-        temAnalises = analiseLocal.length > 0 || analiseWeb.length > 0;
-        statusAnalises = relatoriosData.status || 'rascunho';
+      let totalAnaliseWeb = 0;
+      let totalAnaliseLocal = 0;
+      
+      // Contar analise_local dos itens individuais
+      if (!itensLocalError && itensComAnaliseLocal) {
+        totalAnaliseLocal = itensComAnaliseLocal.length;
+        temAnalises = true;
       }
+      
+      // Contar analise_web dos itens individuais
+      if (!itensWebError && itensComAnaliseWeb) {
+        totalAnaliseWeb = itensComAnaliseWeb.length;
+        temAnalises = true;
+      }
+      
       const estaPronta = cotacao.status === 'completa' || cotacao.status === 'incompleta';
-      const temOrcamento = cotacao.orcamento_geral > 0;
       const temRelatorio = cotacao.relatorio_path && cotacao.relatorio_gerado_em;
-      const prontaParaRelatorio = estaPronta && (temOrcamento || temAnalises);
+      const podeGerar = estaPronta && temAnalises;
+      
       res.json({
         success: true,
         data: {
-          cotacaoId: cotacaoIdNum,
+          cotacao_id: cotacaoIdNum,
           status: cotacao.status,
-          estaProntaParaRelatorio: prontaParaRelatorio,
-          orcamentoGeral: cotacao.orcamento_geral,
-          analises: {
-            existem: temAnalises,
-            status: statusAnalises,
-            ultimaAtualizacao: relatoriosData?.criado_em || null
-          },
-          relatorio: {
-            existe: temRelatorio,
-            path: cotacao.relatorio_path,
-            geradoEm: cotacao.relatorio_gerado_em,
-            downloadUrl: temRelatorio ? `/api/relatorios/download/${encodeURIComponent(cotacao.relatorio_path)}` : null
-          }
+          orcamento_geral: cotacao.orcamento_geral,
+          relatorio_path: cotacao.relatorio_path,
+          relatorio_gerado_em: cotacao.relatorio_gerado_em,
+          tem_relatorio: temRelatorio,
+          pode_gerar: podeGerar,
+          tem_analises: temAnalises,
+          status_analises: statusAnalises,
+          total_analise_local: totalAnaliseLocal,
+          total_analise_web: totalAnaliseWeb
         }
       });
     } catch (error: any) {
-      res.status(500).json({ success: false, message: 'Erro ao verificar status', error: error.message });
+      res.status(500).json({ success: false, message: 'Erro ao verificar status do relatório', error: error.message });
     }
   }
 
@@ -146,23 +158,42 @@ export default class RelatoriosController {
       }
       const { data: relatoriosData, error: relatoriosError } = await supabase
         .from('relatorios')
-        .select('id, status, versao, criado_em, atualizado_em, analise_local, analise_web')
+        .select('id, status, versao, criado_em, atualizado_em, analise_local')
         .eq('cotacao_id', cotacaoIdNum)
         .order('id', { ascending: false });
+      
+      // Buscar analise_web dos itens individuais da cotação
+      const { data: itensComRelatorio, error: itensError } = await supabase
+        .from('cotacoes_itens')
+        .select('relatorio')
+        .eq('cotacao_id', cotacaoIdNum)
+        .not('relatorio', 'is', null);
+      
       let analisesSummary = {
         totalAnalises: 0,
         analiseLocal: 0,
         analiseWeb: 0,
         ultimaAtualizacao: null
       };
+      
       if (!relatoriosError && relatoriosData && relatoriosData.length > 0) {
         const ultimoRelatorio = relatoriosData[0];
         const analiseLocal = Array.isArray(ultimoRelatorio?.analise_local) ? ultimoRelatorio.analise_local : [];
-        const analiseWeb = Array.isArray(ultimoRelatorio?.analise_web) ? ultimoRelatorio.analise_web : [];
+        
+        // Contar analise_web dos itens individuais
+        let totalAnaliseWeb = 0;
+        if (!itensError && itensComRelatorio) {
+          for (const item of itensComRelatorio) {
+            if (item.relatorio && Array.isArray(item.relatorio)) {
+              totalAnaliseWeb += item.relatorio.length;
+            }
+          }
+        }
+        
         analisesSummary = {
-          totalAnalises: analiseLocal.length + analiseWeb.length,
+          totalAnalises: analiseLocal.length + totalAnaliseWeb,
           analiseLocal: analiseLocal.length,
-          analiseWeb: analiseWeb.length,
+          analiseWeb: totalAnaliseWeb,
           ultimaAtualizacao: ultimoRelatorio?.atualizado_em
         };
       }

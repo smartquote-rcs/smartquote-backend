@@ -176,102 +176,77 @@ class CotacoesItensController {
         throw new Error(`Erro ao atualizar item: ${updateError.message}`);
       }
 
-      // 4. Atualizar análises na tabela relatorios
-      const cotacaoId = existingItem.cotacao_id;
-      
-      // Buscar relatório existente (obrigatório)
-      const { data: relatorio, error: relatorioError } = await supabase
-        .from('relatorios')
-        .select('*')
-        .eq('cotacao_id', cotacaoId)
-        .single();
-
-      if (relatorioError) {
-        throw new Error(`Relatório não encontrado para cotação ${cotacaoId}: ${relatorioError.message}`);
-      }
-
-      // Preparar dados de atualização
-      const updateData: any = {};
+      // 4. Atualizar análises no próprio item (analise_local e analise_web)
       let analiseUpdated = false;
-      
-      // Atualizar análise local se existir
-      if (relatorio.analise_local && Array.isArray(relatorio.analise_local)) {
-        const updatedAnaliseLocal = [...relatorio.analise_local];
-        
-        // Encontrar elemento com escolha_principal igual ao nome do produto antigo
-        const localIndex = updatedAnaliseLocal.findIndex((item: any) => 
-          item.llm_relatorio?.escolha_principal === existingItem.item_nome
-        );
-        
+      const analiseUpdates: any = {};
+
+      // Atualizar análise local no item, se existir
+      if (existingItem.analise_local) {
+        const currentLocal = existingItem.analise_local;
+        const updatedAnaliseLocal = Array.isArray(currentLocal) ? [...currentLocal] : [currentLocal];
+        const localIndex = updatedAnaliseLocal.findIndex((item: any) => item?.llm_relatorio?.escolha_principal === existingItem.item_nome);
         if (localIndex >= 0) {
-          // Atualizar o elemento encontrado
           updatedAnaliseLocal[localIndex] = {
             ...updatedAnaliseLocal[localIndex],
             llm_relatorio: {
               ...updatedAnaliseLocal[localIndex].llm_relatorio,
               escolha_principal: newProduct.nome,
               justificativa_escolha: "Seleção natural - produto substituído por escolha do usuário",
-              top_ranking: updatedAnaliseLocal[localIndex].llm_relatorio.top_ranking?.map((rank: any, idx: number) => 
-                idx === 0 ? {
-                  ...rank,
-                  nome: newProduct.nome,
-                  preco: newProduct.preco || rank.preco,
-                  justificativa: "Produto selecionado manualmente pelo usuário",
-                  pontos_fortes: ["Escolha do usuário", "Seleção manual"],
-                  score_estimado: 10
-                } : rank
-              ) || []
-            }
+              top_ranking: updatedAnaliseLocal[localIndex].llm_relatorio.top_ranking?.map((rank: any, idx: number) => (
+                idx === 0
+                  ? {
+                      ...rank,
+                      nome: newProduct.nome,
+                      preco: newProduct.preco || rank.preco,
+                      justificativa: "Produto selecionado manualmente pelo usuário",
+                      pontos_fortes: ["Escolha do usuário", "Seleção manual"],
+                      score_estimado: 10,
+                    }
+                  : rank
+              )) || [],
+            },
           };
-          
-          updateData.analise_local = updatedAnaliseLocal;
+          analiseUpdates.analise_local = Array.isArray(currentLocal) ? updatedAnaliseLocal : updatedAnaliseLocal[0];
           analiseUpdated = true;
         }
       }
 
-      // Atualizar análise web se existir
-      if (relatorio.analise_web && Array.isArray(relatorio.analise_web)) {
-        const updatedAnaliseWeb = [...relatorio.analise_web];
-        
-        // Encontrar elemento com escolha_principal igual ao nome do produto antigo
-        const webIndex = updatedAnaliseWeb.findIndex((item: any) => 
-          item.escolha_principal === existingItem.item_nome
-        );
-        
-        if (webIndex >= 0) {
-          // Atualizar o elemento encontrado
-          updatedAnaliseWeb[webIndex] = {
-            ...updatedAnaliseWeb[webIndex],
-            escolha_principal: newProduct.nome,
-            justificativa_escolha: "Seleção natural - produto substituído por escolha do usuário",
-            top_ranking: updatedAnaliseWeb[webIndex].top_ranking?.map((rank: any, idx: number) => 
-              idx === 0 ? {
-                ...rank,
-                nome: newProduct.nome,
-                preco: newProduct.preco || rank.preco,
-                url: newProduct.url || rank.url,
-                justificativa: "Produto selecionado manualmente pelo usuário",
-                pontos_fortes: ["Escolha do usuário", "Seleção manual"],
-                score_estimado: 10
-              } : rank
-            ) || []
-          };
-          
-          updateData.analise_web = updatedAnaliseWeb;
-          analiseUpdated = true;
-        }
+      // Atualizar análise web no item (analise_web)
+      if (existingItem.analise_web) {
+        const currentWeb = existingItem.analise_web;
+        const updatedAnaliseWeb = Array.isArray(currentWeb) ? [...currentWeb] : [currentWeb];
+        const webUpdated = updatedAnaliseWeb.map((aw: any) => {
+          if (aw?.escolha_principal === existingItem.item_nome) {
+            return {
+              ...aw,
+              escolha_principal: newProduct.nome,
+              justificativa_escolha: "Seleção natural - produto substituído por escolha do usuário",
+              top_ranking: aw.top_ranking?.map((rank: any, idx: number) => (
+                idx === 0
+                  ? {
+                      ...rank,
+                      nome: newProduct.nome,
+                      preco: newProduct.preco || rank.preco,
+                      url: newProduct.url || rank.url,
+                      justificativa: "Produto selecionado manualmente pelo usuário",
+                      pontos_fortes: ["Escolha do usuário", "Seleção manual"],
+                      score_estimado: 10,
+                    }
+                  : rank
+              )) || [],
+            };
+          }
+          return aw;
+        });
+        analiseUpdates.analise_web = Array.isArray(currentWeb) ? webUpdated : webUpdated[0];
+        analiseUpdated = true;
       }
 
-      // Atualizar relatório se houve mudanças
       if (analiseUpdated) {
-        const { error: updateRelatorioError } = await supabase
-          .from('relatorios')
-          .update(updateData)
-          .eq('cotacao_id', cotacaoId);
-
-        if (updateRelatorioError) {
-          throw new Error(`Erro ao atualizar relatório: ${updateRelatorioError.message}`);
-        }
+        await supabase
+          .from('cotacoes_itens')
+          .update(analiseUpdates)
+          .eq('id', cotacaoItemId);
       }
 
       res.json({
@@ -340,11 +315,31 @@ class CotacoesItensController {
   private parsePrice(priceStr?: string): number | null {
     if (!priceStr) return null;
     try {
-      // Remove caracteres não numéricos exceto vírgulas e pontos
-      const cleanPrice = priceStr.replace(/[^\d.,]/g, '');
-      // Normaliza separadores decimais
-      const normalizedPrice = cleanPrice.replace(/\.(?=\d{3}(\D|$))/g, '').replace(',', '.');
-      const price = parseFloat(normalizedPrice);
+      // Remove tudo que não seja dígito, ponto ou vírgula
+      let cleanPrice = priceStr.replace(/[^\d.,]/g, '');
+      
+      // Normalizar separadores decimais
+      // Se tem vírgula, assumir que é separador decimal
+      if (cleanPrice.includes(',')) {
+        // Se tem ponto E vírgula, ponto é separador de milhar
+        if (cleanPrice.includes('.')) {
+          cleanPrice = cleanPrice.replace(/\./g, '').replace(',', '.');
+        } else {
+          // Só vírgula, converter para ponto decimal
+          cleanPrice = cleanPrice.replace(',', '.');
+        }
+      }
+      // Se só tem pontos, verificar se é separador de milhar ou decimal
+      else if (cleanPrice.includes('.')) {
+        const partes = cleanPrice.split('.');
+        if (partes.length > 2 || (partes.length === 2 && partes[1] && partes[1].length === 3)) {
+          // Múltiplos pontos ou último tem 3 dígitos = separador de milhar
+          cleanPrice = cleanPrice.replace(/\./g, '');
+        }
+        // Senão, assumir que é separador decimal
+      }
+      
+      const price = parseFloat(cleanPrice);
       return isNaN(price) ? null : price;
     } catch {
       return null;

@@ -105,24 +105,58 @@ async resetPassword(token: string, newPassword: string) {
   }
 
   try {
-    // Usar o Supabase Auth para atualizar a senha
-    const { data, error } = await supabase.auth.updateUser({
-      password: newPassword
-    });
-
-    if (error) {
-      // Se o erro for relacionado ao token, significa que o token é inválido/expirado
-      if (error.message.includes('session') || error.message.includes('token')) {
-        throw new Error("Token inválido ou expirado. Solicite uma nova recuperação de senha.");
+    console.log('🔑 Processando reset com token:', token.substring(0, 20) + '...');
+    
+    // Criar um cliente separado para esta operação
+    const { createClient } = require('@supabase/supabase-js');
+    const resetClient = createClient(
+      process.env.SUPABASE_URL as string,
+      process.env.SUPABASE_SERVICE_ROLE_KEY as string,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
       }
-      throw new Error(error.message);
+    );
+
+    // Usar o token diretamente como JWT para autenticação
+    const { data: userData, error: userError } = await resetClient.auth.getUser(token);
+    
+    if (userError || !userData.user) {
+      console.error('❌ Token inválido:', userError?.message);
+      throw new Error("Token inválido ou expirado. Solicite uma nova recuperação de senha.");
     }
+
+    console.log('✅ Token válido, usuário identificado:', userData.user.email);
+
+    // Agora atualizar a senha diretamente no banco usando service role
+    const { data: updateData, error: updateError } = await supabase.auth.admin.updateUserById(
+      userData.user.id,
+      { password: newPassword }
+    );
+
+    if (updateError) {
+      console.error('❌ Erro ao atualizar senha:', updateError.message);
+      throw new Error("Erro ao atualizar a senha: " + updateError.message);
+    }
+
+    console.log('✅ Senha atualizada com sucesso para usuário:', userData.user.email);
 
     return { 
       message: "Senha alterada com sucesso",
-      user: data.user 
+      user: updateData.user 
     };
   } catch (error: any) {
+    console.error('💥 Erro no resetPassword:', error.message);
+    
+    // Melhorar as mensagens de erro
+    if (error.message.includes('Invalid token') || 
+        error.message.includes('expired') || 
+        error.message.includes('JWT')) {
+      throw new Error("Token inválido ou expirado. Solicite uma nova recuperação de senha.");
+    }
+    
     throw new Error(error.message || "Erro ao redefinir senha");
   }
 }

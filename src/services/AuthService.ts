@@ -31,11 +31,14 @@ const temporaryAuthTokens: Map<string, TemporaryToken> = new Map();
 
 class AuthService {
   async signUp({ username, email, password }: SignUpInput) {
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+    
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: { display_name: username },
+        emailRedirectTo: frontendUrl,
       },
     });
 
@@ -78,8 +81,10 @@ async recoverPassword(email: string) {
     throw new Error("E-mail não encontrado");
   }
  
+  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+  
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: "http://localhost:5173/",
+    redirectTo: frontendUrl,
   });
 
   if (error) {

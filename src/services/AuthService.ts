@@ -79,7 +79,7 @@ async recoverPassword(email: string) {
   }
  
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: "http://localhost:3000/reset-password",
+    redirectTo: "http://localhost:5173/",
   });
 
   if (error) {
@@ -87,6 +87,39 @@ async recoverPassword(email: string) {
   }
 
   return { message: "E-mail de recuperação enviado com sucesso" };
+}
+
+async resetPassword(token: string, newPassword: string) {
+  if (!token || !newPassword) {
+    throw new Error("Token e nova senha são obrigatórios");
+  }
+
+  // Validar força da senha
+  if (newPassword.length < 8) {
+    throw new Error("Nova senha deve ter pelo menos 8 caracteres");
+  }
+
+  try {
+    // Usar o Supabase Auth para atualizar a senha
+    const { data, error } = await supabase.auth.updateUser({
+      password: newPassword
+    });
+
+    if (error) {
+      // Se o erro for relacionado ao token, significa que o token é inválido/expirado
+      if (error.message.includes('session') || error.message.includes('token')) {
+        throw new Error("Token inválido ou expirado. Solicite uma nova recuperação de senha.");
+      }
+      throw new Error(error.message);
+    }
+
+    return { 
+      message: "Senha alterada com sucesso",
+      user: data.user 
+    };
+  } catch (error: any) {
+    throw new Error(error.message || "Erro ao redefinir senha");
+  }
 }
 
   /**

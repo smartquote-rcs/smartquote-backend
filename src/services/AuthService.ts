@@ -50,12 +50,32 @@ class AuthService {
   }
 
   async signIn({ email, password }: SignInInput) {
+    // VALIDAÇÃO CASE-SENSITIVE: Verificar se o email existe EXATAMENTE como digitado na tabela users
+    const { data: userCheck, error: userCheckError } = await supabase
+      .from('users')
+      .select('email, id, position')
+      .eq('email', email)
+      .single();
+    
+    if (userCheckError || !userCheck) {
+      console.log(`❌ [AuthService] Email ${email} não encontrado na tabela users`);
+      throw new Error("Email não encontrado ou digitado incorretamente. Verifique as maiúsculas e minúsculas.");
+    }
+
+    console.log(`✅ [AuthService] Email validado: ${email} encontrado na tabela users com position: ${userCheck.position}`);
+
+    // Tentar login no Supabase Auth apenas se email existir exato na tabela users
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
-    if (error) throw new Error(error.message);
+    if (error) {
+      console.log(`❌ [AuthService] Erro no Supabase Auth: ${error.message}`);
+      throw new Error(error.message);
+    }
+
+    console.log(`✅ [AuthService] Login bem-sucedido para: ${email}`);
 
     return {
       token: data.session?.access_token,
@@ -282,7 +302,7 @@ async resetPassword(token: string, newPassword: string) {
     
     // Armazenar o token temporário (idealmente em um cache/redis com TTL)
     temporaryAuthTokens.set(temporaryToken, {
-      email,
+      email: email,
       expiresAt: new Date(Date.now() + 5 * 60 * 1000) // 5 minutos
     });
     

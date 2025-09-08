@@ -25,9 +25,7 @@ const produtosService = new ProdutosService();
 routers.get("/",(req, res)=>{
     res.status(200).json("APi SmartQuote ON...");
 });
-routers.head("/",(req, res)=>{
-    res.status(200).json("APi SmartQuote ON...");
-});
+
 routers.use("/test", testRouter);
 routers.use("/auth", authRouter);
 routers.use("/sistema", sistemaRouter);

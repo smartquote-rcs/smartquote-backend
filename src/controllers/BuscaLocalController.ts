@@ -164,10 +164,11 @@ export class BuscaLocalController {
   if (faltantes.length > 0 && searchWeb) {
     console.log(`🌐 [BUSCA-LOCAL] Iniciando busca web para ${faltantes.length} faltantes`);
     const svc = new WebBuscaJobService();
-    const statusUrls = await svc.createJobsForFaltantes(faltantes, solicitacao, ponderacaoWeb_LLM);
-    console.log(`🚀 [BUSCA-LOCAL] Jobs criados: ${statusUrls.length}`);
-    
-    const { resultadosCompletos: resultados, produtosWeb: aprovados } = await svc.waitJobs(statusUrls);
+    const { resultadosCompletos: resultados, produtosWeb: aprovados } = await svc.createJobsForFaltantesWithReforco(
+      faltantes,
+      solicitacao,
+      ponderacaoWeb_LLM
+    );
     produtosWeb = aprovados;
     resultadosCompletos = resultados;
     console.log(`✅ [BUSCA-LOCAL] Jobs concluídos: ${produtosWeb.length} produtos aprovados`);

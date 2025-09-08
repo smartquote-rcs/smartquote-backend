@@ -24,8 +24,8 @@ public adicionarSecaoAnaliseWeb(doc: PDFKit.PDFDocument, data: RelatorioData) {
   doc
     .font('Helvetica-Bold')
     .fontSize(14)
-    .fillColor('#003087') // Primary blue
-    .text('Análise de Rastreabilidade — Pesquisa de Mercado', margin, doc.y);
+    .fillColor('#1F2937') // Primary blue
+    .text('Análise de Rastreabilidade — Pesquisa em fornecedores', margin, doc.y);
 
   doc
     .strokeColor('#E5E7EB') // Light gray
@@ -84,13 +84,6 @@ public adicionarSecaoAnaliseWeb(doc: PDFKit.PDFDocument, data: RelatorioData) {
     const webY = doc.y;
 
     // ========== Analysis Header ==========
-    const queryText = relatorioWeb.query ? String(relatorioWeb.query) : 'Busca não identificada';
-    doc
-      .font('Helvetica-Bold')
-      .fontSize(11)
-      .fillColor('#1F2937') // Dark gray
-      .text(`Busca Web: ${queryText.substring(0, 100) + (queryText.length > 100 ? '...' : '')}`, margin + 10, webY);
-
     // Analysis Metadata
     const timestamp = (relatorioWeb as any).timestamp || Date.now();
     const produtosAnalisados = Array.isArray(relatorioWeb.top_ranking) ? relatorioWeb.top_ranking.length : 0;
@@ -228,7 +221,7 @@ public adicionarSecaoAnaliseWeb(doc: PDFKit.PDFDocument, data: RelatorioData) {
         .font('Helvetica-Bold')
         .fontSize(10)
         .fillColor('#4B5563') // Muted gray
-        .text(`Melhores Resultados para "${queryText}"`, margin + 10, doc.y);
+        .text(`Alternativas Avaliadas`, margin + 10, doc.y);
       doc
         .strokeColor('#E5E7EB') // Light gray
         .lineWidth(0.5)

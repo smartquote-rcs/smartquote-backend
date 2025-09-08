@@ -58,9 +58,9 @@ class CotacoesItensService {
   async insertPlaceholderItem(cotacaoId: number, faltante: any): Promise<number | null> {
     const payload: any = {
       cotacao_id: cotacaoId,
-  // origem precisa respeitar o CHECK CONSTRAINT da tabela (ex.: 'local' | 'web').
-  // Para placeholders, usamos 'web' como padrão, indicando que será buscado externamente.
-  origem: 'web',
+  // origem precisa respeitar o CHECK CONSTRAINT da tabela (ex.: 'local' | 'externa').
+  // Para placeholders, usamos 'externa' como padrão, indicando que será buscado externamente.
+  origem: 'externa',
       provider: undefined,
       external_url: undefined,
       item_nome: faltante?.nome || 'Item não encontrado',
@@ -82,6 +82,91 @@ class CotacoesItensService {
 
     if (error) {
       throw new Error(`Falha ao inserir placeholder na cotação ${cotacaoId}: ${error.message}`);
+    }
+
+    return data?.id ?? null;
+  }
+
+  /**
+   * Atualiza um placeholder com análise diferenciando o tipo de busca.
+   * tipoBusca:
+   *  - 'principal' -> salva em analise_web
+   *  - 'reforco'   -> salva em analise_web_externa
+   * Se produto for null, apenas anexa a análise e mantém status inalterado.
+   */
+  async fulfillPlaceholderWithAnalysis(
+    cotacaoId: number,
+    placeholderId: number,
+    produto: any | null,
+    quantidade: number,
+    produtoId?: number,
+    relatorio?: any,
+    tipoBusca: 'principal' | 'reforco' = 'principal'
+  ): Promise<number | null> {
+    const campoAnalise = tipoBusca === 'reforco' ? 'analise_web_externa' : 'analise_web';
+
+    // Buscar análises existentes no campo adequado
+    const { data: existing, error: fetchError } = await supabase
+      .from('cotacoes_itens')
+      .select(campoAnalise)
+      .eq('id', placeholderId)
+      .single();
+
+    if (fetchError) {
+      throw new Error(`Falha ao buscar placeholder ${placeholderId}: ${fetchError.message}`);
+    }
+
+    const existentes = Array.isArray((existing as any)?.[campoAnalise])
+      ? (existing as any)[campoAnalise]
+      : ((existing as any)?.[campoAnalise] ? [(existing as any)[campoAnalise]] : []);
+
+    const analiseAtualizada = typeof relatorio !== 'undefined' && relatorio !== null
+      ? [...existentes, relatorio]
+      : existentes;
+
+    if (!produto) {
+      // Apenas anexar análise sem mexer em status ou outros campos
+      const { data, error } = await supabase
+        .from('cotacoes_itens')
+        .update({ [campoAnalise]: analiseAtualizada })
+        .eq('id', placeholderId)
+        .select('id')
+        .single();
+
+      if (error) {
+        throw new Error(`Falha ao anexar análise (${campoAnalise}) ao placeholder ${placeholderId} na cotação ${cotacaoId}: ${error.message}`);
+      }
+
+      return data?.id ?? null;
+    }
+
+    const item_preco = this.parseNumero(produto?.price);
+    const provider = this.providerFromUrl(produto?.product_url || produto?.url);
+
+    const updatePayload: any = {
+      cotacao_id: cotacaoId,
+      produto_id: produtoId || null,
+      origem: 'externo',
+      provider: provider || undefined,
+      external_url: produto?.product_url || produto?.url || undefined,
+      item_nome: produto?.name || produto?.nome || 'Produto web',
+      item_descricao: produto?.description || produto?.descricao || null,
+      item_preco: item_preco ?? null,
+      item_moeda: 'AOA',
+      quantidade: Number(quantidade || 1),
+      status: true,
+      [campoAnalise]: analiseAtualizada,
+    };
+
+    const { data, error } = await supabase
+      .from('cotacoes_itens')
+      .update(updatePayload)
+      .eq('id', placeholderId)
+      .select('id')
+      .single();
+
+    if (error) {
+      throw new Error(`Falha ao atualizar placeholder ${placeholderId} na cotação ${cotacaoId}: ${error.message}`);
     }
 
     return data?.id ?? null;
@@ -346,7 +431,7 @@ class CotacoesItensService {
     const updatePayload: any = {
       cotacao_id: cotacaoId,
       produto_id: produtoId || null,
-      origem: 'web',
+      origem: 'externo',
       provider: provider || undefined,
       external_url: produto?.product_url || produto?.url || undefined,
       item_nome: produto?.name || produto?.nome || 'Produto web',

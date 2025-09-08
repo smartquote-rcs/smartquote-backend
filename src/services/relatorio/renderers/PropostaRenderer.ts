@@ -99,8 +99,9 @@ public async render(data: RelatorioData) {
       return count + (found ? 1 : 0);
     }, 0);
 
-  const totalItems =
+  const totalItems =  
     countSelectedItems(Array.isArray(data.analiseLocal) ? data.analiseLocal : [], true) +
+    countSelectedItems(Array.isArray(data.analiseCache) ? data.analiseCache : [], true) +
     countSelectedItems(Array.isArray(data.analiseWeb) ? data.analiseWeb : [], false);
 
   const budget = data.orcamentoGeral || 0;
@@ -138,7 +139,7 @@ public async render(data: RelatorioData) {
     .font('Helvetica-Bold')
     .fontSize(14)
     .fillColor('#111827') // Primary text
-    .text(`${totalItems}`, margin + 15, infoY + 10)
+    .text(`${data.numProdutosEscolhidos}`, margin + 15, infoY + 10)
     .font('Helvetica')
     .fontSize(8)
     .text('itens', margin + 15, infoY + 25);

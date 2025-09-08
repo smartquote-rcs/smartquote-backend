@@ -19,6 +19,15 @@ app.use(express.json());
 
 app.use("/api",routers);
 
+//usar para receber pig no servidor com o method head
+app.use("", (req, res, next) => {
+    if (req.method === "HEAD") {
+        res.status(200).end();
+    } else {
+        next();
+    }
+});
+
 app.listen(port, async ()=>{
   console.log(`Server running in port=${port}`);
 

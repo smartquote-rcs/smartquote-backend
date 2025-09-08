@@ -74,7 +74,7 @@ class CotacoesItensController {
             produto: nomeProduto,
             urls_add: [
               {
-                url: url,
+                url: url + '-',
                 escala_mercado: 'Internacional'
               }
             ],

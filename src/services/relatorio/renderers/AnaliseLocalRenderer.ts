@@ -45,8 +45,8 @@ public adicionarSecaoAnaliseLocal(doc: PDFKit.PDFDocument, data: RelatorioData) 
   doc
     .font('Helvetica-Bold')
     .fontSize(14)
-    .fillColor('#003087') // Primary blue
-    .text('Análise de Rastreabilidade', margin, doc.y);
+    .fillColor('#1F2937') // Primary blue
+    .text('Análise de Rastreabilidade — Pesquisa em Produtos Internos', margin, doc.y);
 
   doc
     .strokeColor('#E5E7EB') // Light gray
@@ -58,8 +58,9 @@ public adicionarSecaoAnaliseLocal(doc: PDFKit.PDFDocument, data: RelatorioData) 
   doc.y += 20;
 
   // Handle empty analysis case
-  const analiseLocal = Array.isArray(data.analiseLocal) ? data.analiseLocal : data.analiseLocal ? [data.analiseLocal] : [];
-  if (analiseLocal.length === 0) {
+    const analiseLocal = Array.isArray(data.analiseLocal) ? data.analiseLocal : data.analiseLocal ? [data.analiseLocal] : [];
+    //se nenhum top_ranking ter o tamanho maior que 0
+    if (analiseLocal.length === 0 || analiseLocal.every(item => !Array.isArray(item.llm_relatorio.top_ranking) || item.llm_relatorio.top_ranking.length === 0)) {
     doc
       .font('Helvetica-Oblique')
       .fontSize(10)
@@ -93,13 +94,6 @@ public adicionarSecaoAnaliseLocal(doc: PDFKit.PDFDocument, data: RelatorioData) 
       ? pedido
       : (typeof analise.query !== 'undefined' && analise.query !== null ? analise.query : undefined);
     const hasQuery = !!queryRaw;
-    const queryText = hasQuery ? String(queryRaw) : 'Item não identificado';
-    doc
-      .font('Helvetica-Bold')
-      .fontSize(11)
-      .fillColor('#1F2937') // Dark gray
-      .text(queryText, margin + 10, analiseY + 10);
-
     // When the query is unavailable, enrich the header using cotação item data for better traceability
     if (!hasQuery) {
       const detalhes = [

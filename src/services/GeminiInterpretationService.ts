@@ -301,8 +301,11 @@ DADOS DO EMAIL:
                 const faltantes = Array.isArray(payload.faltantes) ? payload.faltantes : [];
 
         const svc = new WebBuscaJobService();
-                const statusUrls = await svc.createJobsForFaltantes(faltantes, interpretation.solicitacao, true);
-                const { resultadosCompletos, produtosWeb } = await svc.waitJobs(statusUrls);
+                const { resultadosCompletos, produtosWeb } = await svc.createJobsForFaltantesWithReforco(
+                  faltantes,
+                  interpretation.solicitacao,
+                  true
+                );
                 console.log(`🧠 [LLM-FILTER] ${produtosWeb.length} produtos selecionados pelos jobs`);
                 console.log(`🧠 [LLM-FILTER] Atualizando a coluna de analise_web em cotações_itens`) ;
 

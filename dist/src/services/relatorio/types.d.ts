@@ -85,4 +85,13 @@ export interface CriteriosAvaliacao {
     confiabilidade?: string;
     reputacao_vendedor?: string;
 }
+export interface DadosBruto {
+    id: string;
+    threadId: string;
+    snippet: string;
+    from: string;
+    subject: string;
+    date: string;
+    content: string;
+}
 //# sourceMappingURL=types.d.ts.map

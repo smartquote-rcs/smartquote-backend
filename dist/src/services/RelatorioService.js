@@ -13,6 +13,23 @@ const AnaliseLocalRenderer_1 = require("./relatorio/renderers/AnaliseLocalRender
 const AnaliseWebRenderer_1 = require("./relatorio/renderers/AnaliseWebRenderer");
 const AnaliseCacheRenderer_1 = require("./relatorio/renderers/AnaliseCacheRenderer");
 const AnaliseExternaRenderer_1 = require("./relatorio/renderers/AnaliseExternaRenderer");
+/**
+ * Unifica os campos principais de DadosBruto em uma string coesa
+ */
+function formarStringComdadosBrutos(dados) {
+    if (!dados)
+        return '';
+    const partes = [];
+    if (dados.snippet)
+        partes.push(`Assunto: ${dados.snippet}`);
+    if (dados.subject && dados.subject !== dados.snippet)
+        partes.push(`Título: ${dados.subject}`);
+    if (dados.from)
+        partes.push(`Remetente: ${dados.from}`);
+    if (dados.date)
+        partes.push(`Data: ${dados.date}`);
+    return partes.join(' | ');
+}
 class RelatorioService {
     constructor() {
     }
@@ -108,7 +125,7 @@ class RelatorioService {
           prompt_id, 
           orcamento_geral,
           proposta_email,
-          prompt:prompts(id, texto_original, cliente)
+          prompt:prompts(id, texto_original, cliente, dados_bruto)
         `)
                 .eq('id', cotacaoId)
                 .single();
@@ -266,13 +283,16 @@ class RelatorioService {
                     }
                 }
             }
+            const promptObj = cotacao.prompt;
+            formarStringComdadosBrutos(promptObj?.dados_bruto);
             // Estruturar dados para o relatório
+            // promptObj já normalizado acima; manter uso como objeto
             const data = {
                 cotacaoId: cotacao.id,
                 promptId: cotacao.prompt_id,
-                solicitacao: cotacao.prompt?.texto_original || 'Solicitação não encontrada',
+                solicitacao: promptObj?.texto_original || 'Solicitação não encontrada',
                 orcamentoGeral: cotacao.orcamento_geral,
-                cliente: cotacao.prompt?.cliente || {},
+                cliente: promptObj?.cliente || {},
                 propostaEmail: cotacao.proposta_email,
                 analiseCache,
                 analiseLocal,

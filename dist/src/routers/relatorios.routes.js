@@ -56,5 +56,12 @@ router.put('/proposta-email/:cotacaoId', RelatoriosController_1.default.atualiza
  * @access public
  */
 router.get('/proposta-email/:cotacaoId', RelatoriosController_1.default.obterPropostaEmail);
+/**
+ * @route POST /api/relatorios/proposta-email-ia/:cotacaoId
+ * @desc Gera um email editado por IA (Gemini) a partir de um emailOriginal e um prompt de modificação
+ * @access public
+ * body: { emailOriginal: string, promptModificacao: string }
+ */
+router.post('/proposta-email-ia/:cotacaoId', RelatoriosController_1.default.gerarPropostaEmailIA);
 exports.default = router;
 //# sourceMappingURL=relatorios.routes.js.map

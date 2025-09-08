@@ -21,7 +21,7 @@ const ProductSchema = z.object({
   description: z.string().nullable().transform(val => val || "Descrição não disponível"),
   product_url: z.string(),
   currency_unit: z.string().nullable().transform(val => val || "AOA"),
-  delivery_to_Angola: z.string().nullable().transform(val => val || "Entrega"),
+  delivery_to_Angola: z.string().nullable().optional().transform(val => val || "Entrega"),
   escala_mercado: z.string().nullable().transform(val => val || "Nacional")
 });
 

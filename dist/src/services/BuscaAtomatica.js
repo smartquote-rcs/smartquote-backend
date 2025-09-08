@@ -17,7 +17,7 @@ const ProductSchema = zod_1.z.object({
     description: zod_1.z.string().nullable().transform(val => val || "Descrição não disponível"),
     product_url: zod_1.z.string(),
     currency_unit: zod_1.z.string().nullable().transform(val => val || "AOA"),
-    delivery_to_Angola: zod_1.z.string().nullable().transform(val => val || "Entrega"),
+    delivery_to_Angola: zod_1.z.string().nullable().optional().transform(val => val || "Entrega"),
     escala_mercado: zod_1.z.string().nullable().transform(val => val || "Nacional")
 });
 const ProductsResponseSchema = zod_1.z.object({

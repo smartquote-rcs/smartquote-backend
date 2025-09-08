@@ -175,61 +175,7 @@ class EmailRenderer {
                 return emailTemplate;
             }
         }
-        const emailTemplate = `Prezado(a) ${data.cliente?.nome},
-
-    Espero que esta mensagem o(a) encontre bem.
-
-    Tenho o prazer de apresentar nossa proposta comercial detalhada para sua solicitação de cotação #${data.cotacaoId}.
-
-    === RESUMO DA PROPOSTA ===
-
-    • Investimento Total: ${valorTotal}
-    • Prazo de Entrega: 5-10 dias úteis
-    • Validade da Proposta: 30 dias
-
-    === NOSSA METODOLOGIA ===
-
-    Nossa equipe técnica realizou análise detalhada para garantir:
-    ✓ Melhor custo-benefício do mercado
-    ✓ Produtos de qualidade comprovada
-    ✓ Análise comparativa detalhada
-    ✓ Recomendações personalizadas
-
-    === PRÓXIMOS PASSOS ===
-
-    1. Análise da proposta apresentada
-    2. Esclarecimento de dúvidas (se necessário)
-    3. Aprovação e formalização do pedido
-    4. Início da execução conforme cronograma
-
-    === INFORMAÇÕES IMPORTANTES ===
-
-    • Todos os preços incluem impostos aplicáveis
-    • Condições de pagamento: A combinar
-    • Garantia: Conforme especificação de cada produto
-    • Suporte técnico: Incluído no primeiro ano
-
-    Estamos à disposição para esclarecer qualquer dúvida e ajustar a proposta conforme suas necessidades específicas.
-
-    Aguardamos seu retorno e esperamos iniciar esta parceria em breve.
-
-    Atenciosamente,
-
-    Equipe SmartQuote
-    E-mail: contato@smartquote.ao
-    Telefone: +244 XXX XXX XXX
-
-    ---
-    Este é um relatório gerado automaticamente pelo sistema SmartQuote.
-    Para mais informações, visite: www.smartquote.ao`;
-        if (updateInDb && API_BASE_URL) {
-            await fetch(`${API_BASE_URL}/api/relatorios/proposta-email/${data.cotacaoId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ propostaEmail: emailTemplate })
-            });
-        }
-        return emailTemplate;
+        return '';
     }
 }
 exports.EmailRenderer = EmailRenderer;

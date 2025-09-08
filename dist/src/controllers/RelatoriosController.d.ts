@@ -6,7 +6,7 @@ export default class RelatoriosController {
     static statusRelatorio(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     static listarRelatorios(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     static atualizarPropostaEmail(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
-    static obterPropostaEmail(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    static obterPropostaEmail(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
     /**
      * Gera e faz download direto do relatório em formato CSV
      */
@@ -15,5 +15,9 @@ export default class RelatoriosController {
      * Gera e faz download direto do relatório em formato XLSX
      */
     static gerarRelatorioXLSX(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    /**
+     * Gera um email reformulado por IA com base no email original e um prompt de modificação
+     */
+    static gerarPropostaEmailIA(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
 }
 //# sourceMappingURL=RelatoriosController.d.ts.map

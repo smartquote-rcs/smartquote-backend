@@ -393,7 +393,6 @@ DIRETRIZES GERAIS:
 3. Adapte o estilo conforme solicitado, mas mantenha a clareza
 4. Se necessário, reorganize a estrutura do email para melhor fluxo
 5. Mantenha a assinatura e informações de contato
-6. Preserve formatação essencial (listas, seções, etc.)
 
 ---
 

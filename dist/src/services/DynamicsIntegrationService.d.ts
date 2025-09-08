@@ -29,6 +29,10 @@ declare class DynamicsIntegrationService {
     private cotacoesProcessadas;
     processarCotacaoAprovada(cotacao: any): Promise<boolean>;
     /**
+     * Processa uma cotação (criada) e tenta enviá-la para o Dynamics
+     */
+    processarCotacao(cotacao: any): Promise<boolean>;
+    /**
      * Busca a cotação junto com seus itens para ter dados mais ricos
      */
     private buscarCotacaoComItens;

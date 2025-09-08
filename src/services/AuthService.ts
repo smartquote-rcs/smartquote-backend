@@ -31,7 +31,7 @@ const temporaryAuthTokens: Map<string, TemporaryToken> = new Map();
 
 class AuthService {
   async signUp({ username, email, password }: SignUpInput) {
-    const frontendUrl = process.env.FRONTEND_URL || "https://smartquotercs42.netlify.app/";
+    const frontendUrl = process.env.FRONTEND_URL || "https://smartquote-rcs-front-end.onrender.com/";
     
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -101,7 +101,7 @@ async recoverPassword(email: string) {
     throw new Error("E-mail não encontrado");
   }
  
-  const frontendUrl = process.env.FRONTEND_URL || "https://smartquotercs42.netlify.app/";
+  const frontendUrl = process.env.FRONTEND_URL || "https://smartquote-rcs-front-end.onrender.com/";
   
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: frontendUrl,

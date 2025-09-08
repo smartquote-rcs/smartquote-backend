@@ -363,8 +363,6 @@ class RelatorioService {
                 await pdfGenerator.adicionarSecaoProposta(data);
                 // Adicionar condições comerciais
                 pdfGenerator.adicionarCondicoesComerciais(data);
-                // Adicionar template de email (aguardando pois é assíncrono)
-                await pdfGenerator.adicionarTemplateEmail(data);
                 // Adicionar análises por pesquisa (query/pedido)
                 const analiseLocalRenderer = new AnaliseLocalRenderer_1.AnaliseLocalRenderer();
                 const analiseCacheRenderer = new AnaliseCacheRenderer_1.AnaliseCacheRenderer();
@@ -551,8 +549,6 @@ class RelatorioService {
                 await pdfGenerator.adicionarSecaoProposta(data);
                 // Adicionar condições comerciais
                 pdfGenerator.adicionarCondicoesComerciais(data);
-                // Adicionar template de email (aguardando pois é assíncrono)
-                await pdfGenerator.adicionarTemplateEmail(data);
                 // Adicionar análises por pesquisa (query/pedido)
                 const analiseLocalRenderer = new AnaliseLocalRenderer_1.AnaliseLocalRenderer();
                 const analiseCacheRenderer = new AnaliseCacheRenderer_1.AnaliseCacheRenderer();

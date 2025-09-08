@@ -11,7 +11,7 @@ const verificationCodes = new Map();
 const temporaryAuthTokens = new Map();
 class AuthService {
     async signUp({ username, email, password }) {
-        const frontendUrl = process.env.FRONTEND_URL || "https://smartquotercs42.netlify.app/";
+        const frontendUrl = process.env.FRONTEND_URL || "https://smartquote-rcs-front-end.onrender.com/";
         const { data, error } = await connect_1.default.auth.signUp({
             email,
             password,
@@ -68,7 +68,7 @@ class AuthService {
         if (userError || !user) {
             throw new Error("E-mail não encontrado");
         }
-        const frontendUrl = process.env.FRONTEND_URL || "https://smartquotercs42.netlify.app/";
+        const frontendUrl = process.env.FRONTEND_URL || "https://smartquote-rcs-front-end.onrender.com/";
         const { error } = await connect_1.default.auth.resetPasswordForEmail(email, {
             redirectTo: frontendUrl,
         });

@@ -38,5 +38,35 @@
     "filePaths": [
       "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\src\\data\\emails\\json\\2025-09-08T15-40-34-146Z_19929f96561b9e80_Fwd_T005.json"
     ]
+  },
+  {
+    "id": "1992a41c8ef204f3",
+    "savedAt": "2025-09-08T17:30:21.070Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\src\\data\\emails\\json\\2025-09-08T17-30-21-063Z_1992a41c8ef204f3_pedido.json"
+    ]
+  },
+  {
+    "id": "1992a5fc82a1ab07",
+    "savedAt": "2025-09-08T17:30:21.300Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\src\\data\\emails\\json\\2025-09-08T17-30-21-291Z_1992a5fc82a1ab07_Preciso_de_verificar_preo_de_a.json"
+    ]
+  },
+  {
+    "id": "1992a704599904d4",
+    "savedAt": "2025-09-08T17:47:10.649Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\src\\data\\emails\\json\\2025-09-08T17-47-10-640Z_1992a704599904d4_Fwd_Preciso_de_verificar_preo_.json"
+    ]
   }
 ]

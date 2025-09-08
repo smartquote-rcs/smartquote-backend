@@ -63,7 +63,7 @@ class ItemListRenderer {
                 });
                 // Renderizar itens não escolhidos como cards
                 itensNaoEscolhidos.forEach((item) => {
-                    this.renderizarCardNaoEscolhido(seqIndex++, item, contentWidth);
+                    this.renderizarCardNaoEscolhido(seqIndex++);
                 });
             }
         }
@@ -413,84 +413,11 @@ class ItemListRenderer {
     /**
      * Renderiza um card para itens não escolhidos (status = false)
      */
-    renderizarCardNaoEscolhido(index, item, contentWidth) {
-        const margin = this.margin;
-        const minHeight = 130;
-        this.verificarEspacoPagina(minHeight);
-        const itemY = this.doc.y;
-        // Sombra sutil para o card
+    renderizarCardNaoEscolhido(index) {
         this.doc
-            .fill('#f8f9fa')
-            .rect(margin + 2, itemY + 2, contentWidth, minHeight)
-            .fill();
-        // Card principal corporativo
-        this.doc
-            .fill('#ffffff')
-            .rect(margin, itemY, contentWidth, minHeight)
-            .fillAndStroke('#ffffff', '#e9ecef');
-        // Borda lateral de aviso elegante
-        this.doc
-            .fill(theme_1.theme.warning.main)
-            .rect(margin, itemY, 4, minHeight)
-            .fill();
-        // Linha de destaque superior
-        this.doc
-            .fill('#fff8e1')
-            .rect(margin + 4, itemY, contentWidth - 4, 3)
-            .fill();
-        const headerY = itemY + 20;
-        // Badge índice corporativo
-        this.doc
-            .fill('#fff3cd')
-            .roundedRect(margin + 16, headerY - 8, 32, 26, 13)
-            .fillAndStroke('#fff3cd', theme_1.theme.warning.stroke)
-            .fill(theme_1.theme.warning.main)
             .fontSize(10)
-            .font('Helvetica-Bold')
-            .text(`${index + 1}`, margin + 28, headerY + 1, { width: 20, align: 'center' });
-        // Título corporativo
-        this.doc
-            .fill(theme_1.theme.text.primary)
-            .fontSize(12)
-            .font('Helvetica-Bold')
-            .text('ITEM PENDENTE', margin + 70, headerY);
-        // Subtítulo explicativo
-        this.doc
-            .fill(theme_1.theme.text.muted)
-            .fontSize(8)
-            .font('Helvetica')
-            .text('Aguardando seleção', margin + 70, headerY + 18);
-        // Separador elegante
-        this.doc
-            .strokeColor('#e9ecef')
-            .lineWidth(1)
-            .moveTo(margin + 20, headerY + 38)
-            .lineTo(margin + contentWidth - 20, headerY + 38)
-            .stroke();
-        // Mensagem corporativa
-        const pedido = item.pedido || item.item_nome || 'Item não especificado';
-        const mensagem = `Este item ainda não foi selecionado para inclusão na proposta. Pedido: "${pedido}"`;
-        this.doc
-            .fill(theme_1.theme.text.primary)
-            .fontSize(9)
-            .font('Helvetica')
-            .text(mensagem, margin + 25, headerY + 50, { width: contentWidth - 50, lineGap: 3 });
-        // Card de descrição sofisticado
-        if (item.item_descricao) {
-            this.doc
-                .fill('#fef3e2')
-                .roundedRect(margin + 25, headerY + 85, contentWidth - 50, 32, 6)
-                .fillAndStroke('#fef3e2', theme_1.theme.warning.stroke);
-            this.doc
-                .fill(theme_1.theme.warning.main)
-                .fontSize(8)
-                .font('Helvetica-Bold')
-                .text('DESCRIÇÃO:', margin + 35, headerY + 93, { continued: true })
-                .fill(theme_1.theme.text.primary)
-                .font('Helvetica')
-                .text(` ${item.item_descricao}`, { width: contentWidth - 80 });
-        }
-        this.doc.y = itemY + minHeight + 25;
+            .font("Helvetica")
+            .text(`X - ${index + 1} Não encontrado`, this.margin, this.doc.y + 10);
     }
     /**
      * Método de fallback para usar a lógica antiga em caso de erro

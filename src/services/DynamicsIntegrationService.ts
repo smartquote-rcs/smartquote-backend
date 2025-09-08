@@ -267,6 +267,47 @@ class DynamicsIntegrationService {
   }
 
   /**
+   * Processa uma cotação (criada) e tenta enviá-la para o Dynamics
+   */
+  async processarCotacao(cotacao: any): Promise<boolean> {
+    console.log(`📋 [DYNAMICS] Processando cotação ID: ${cotacao.id}`);
+    
+    // Buscar itens da cotação para enriquecer os dados
+    const cotacaoComItens = await this.buscarCotacaoComItens(cotacao.id);
+    
+    const entidadesParaTestar = ['quotes', 'opportunities', 'incidents', 'leads'];
+    
+    for (const entidade of entidadesParaTestar) {
+      console.log(`🎯 [DYNAMICS] Tentando enviar como ${entidade}...`);
+      
+      try {
+        const entity = this.transformCotacaoToDynamics(cotacaoComItens, entidade);
+        const resultado = await this.enviarParaDynamics(entity, entidade);
+
+        if (resultado) {
+          console.log(`✅ [DYNAMICS] Cotação ${cotacao.id} enviada com sucesso como ${entidade}!`);
+          return true;
+        }
+      } catch (error) {
+        console.log(`❌ [DYNAMICS] Falha ao enviar como ${entidade}, tentando próxima...`);
+        continue;
+      }
+    }
+    
+    console.log(`❌ [DYNAMICS] Falha ao enviar cotação ${cotacao.id} em todas as entidades testadas`);
+    
+    // Tentar descobrir entidades disponíveis
+    try {
+      console.log(`🔍 [DYNAMICS] Consultando entidades disponíveis...`);
+      await this.consultarEntidadesDisponiveis();
+    } catch (err) {
+      console.error('Erro ao consultar entidades:', err);
+    }
+    
+    return false;
+  }
+
+  /**
    * Busca a cotação junto com seus itens para ter dados mais ricos
    */
   private async buscarCotacaoComItens(cotacaoId: number): Promise<any> {

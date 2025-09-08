@@ -334,11 +334,69 @@ var DynamicsIntegrationService = /** @class */ (function () {
         });
     };
     /**
+     * Processa uma cotação (criada) e tenta enviá-la para o Dynamics
+     */
+    DynamicsIntegrationService.prototype.processarCotacao = function (cotacao) {
+        return __awaiter(this, void 0, Promise, function () {
+            var cotacaoComItens, entidadesParaTestar, _i, entidadesParaTestar_2, entidade, entity, resultado, error_5, err_2;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        console.log("\uD83D\uDCCB [DYNAMICS] Processando cota\u00E7\u00E3o ID: " + cotacao.id);
+                        return [4 /*yield*/, this.buscarCotacaoComItens(cotacao.id)];
+                    case 1:
+                        cotacaoComItens = _a.sent();
+                        entidadesParaTestar = ['quotes', 'opportunities', 'incidents', 'leads'];
+                        _i = 0, entidadesParaTestar_2 = entidadesParaTestar;
+                        _a.label = 2;
+                    case 2:
+                        if (!(_i < entidadesParaTestar_2.length)) return [3 /*break*/, 7];
+                        entidade = entidadesParaTestar_2[_i];
+                        console.log("\uD83C\uDFAF [DYNAMICS] Tentando enviar como " + entidade + "...");
+                        _a.label = 3;
+                    case 3:
+                        _a.trys.push([3, 5, , 6]);
+                        entity = this.transformCotacaoToDynamics(cotacaoComItens, entidade);
+                        return [4 /*yield*/, this.enviarParaDynamics(entity, entidade)];
+                    case 4:
+                        resultado = _a.sent();
+                        if (resultado) {
+                            console.log("\u2705 [DYNAMICS] Cota\u00E7\u00E3o " + cotacao.id + " enviada com sucesso como " + entidade + "!");
+                            return [2 /*return*/, true];
+                        }
+                        return [3 /*break*/, 6];
+                    case 5:
+                        error_5 = _a.sent();
+                        console.log("\u274C [DYNAMICS] Falha ao enviar como " + entidade + ", tentando pr\u00F3xima...");
+                        return [3 /*break*/, 6];
+                    case 6:
+                        _i++;
+                        return [3 /*break*/, 2];
+                    case 7:
+                        console.log("\u274C [DYNAMICS] Falha ao enviar cota\u00E7\u00E3o " + cotacao.id + " em todas as entidades testadas");
+                        _a.label = 8;
+                    case 8:
+                        _a.trys.push([8, 10, , 11]);
+                        console.log("\uD83D\uDD0D [DYNAMICS] Consultando entidades dispon\u00EDveis...");
+                        return [4 /*yield*/, this.consultarEntidadesDisponiveis()];
+                    case 9:
+                        _a.sent();
+                        return [3 /*break*/, 11];
+                    case 10:
+                        err_2 = _a.sent();
+                        console.error('Erro ao consultar entidades:', err_2);
+                        return [3 /*break*/, 11];
+                    case 11: return [2 /*return*/, false];
+                }
+            });
+        });
+    };
+    /**
      * Busca a cotação junto com seus itens para ter dados mais ricos
      */
     DynamicsIntegrationService.prototype.buscarCotacaoComItens = function (cotacaoId) {
         return __awaiter(this, void 0, Promise, function () {
-            var supabase, _a, cotacao, errorCotacao, _b, itens, errorItens, error_5;
+            var supabase, _a, cotacao, errorCotacao, _b, itens, errorItens, error_6;
             return __generator(this, function (_c) {
                 switch (_c.label) {
                     case 0:
@@ -367,8 +425,8 @@ var DynamicsIntegrationService = /** @class */ (function () {
                         console.log("\uD83D\uDCE6 [DYNAMICS] Cota\u00E7\u00E3o " + cotacaoId + " - Or\u00E7amento: R$ " + (cotacao.orcamento_geral || 0) + " - Itens: " + ((itens === null || itens === void 0 ? void 0 : itens.length) || 0));
                         return [2 /*return*/, __assign(__assign({}, cotacao), { itens: itens || [], customerNeed: this.montarCustomerNeed(itens || []) })];
                     case 3:
-                        error_5 = _c.sent();
-                        console.error("\u274C [DYNAMICS] Erro ao buscar cota\u00E7\u00E3o com itens:", error_5);
+                        error_6 = _c.sent();
+                        console.error("\u274C [DYNAMICS] Erro ao buscar cota\u00E7\u00E3o com itens:", error_6);
                         return [2 /*return*/, { id: cotacaoId, itens: [], orcamento_geral: 0 }];
                     case 4: return [2 /*return*/];
                 }
@@ -493,7 +551,7 @@ var DynamicsIntegrationService = /** @class */ (function () {
     DynamicsIntegrationService.prototype.listarOportunidades = function () {
         var _a;
         return __awaiter(this, void 0, Promise, function () {
-            var token, url, response, errorText, data, error_6;
+            var token, url, response, errorText, data, error_7;
             return __generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
@@ -525,9 +583,9 @@ var DynamicsIntegrationService = /** @class */ (function () {
                         console.log("\u2705 [DYNAMICS] " + (((_a = data.value) === null || _a === void 0 ? void 0 : _a.length) || 0) + " oportunidades encontradas");
                         return [2 /*return*/, data.value || []];
                     case 6:
-                        error_6 = _b.sent();
-                        console.error('❌ [DYNAMICS] Erro ao listar oportunidades:', error_6);
-                        throw error_6;
+                        error_7 = _b.sent();
+                        console.error('❌ [DYNAMICS] Erro ao listar oportunidades:', error_7);
+                        throw error_7;
                     case 7: return [2 /*return*/];
                 }
             });
@@ -538,7 +596,7 @@ var DynamicsIntegrationService = /** @class */ (function () {
      */
     DynamicsIntegrationService.prototype.listarEntidadesDisponiveis = function () {
         return __awaiter(this, void 0, Promise, function () {
-            var token, headers, baseUrl, response, _a, _b, _c, data, entidades_1, error_7;
+            var token, headers, baseUrl, response, _a, _b, _c, data, entidades_1, error_8;
             return __generator(this, function (_d) {
                 switch (_d.label) {
                     case 0:
@@ -595,8 +653,8 @@ var DynamicsIntegrationService = /** @class */ (function () {
                         console.log("\uD83D\uDCCB [DYNAMICS] Primeiras 10:", entidades_1.slice(0, 10));
                         return [2 /*return*/, entidades_1];
                     case 6:
-                        error_7 = _d.sent();
-                        console.error("\u274C [DYNAMICS] Erro ao listar entidades:", error_7);
+                        error_8 = _d.sent();
+                        console.error("\u274C [DYNAMICS] Erro ao listar entidades:", error_8);
                         return [2 /*return*/, []];
                     case 7: return [2 /*return*/];
                 }
@@ -608,7 +666,7 @@ var DynamicsIntegrationService = /** @class */ (function () {
      */
     DynamicsIntegrationService.prototype.consultarEntidadesDisponiveis = function () {
         return __awaiter(this, void 0, Promise, function () {
-            var token, headers, metadataUrl, response, _a, _b, _c, metadataXml, entityMatches, quotesRelated_1, salesRelated_1, allEntities_1, error_8;
+            var token, headers, metadataUrl, response, _a, _b, _c, metadataXml, entityMatches, quotesRelated_1, salesRelated_1, allEntities_1, error_9;
             return __generator(this, function (_d) {
                 switch (_d.label) {
                     case 0:
@@ -673,8 +731,8 @@ var DynamicsIntegrationService = /** @class */ (function () {
                                 salesRelated: salesRelated_1
                             }];
                     case 6:
-                        error_8 = _d.sent();
-                        console.error("\u274C [DYNAMICS] Erro ao consultar entidades:", error_8);
+                        error_9 = _d.sent();
+                        console.error("\u274C [DYNAMICS] Erro ao consultar entidades:", error_9);
                         return [2 /*return*/, {
                                 entidades: [],
                                 quotesRelated: [],
@@ -690,7 +748,7 @@ var DynamicsIntegrationService = /** @class */ (function () {
      */
     DynamicsIntegrationService.prototype.consultarEntidadesPadrao = function () {
         return __awaiter(this, void 0, Promise, function () {
-            var token, headers, baseUrl, accountsResponse, accounts, _a, currenciesResponse, currencies, _b, pricelevelsResponse, pricelevels, _c, error_9;
+            var token, headers, baseUrl, accountsResponse, accounts, _a, currenciesResponse, currencies, _b, pricelevelsResponse, pricelevels, _c, error_10;
             return __generator(this, function (_d) {
                 switch (_d.label) {
                     case 0:
@@ -763,8 +821,8 @@ var DynamicsIntegrationService = /** @class */ (function () {
                                 pricelevels: pricelevels
                             }];
                     case 14:
-                        error_9 = _d.sent();
-                        console.error("\u274C [DYNAMICS] Erro ao consultar entidades padr\u00E3o:", error_9);
+                        error_10 = _d.sent();
+                        console.error("\u274C [DYNAMICS] Erro ao consultar entidades padr\u00E3o:", error_10);
                         return [2 /*return*/, {
                                 accounts: [],
                                 currencies: [],

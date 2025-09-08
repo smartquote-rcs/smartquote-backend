@@ -5,6 +5,11 @@ export interface RelatorioData {
   orcamentoGeral: number;
   cliente?: any;
   propostaEmail?: string;
+  numProdutosEscolhidos?: number;
+  // Análise de cache (estrutura similar à analiseLocal). Opcional para retrocompatibilidade
+  analiseCache?: any[];
+  // Análise web externa (estrutura semelhante à analiseWeb). Opcional
+  analiseExterna?: any[];
   analiseLocal: Array<{
     score: number;
     query_id: string;

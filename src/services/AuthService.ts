@@ -31,11 +31,14 @@ const temporaryAuthTokens: Map<string, TemporaryToken> = new Map();
 
 class AuthService {
   async signUp({ username, email, password }: SignUpInput) {
+    const frontendUrl = process.env.FRONTEND_URL || "https://smartquotercs42.netlify.app/";
+    
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: { display_name: username },
+        emailRedirectTo: frontendUrl,
       },
     });
 
@@ -47,12 +50,32 @@ class AuthService {
   }
 
   async signIn({ email, password }: SignInInput) {
+    // VALIDAÇÃO CASE-SENSITIVE: Verificar se o email existe EXATAMENTE como digitado na tabela users
+    const { data: userCheck, error: userCheckError } = await supabase
+      .from('users')
+      .select('email, id, position')
+      .eq('email', email)
+      .single();
+    
+    if (userCheckError || !userCheck) {
+      console.log(`❌ [AuthService] Email ${email} não encontrado na tabela users`);
+      throw new Error("Email não encontrado ou digitado incorretamente. Verifique as maiúsculas e minúsculas.");
+    }
+
+    console.log(`✅ [AuthService] Email validado: ${email} encontrado na tabela users com position: ${userCheck.position}`);
+
+    // Tentar login no Supabase Auth apenas se email existir exato na tabela users
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
-    if (error) throw new Error(error.message);
+    if (error) {
+      console.log(`❌ [AuthService] Erro no Supabase Auth: ${error.message}`);
+      throw new Error(error.message);
+    }
+
+    console.log(`✅ [AuthService] Login bem-sucedido para: ${email}`);
 
     return {
       token: data.session?.access_token,
@@ -78,8 +101,10 @@ async recoverPassword(email: string) {
     throw new Error("E-mail não encontrado");
   }
  
+  const frontendUrl = process.env.FRONTEND_URL || "https://smartquotercs42.netlify.app/";
+  
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: "http://localhost:3000/reset-password",
+    redirectTo: frontendUrl,
   });
 
   if (error) {
@@ -87,6 +112,73 @@ async recoverPassword(email: string) {
   }
 
   return { message: "E-mail de recuperação enviado com sucesso" };
+}
+
+async resetPassword(token: string, newPassword: string) {
+  if (!token || !newPassword) {
+    throw new Error("Token e nova senha são obrigatórios");
+  }
+
+  // Validar força da senha
+  if (newPassword.length < 8) {
+    throw new Error("Nova senha deve ter pelo menos 8 caracteres");
+  }
+
+  try {
+    console.log('🔑 Processando reset com token:', token.substring(0, 20) + '...');
+    
+    // Criar um cliente separado para esta operação
+    const { createClient } = require('@supabase/supabase-js');
+    const resetClient = createClient(
+      process.env.SUPABASE_URL as string,
+      process.env.SUPABASE_SERVICE_ROLE_KEY as string,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    );
+
+    // Usar o token diretamente como JWT para autenticação
+    const { data: userData, error: userError } = await resetClient.auth.getUser(token);
+    
+    if (userError || !userData.user) {
+      console.error('❌ Token inválido:', userError?.message);
+      throw new Error("Token inválido ou expirado. Solicite uma nova recuperação de senha.");
+    }
+
+    console.log('✅ Token válido, usuário identificado:', userData.user.email);
+
+    // Agora atualizar a senha diretamente no banco usando service role
+    const { data: updateData, error: updateError } = await supabase.auth.admin.updateUserById(
+      userData.user.id,
+      { password: newPassword }
+    );
+
+    if (updateError) {
+      console.error('❌ Erro ao atualizar senha:', updateError.message);
+      throw new Error("Erro ao atualizar a senha: " + updateError.message);
+    }
+
+    console.log('✅ Senha atualizada com sucesso para usuário:', userData.user.email);
+
+    return { 
+      message: "Senha alterada com sucesso",
+      user: updateData.user 
+    };
+  } catch (error: any) {
+    console.error('💥 Erro no resetPassword:', error.message);
+    
+    // Melhorar as mensagens de erro
+    if (error.message.includes('Invalid token') || 
+        error.message.includes('expired') || 
+        error.message.includes('JWT')) {
+      throw new Error("Token inválido ou expirado. Solicite uma nova recuperação de senha.");
+    }
+    
+    throw new Error(error.message || "Erro ao redefinir senha");
+  }
 }
 
   /**
@@ -210,7 +302,7 @@ async recoverPassword(email: string) {
     
     // Armazenar o token temporário (idealmente em um cache/redis com TTL)
     temporaryAuthTokens.set(temporaryToken, {
-      email,
+      email: email,
       expiresAt: new Date(Date.now() + 5 * 60 * 1000) // 5 minutos
     });
     

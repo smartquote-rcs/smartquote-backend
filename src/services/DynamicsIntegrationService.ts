@@ -198,14 +198,14 @@ class DynamicsIntegrationService {
           console.log(`📋 [DYNAMICS] Entidade criada sem retorno de dados (204 No Content)`);
           return true;
         } else {
-          const result = await response.json();
+          const result = await response.json() as any;
           console.log(`📋 [DYNAMICS] Entidade criada com retorno:`, JSON.stringify(result, null, 2));
           return true;
         }
       }
 
       // Se chegou aqui, não era nem erro nem sucesso conhecido
-      const result = await response.json();
+      const result = await response.json() as any;
       console.log(`✅ [DYNAMICS] Resposta inesperada mas válida:`, JSON.stringify(result, null, 2));
       
       return true;
@@ -517,7 +517,7 @@ class DynamicsIntegrationService {
         throw new Error(`Erro ao buscar oportunidades: ${response.status} - ${errorText}`);
       }
 
-      const data = await response.json();
+      const data = await response.json() as { value?: any[] };
       console.log(`✅ [DYNAMICS] ${data.value?.length || 0} oportunidades encontradas`);
       
       return data.value || [];

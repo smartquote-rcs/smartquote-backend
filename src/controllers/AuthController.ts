@@ -119,6 +119,21 @@ class AuthController {
     }
   }
 
+  async resetPassword(req: Request, res: Response): Promise<Response> {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      return res.status(400).json({ error: "Token e nova senha são obrigatórios" });
+    }
+
+    try {
+      const result = await AuthService.resetPassword(token, newPassword);
+      return res.status(200).json(result);
+    } catch (err: any) {
+      return res.status(400).json({ error: err.message });
+    }
+  }
+
 }
 
 export default new AuthController();

@@ -272,18 +272,58 @@ export class BuscaAutomatica {
   try {
     // Remove tudo que não seja dígito, ponto ou vírgula
     let numeroLimpo = precoString.replace(/[^\d.,]/g, '');
+    
+    if (!numeroLimpo) return null;
 
-    // Converte vírgula em ponto (padronização)
-    numeroLimpo = numeroLimpo.replace(/,/g, '.');
-
-    // Se houver mais de um ponto, todos exceto o último são separadores de milhar → remove
-    const partes = numeroLimpo.split('.');
-    if (partes.length > 2) {
-      const decimal = partes.pop(); // última parte é decimal
-      numeroLimpo = partes.join('') + '.' + decimal;
+    // Detecta o formato baseado na posição dos separadores
+    const ultimaVirgula = numeroLimpo.lastIndexOf(',');
+    const ultimoPonto = numeroLimpo.lastIndexOf('.');
+    
+    // Determina qual é o separador decimal (se houver)
+    let separadorDecimal = '';
+    let posicaoDecimal = -1;
+    
+    if (ultimaVirgula > ultimoPonto) {
+      // Vírgula é o último separador - pode ser decimal se estiver nos últimos 3 caracteres
+      if (numeroLimpo.length - ultimaVirgula <= 3) {
+        separadorDecimal = ',';
+        posicaoDecimal = ultimaVirgula;
+      }
+    } else if (ultimoPonto > ultimaVirgula) {
+      // Ponto é o último separador - pode ser decimal se estiver nos últimos 3 caracteres
+      if (numeroLimpo.length - ultimoPonto <= 3) {
+        separadorDecimal = '.';
+        posicaoDecimal = ultimoPonto;
+      }
     }
-
-    return parseFloat(numeroLimpo);
+    
+    let parteInteira = '';
+    let parteDecimal = '';
+    
+    if (posicaoDecimal > -1) {
+      // Há parte decimal
+      parteInteira = numeroLimpo.substring(0, posicaoDecimal);
+      parteDecimal = numeroLimpo.substring(posicaoDecimal + 1);
+    } else {
+      // Não há parte decimal
+      parteInteira = numeroLimpo;
+      parteDecimal = '00';
+    }
+    
+    // Remove todos os separadores de milhar da parte inteira
+    parteInteira = parteInteira.replace(/[.,]/g, '');
+    
+    // Garante que a parte decimal tenha no máximo 2 dígitos
+    if (parteDecimal.length > 2) {
+      parteDecimal = parteDecimal.substring(0, 2);
+    } else if (parteDecimal.length === 1) {
+      parteDecimal = parteDecimal + '0';
+    }
+    
+    // Constrói o número final
+    const numeroFinal = parteInteira + '.' + parteDecimal;
+    
+    return parseFloat(numeroFinal);
   } catch {
     return null;
   }

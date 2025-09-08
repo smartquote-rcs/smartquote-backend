@@ -6,6 +6,7 @@ import AuthService from './AuthService';
 class UserService {
 
   async getByEmail(email: string): Promise<UserDTO | null> {
+    // Busca case-sensitive - email deve ser exatamente igual ao da DB
     const { data, error } = await supabase
       .from(this.table)
       .select('*')

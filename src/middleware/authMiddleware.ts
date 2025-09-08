@@ -4,6 +4,7 @@ import supabase from '../infra/supabase/connect';
 // Helper para obter registro interno de usuário e mapear posição para role
 async function loadAppUser(email: string) {
   try {
+    // Busca case-sensitive - email deve ser exatamente igual ao da DB
     const { data, error } = await supabase
       .from('users')
       .select('id, email, position')
@@ -41,7 +42,16 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
   let enriched = null;
   if (user.email) {
     enriched = await loadAppUser(user.email);
+    
+    // VALIDAÇÃO CASE-SENSITIVE: Se o usuário não existe na tabela users, rejeitar
+    if (!enriched) {
+      console.log(`❌ [authMiddleware] Usuário ${user.email} não encontrado na tabela users - acesso negado`);
+      return res.status(403).json({ 
+        error: 'Acesso negado. Usuário não encontrado no sistema interno. Contate o administrador.' 
+      });
+    }
   }
+  
   (req as any).user = {
     id: enriched?.id || user.id,
     email: user.email,

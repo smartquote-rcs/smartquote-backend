@@ -10,6 +10,8 @@ import { RelatorioData } from './relatorio/types';
 import { PDFGenerator } from './relatorio/PDFGenerator';
 import { AnaliseLocalRenderer } from './relatorio/renderers/AnaliseLocalRenderer';
 import { AnaliseWebRenderer } from './relatorio/renderers/AnaliseWebRenderer';
+import { AnaliseCacheRenderer } from './relatorio/renderers/AnaliseCacheRenderer';
+import { AnaliseExternaRenderer } from './relatorio/renderers/AnaliseExternaRenderer';
 
 export class RelatorioService {
   constructor() {
@@ -30,6 +32,43 @@ export class RelatorioService {
       if (error || !cotacao) {
         console.error('❌ [RELATORIO] Erro ao buscar status da cotação:', error);
         return "";
+      }
+
+      // Buscar e processar analise_web_externa de todos os itens
+      const { data: itensComAnaliseExterna, error: itensExternaError } = await supabase
+        .from('cotacoes_itens')
+        .select('id, item_nome, pedido, analise_web_externa')
+        .eq('cotacao_id', cotacaoId)
+        .not('analise_web_externa', 'is', null);
+
+      const analiseExterna: any[] = [];
+      if (!itensExternaError && itensComAnaliseExterna) {
+        for (const item of itensComAnaliseExterna) {
+          const externa = (item as any).analise_web_externa;
+          if (externa) {
+            if (Array.isArray(externa)) {
+              for (const analiseItem of externa) {
+                if (analiseItem) {
+                  const analiseComItem = {
+                    ...analiseItem,
+                    id_item_cotacao: (item as any).id,
+                    item_nome: (item as any).item_nome,
+                    pedido: (item as any).pedido,
+                  };
+                  analiseExterna.push(analiseComItem);
+                }
+              }
+            } else {
+              const analiseComItem = {
+                ...externa,
+                id_item_cotacao: (item as any).id,
+                item_nome: (item as any).item_nome,
+                pedido: (item as any).pedido,
+              };
+              analiseExterna.push(analiseComItem);
+            }
+          }
+        }
       }
 
       // Verificar se está completa
@@ -77,6 +116,7 @@ export class RelatorioService {
         `)
         .eq('id', cotacaoId)
         .single();
+      
 
       if (cotacaoError || !cotacao) {
         throw new Error(`Dados da cotação não encontrados: ${cotacaoError?.message}`);
@@ -95,6 +135,21 @@ export class RelatorioService {
         .eq('cotacao_id', cotacaoId)
         .not('analise_local', 'is', null);
 
+      // Buscar analise_cache (cache) dos itens
+      const { data: itensComAnaliseCache, error: itensCacheError } = await supabase
+        .from('cotacoes_itens')
+        .select('id, item_nome, analise_cache, pedido')
+        .eq('cotacao_id', cotacaoId)
+        .not('analise_cache', 'is', null);
+      
+      //conta quantos produtos foram selecionados, quantos itens com status true
+      const { data: itensEncontrados, error: itensEncontradosE } = await supabase
+        .from('cotacoes_itens')
+        .select('id')
+        .eq('cotacao_id', cotacaoId)
+        .is('status', true);
+
+      const numProdutosEscolhidos = itensEncontrados ? itensEncontrados.length : 0;
       // Processar dados das análises locais
       const analiseLocal: any[] = [];
       if (!itensLocalError && itensComAnaliseLocal) {
@@ -122,6 +177,37 @@ export class RelatorioService {
                 pedido: (item as any).pedido
               };
               analiseLocal.push(analiseComItem);
+            }
+          }
+        }
+      }
+
+      // Processar dados das análises em cache
+      const analiseCache: any[] = [];
+      if (!itensCacheError && itensComAnaliseCache) {
+        for (const item of itensComAnaliseCache) {
+          if ((item as any).analise_cache) {
+            const cache = (item as any).analise_cache;
+            if (Array.isArray(cache)) {
+              for (const analiseItem of cache) {
+                if (analiseItem) {
+                  const analiseComItem = {
+                    ...analiseItem,
+                    id_item_cotacao: (item as any).id,
+                    item_nome: (item as any).item_nome,
+                    pedido: (item as any).pedido,
+                  };
+                  analiseCache.push(analiseComItem);
+                }
+              }
+            } else {
+              const analiseComItem = {
+                ...cache,
+                id_item_cotacao: (item as any).id,
+                item_nome: (item as any).item_nome,
+                pedido: (item as any).pedido,
+              };
+              analiseCache.push(analiseComItem);
             }
           }
         }
@@ -157,6 +243,41 @@ export class RelatorioService {
         }
       }
 
+      // Buscar e processar analise_web_externa de todos os itens
+      const { data: itensComAnaliseExterna, error: itensExternaError } = await supabase
+        .from('cotacoes_itens')
+        .select('id, item_nome, analise_web_externa')
+        .eq('cotacao_id', cotacaoId)
+        .not('analise_web_externa', 'is', null);
+
+      const analiseExterna: any[] = [];
+      if (!itensExternaError && itensComAnaliseExterna) {
+        for (const item of itensComAnaliseExterna) {
+          const externa = (item as any).analise_web_externa;
+          if (externa) {
+            if (Array.isArray(externa)) {
+              for (const analiseItem of externa) {
+                if (analiseItem) {
+                  const analiseComItem = {
+                    ...analiseItem,
+                    id_item_cotacao: (item as any).id,
+                    item_nome: (item as any).item_nome,
+                  };
+                  analiseExterna.push(analiseComItem);
+                }
+              }
+            } else {
+              const analiseComItem = {
+                ...externa,
+                id_item_cotacao: (item as any).id,
+                item_nome: (item as any).item_nome,
+              };
+              analiseExterna.push(analiseComItem);
+            }
+          }
+        }
+      }
+
       // Estruturar dados para o relatório
       const data: RelatorioData = {
         cotacaoId: cotacao.id,
@@ -165,8 +286,11 @@ export class RelatorioService {
         orcamentoGeral: cotacao.orcamento_geral,
         cliente: (cotacao as any).prompt?.cliente || {},
         propostaEmail: (cotacao as any).proposta_email,
+        analiseCache,
         analiseLocal,
-        analiseWeb
+        analiseWeb,
+        analiseExterna,
+        numProdutosEscolhidos
       };
 
       console.log(`📋 [RELATORIO] Dados processados - Local: ${analiseLocal.length}, Web: ${analiseWeb.length} (de ${itensComAnaliseLocal?.length || 0} + ${itensComAnaliseWeb?.length || 0} itens)`);
@@ -243,17 +367,149 @@ export class RelatorioService {
         // Adicionar condições comerciais
         pdfGenerator.adicionarCondicoesComerciais(data);
         
-  // Adicionar template de email (aguardando pois é assíncrono)
-  await pdfGenerator.adicionarTemplateEmail(data);
+        // Adicionar template de email (aguardando pois é assíncrono)
+        await pdfGenerator.adicionarTemplateEmail(data);
         
-        // Adicionar análises
+        // Adicionar análises por pesquisa (query/pedido)
         const analiseLocalRenderer = new AnaliseLocalRenderer();
+        const analiseCacheRenderer = new AnaliseCacheRenderer();
         const analiseWebRenderer = new AnaliseWebRenderer();
-        //nova pagina
-        doc.addPage();
-        analiseLocalRenderer.adicionarSecaoAnaliseLocal(doc, data);
-        doc.addPage();
-        analiseWebRenderer.adicionarSecaoAnaliseWeb(doc, data);
+        const analiseExternaRenderer = new AnaliseExternaRenderer();
+
+        // Agrupar por "pesquisa" usando pedido/query/item_nome
+        const gruposMap = new Map<string, { titulo: string; locais: any[]; caches: any[]; webs: any[]; externas: any[] }>();
+
+        const norm = (s: any) =>
+          (typeof s === 'string' ? s : String(s || ''))
+            .trim()
+            .toLowerCase();
+
+        const getQueryNome = (q: any) => {
+          if (!q) return '';
+          if (typeof q === 'string') return q;
+          return q.nome || q.query_sugerida || '';
+        };
+
+        const makeKeyAndTitle = (item: any) => {
+          const id = (item as any)?.id_item_cotacao ?? (item as any)?.id;
+          const analise = (item as any)?.llm_relatorio || item;
+          const pedido = (item as any)?.pedido;
+          const queryStr = getQueryNome((item as any)?.query) || getQueryNome(analise?.query);
+          const itemNome = (item as any)?.item_nome;
+          const key = id != null ? `id:${id}` : norm(pedido || queryStr || itemNome || `item-${Math.random()}`);
+          const titulo = (pedido && String(pedido).trim()) || (queryStr && String(queryStr)) || (itemNome && String(itemNome)) || (id != null ? `Item ${id}` : 'Item');
+          return { key, titulo: String(titulo) };
+        };
+
+        const pushLocal = (item: any) => {
+          const { key, titulo } = makeKeyAndTitle(item);
+          if (!gruposMap.has(key)) gruposMap.set(key, { titulo, locais: [], caches: [], webs: [], externas: [] });
+          gruposMap.get(key)!.locais.push(item);
+        };
+
+        const pushCache = (item: any) => {
+          const { key, titulo } = makeKeyAndTitle(item);
+          if (!gruposMap.has(key)) gruposMap.set(key, { titulo, locais: [], caches: [], webs: [], externas: [] });
+          gruposMap.get(key)!.caches.push(item);
+        };
+
+        const pushWeb = (item: any) => {
+          const { key, titulo } = makeKeyAndTitle(item);
+          if (!gruposMap.has(key)) gruposMap.set(key, { titulo, locais: [], caches: [], webs: [], externas: [] });
+          gruposMap.get(key)!.webs.push(item);
+        };
+
+        const pushExterna = (item: any) => {
+          const { key, titulo } = makeKeyAndTitle(item);
+          if (!gruposMap.has(key)) gruposMap.set(key, { titulo, locais: [], caches: [], webs: [], externas: [] });
+          gruposMap.get(key)!.externas.push(item);
+        };
+
+        const locaisArr = Array.isArray((data as any).analiseLocal) ? (data as any).analiseLocal : ((data as any).analiseLocal ? [(data as any).analiseLocal] : []);
+        const cachesArr = Array.isArray((data as any).analiseCache) ? (data as any).analiseCache : ((data as any).analiseCache ? [(data as any).analiseCache] : []);
+        const websArr = Array.isArray((data as any).analiseWeb) ? (data as any).analiseWeb : ((data as any).analiseWeb ? [(data as any).analiseWeb] : []);
+        const externasArr = Array.isArray((data as any).analiseExterna) ? (data as any).analiseExterna : ((data as any).analiseExterna ? [(data as any).analiseExterna] : []);
+
+        locaisArr.forEach(pushLocal);
+        cachesArr.forEach(pushCache);
+        websArr.forEach(pushWeb);
+        externasArr.forEach(pushExterna);
+
+        const grupos = Array.from(gruposMap.values());
+
+        // Renderizar cada grupo com cabeçalho da pesquisa e subseções Local/Web
+        grupos.forEach((grupo) => {
+          // Nova página para cada pesquisa
+          doc.addPage();
+
+          const margin = doc.page.margins.left;
+          const pageWidth = doc.page.width;
+          const contentWidth = pageWidth - margin * 2;
+
+          // Cabeçalho da pesquisa
+          doc
+            .font('Helvetica-Bold')
+            .fontSize(14)
+            .fillColor('#003087')
+            .text(`Pesquisa: ${grupo.titulo}`, margin, doc.y);
+          doc
+            .strokeColor('#E5E7EB')
+            .lineWidth(0.5)
+            .moveTo(margin, doc.y + 8)
+            .lineTo(margin + contentWidth, doc.y + 8)
+            .stroke();
+          doc.y += 18;
+
+          const grupoData: RelatorioData = {
+            ...data,
+            analiseLocal: grupo.locais,
+            analiseCache: grupo.caches,
+            analiseWeb: grupo.webs,
+            analiseExterna: grupo.externas,
+          } as any;
+
+          // Sub-seção: Análise Local
+          analiseLocalRenderer.adicionarSecaoAnaliseLocal(doc as any, grupoData);
+
+          // Pequeno espaçamento/divisor entre local e cache
+          const dividerY = doc.y;
+          doc
+            .strokeColor('#E5E7EB')
+            .lineWidth(0.5)
+            .moveTo(margin, dividerY)
+            .lineTo(margin + contentWidth, dividerY)
+            .stroke();
+          doc.y += 10;
+
+          // Sub-seção: Análise Cache
+          analiseCacheRenderer.adicionarSecaoAnaliseCache(doc as any, grupoData);
+
+          // Divisor entre cache e web
+          const dividerY2 = doc.y;
+          doc
+            .strokeColor('#E5E7EB')
+            .lineWidth(0.5)
+            .moveTo(margin, dividerY2)
+            .lineTo(margin + contentWidth, dividerY2)
+            .stroke();
+          doc.y += 10;
+
+          // Sub-seção: Análise Web
+          analiseWebRenderer.adicionarSecaoAnaliseWeb(doc as any, grupoData);
+
+          // Divisor entre web e externa
+          const dividerY3File = doc.y;
+          doc
+            .strokeColor('#E5E7EB')
+            .lineWidth(0.5)
+            .moveTo(margin, dividerY3File)
+            .lineTo(margin + contentWidth, dividerY3File)
+            .stroke();
+          doc.y += 10;
+
+          // Sub-seção: Análise Externa (após Web)
+          analiseExternaRenderer.adicionarSecaoAnaliseExterna(doc as any, grupoData);
+        });
         
         // Adicionar rodapé
         pdfGenerator.adicionarRodape();
@@ -330,14 +586,139 @@ export class RelatorioService {
         // Adicionar condições comerciais
         pdfGenerator.adicionarCondicoesComerciais(data);
         
-  // Adicionar template de email (aguardando pois é assíncrono)
-  await pdfGenerator.adicionarTemplateEmail(data);
+        // Adicionar template de email (aguardando pois é assíncrono)
+        await pdfGenerator.adicionarTemplateEmail(data);
         
-        // Adicionar análises
+        // Adicionar análises por pesquisa (query/pedido)
         const analiseLocalRenderer = new AnaliseLocalRenderer();
+        const analiseCacheRenderer = new AnaliseCacheRenderer();
         const analiseWebRenderer = new AnaliseWebRenderer();
-        analiseLocalRenderer.adicionarSecaoAnaliseLocal(doc, data);
-        analiseWebRenderer.adicionarSecaoAnaliseWeb(doc, data);
+        const analiseExternaRenderer = new AnaliseExternaRenderer();
+
+        // Agrupar por "pesquisa" usando pedido/query/item_nome
+        const gruposMap = new Map<string, { titulo: string; locais: any[]; caches: any[]; webs: any[]; externas: any[] }>();
+
+        const norm = (s: any) =>
+          (typeof s === 'string' ? s : String(s || ''))
+            .trim()
+            .toLowerCase();
+
+        const getQueryNome = (q: any) => {
+          if (!q) return '';
+          if (typeof q === 'string') return q;
+          return q.nome || q.query_sugerida || '';
+        };
+
+        const makeKeyAndTitle = (item: any) => {
+          const id = (item as any)?.id_item_cotacao ?? (item as any)?.id;
+          const analise = (item as any)?.llm_relatorio || item;
+          const pedido = (item as any)?.pedido;
+          const queryStr = getQueryNome((item as any)?.query) || getQueryNome(analise?.query);
+          const itemNome = (item as any)?.item_nome;
+          const key = id != null ? `id:${id}` : norm(pedido || queryStr || itemNome || `item-${Math.random()}`);
+          const titulo = (pedido && String(pedido).trim()) || (queryStr && String(queryStr)) || (itemNome && String(itemNome)) || (id != null ? `Item ${id}` : 'Item');
+          return { key, titulo: String(titulo) };
+        };
+
+        const pushLocal = (item: any) => {
+          const { key, titulo } = makeKeyAndTitle(item);
+          if (!gruposMap.has(key)) gruposMap.set(key, { titulo, locais: [], caches: [], webs: [], externas: [] });
+          gruposMap.get(key)!.locais.push(item);
+        };
+
+        const pushWeb = (item: any) => {
+          const { key, titulo } = makeKeyAndTitle(item);
+          if (!gruposMap.has(key)) gruposMap.set(key, { titulo, locais: [], caches: [], webs: [], externas: [] });
+          gruposMap.get(key)!.webs.push(item);
+        };
+
+        const pushExterna = (item: any) => {
+          const { key, titulo } = makeKeyAndTitle(item);
+          if (!gruposMap.has(key)) gruposMap.set(key, { titulo, locais: [], caches: [], webs: [], externas: [] });
+          gruposMap.get(key)!.externas.push(item);
+        };
+
+        const locaisArr = Array.isArray((data as any).analiseLocal) ? (data as any).analiseLocal : ((data as any).analiseLocal ? [(data as any).analiseLocal] : []);
+        const websArr = Array.isArray((data as any).analiseWeb) ? (data as any).analiseWeb : ((data as any).analiseWeb ? [(data as any).analiseWeb] : []);
+        const externasArr2 = Array.isArray((data as any).analiseExterna) ? (data as any).analiseExterna : ((data as any).analiseExterna ? [(data as any).analiseExterna] : []);
+
+        locaisArr.forEach(pushLocal);
+        websArr.forEach(pushWeb);
+        externasArr2.forEach(pushExterna);
+
+        const grupos = Array.from(gruposMap.values());
+
+        grupos.forEach((grupo) => {
+          // Nova página para cada pesquisa
+          doc.addPage();
+
+          const margin = doc.page.margins.left;
+          const pageWidth = doc.page.width;
+          const contentWidth = pageWidth - margin * 2;
+
+          // Cabeçalho da pesquisa
+          doc
+            .font('Helvetica-Bold')
+            .fontSize(14)
+            .fillColor('#003087')
+            .text(`Pesquisa: ${grupo.titulo}`, margin, doc.y);
+          doc
+            .strokeColor('#E5E7EB')
+            .lineWidth(0.5)
+            .moveTo(margin, doc.y + 8)
+            .lineTo(margin + contentWidth, doc.y + 8)
+            .stroke();
+          doc.y += 18;
+
+          const grupoData: RelatorioData = {
+            ...data,
+            analiseLocal: grupo.locais,
+            analiseCache: grupo.caches,
+            analiseWeb: grupo.webs,
+            analiseExterna: grupo.externas,
+          } as any;
+
+
+          analiseLocalRenderer.adicionarSecaoAnaliseLocal(doc as any, grupoData);
+
+          // Divisor
+          const dividerY = doc.y;
+          doc
+            .strokeColor('#E5E7EB')
+            .lineWidth(0.5)
+            .moveTo(margin, dividerY)
+            .lineTo(margin + contentWidth, dividerY)
+            .stroke();
+          doc.y += 10;
+
+          // Cache
+          analiseCacheRenderer.adicionarSecaoAnaliseCache(doc as any, grupoData);
+
+          // Divisor entre cache e web
+          const dividerY2 = doc.y;
+          doc
+            .strokeColor('#E5E7EB')
+            .lineWidth(0.5)
+            .moveTo(margin, dividerY2)
+            .lineTo(margin + contentWidth, dividerY2)
+            .stroke();
+          doc.y += 10;
+
+          analiseWebRenderer.adicionarSecaoAnaliseWeb(doc as any, grupoData);
+
+          // Divisor entre web e externa
+          const dividerY3 = doc.y;
+          doc
+            .strokeColor('#E5E7EB')
+            .lineWidth(0.5)
+            .moveTo(margin, dividerY3)
+            .lineTo(margin + contentWidth, dividerY3)
+            .stroke();
+          doc.y += 10;
+
+          // Sub-seção: Análise Externa (após Web)
+          analiseExternaRenderer.adicionarSecaoAnaliseExterna(doc as any, grupoData);
+        });
         
         // Adicionar rodapé
         pdfGenerator.adicionarRodape();

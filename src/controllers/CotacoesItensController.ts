@@ -48,9 +48,9 @@ class CotacoesItensController {
     try {
       const { cotacaoItemId, newProductId, url, nomeProduto } = req.body;
 
-      if (!cotacaoItemId || !newProductId) {
+      if (!cotacaoItemId) {
         return res.status(400).json({ 
-          error: 'cotacaoItemId e newProductId são obrigatórios' 
+          error: 'cotacaoItemId é obrigatório' 
         });
       }
       
@@ -93,7 +93,7 @@ class CotacoesItensController {
             
             const svc = new WebBuscaJobService();
             const { resultadosCompletos } = await svc.waitJobs([statusUrl]);
-            
+            console.log(`✅ [REPLACE-PRODUCT] Job completado. Resultados:`, (resultadosCompletos[0] as any).salvamento.detalhes[0]);
             // Extrair ID do produto salvo dos resultados
             let produtoSalvoId: number | null = null;
             
@@ -104,7 +104,7 @@ class CotacoesItensController {
                 for (const fornecedorDetalhe of salvamento.detalhes) {
                   if (fornecedorDetalhe.detalhes && fornecedorDetalhe.detalhes.length > 0) {
                     const produtoSalvo = fornecedorDetalhe.detalhes[0];
-                    if (produtoSalvo.status === 'salvo' && produtoSalvo.id) {
+                    if (produtoSalvo.id) {
                       produtoSalvoId = produtoSalvo.id;
                       console.log(`✅ [REPLACE-PRODUCT] Produto salvo com ID: ${produtoSalvoId}`);
                       break;
@@ -186,24 +186,36 @@ class CotacoesItensController {
         const updatedAnaliseLocal = Array.isArray(currentLocal) ? [...currentLocal] : [currentLocal];
         const localIndex = updatedAnaliseLocal.findIndex((item: any) => item?.llm_relatorio?.escolha_principal === existingItem.item_nome);
         if (localIndex >= 0) {
+          const llm = updatedAnaliseLocal[localIndex].llm_relatorio || {};
+          const currentRanking = Array.isArray(llm.top_ranking) ? llm.top_ranking.slice() : [];
+          // Remover duplicados (por id ou nome) referentes ao novo produto
+          const cleanedRanking = currentRanking.filter((rank: any) => {
+            const sameId = typeof rank?.id !== 'undefined' && typeof newProduct?.id !== 'undefined' && rank.id === newProduct.id;
+            const sameNome = String(rank?.nome || '').trim().toLowerCase() === String(newProduct?.nome || '').trim().toLowerCase();
+            return !(sameId || sameNome);
+          });
+
+          // Montar novo primeiro lugar com o produto escolhido e empurrar o antigo primeiro para segundo
+          const novoPrimeiro = {
+            ...(cleanedRanking[0] || {}),
+            nome: newProduct.nome,
+            id: newProduct.id ?? (cleanedRanking[0]?.id),
+            preco: newProduct.preco ?? (cleanedRanking[0]?.preco),
+            justificativa: 'Produto selecionado manualmente pelo usuário',
+            pontos_fortes: ['Escolha do usuário', 'Seleção manual'],
+            pontos_fracos: cleanedRanking[0]?.pontos_fracos || [],
+            score_estimado: 10,
+          };
+
+          const novoRanking = [novoPrimeiro, ...cleanedRanking];
+
           updatedAnaliseLocal[localIndex] = {
             ...updatedAnaliseLocal[localIndex],
             llm_relatorio: {
-              ...updatedAnaliseLocal[localIndex].llm_relatorio,
+              ...llm,
               escolha_principal: newProduct.nome,
-              justificativa_escolha: "Seleção natural - produto substituído por escolha do usuário",
-              top_ranking: updatedAnaliseLocal[localIndex].llm_relatorio.top_ranking?.map((rank: any, idx: number) => (
-                idx === 0
-                  ? {
-                      ...rank,
-                      nome: newProduct.nome,
-                      preco: newProduct.preco || rank.preco,
-                      justificativa: "Produto selecionado manualmente pelo usuário",
-                      pontos_fortes: ["Escolha do usuário", "Seleção manual"],
-                      score_estimado: 10,
-                    }
-                  : rank
-              )) || [],
+              justificativa_escolha: 'Seleção natural - produto substituído por escolha do usuário',
+              top_ranking: novoRanking,
             },
           };
           analiseUpdates.analise_local = Array.isArray(currentLocal) ? updatedAnaliseLocal : updatedAnaliseLocal[0];
@@ -217,23 +229,29 @@ class CotacoesItensController {
         const updatedAnaliseWeb = Array.isArray(currentWeb) ? [...currentWeb] : [currentWeb];
         const webUpdated = updatedAnaliseWeb.map((aw: any) => {
           if (aw?.escolha_principal === existingItem.item_nome) {
+            const rankingAtual = Array.isArray(aw.top_ranking) ? aw.top_ranking.slice() : [];
+            // Remover duplicados com mesma URL ou mesmo nome do novo produto
+            const cleaned = rankingAtual.filter((rank: any) => {
+              const sameUrl = (newProduct?.url && rank?.url) ? String(rank.url).trim() === String(newProduct.url).trim() : false;
+              const sameNome = String(rank?.nome || '').trim().toLowerCase() === String(newProduct?.nome || '').trim().toLowerCase();
+              return !(sameUrl || sameNome);
+            });
+            const novoPrimeiro = {
+              ...(cleaned[0] || {}),
+              nome: newProduct.nome,
+              preco: newProduct.preco ?? (cleaned[0]?.preco),
+              url: newProduct.url ?? (cleaned[0]?.url),
+              justificativa: 'Produto selecionado manualmente pelo usuário',
+              pontos_fortes: ['Escolha do usuário', 'Seleção manual'],
+              pontos_fracos: cleaned[0]?.pontos_fracos || [],
+              score_estimado: 10,
+            };
+            const novoRanking = [novoPrimeiro, ...cleaned];
             return {
               ...aw,
               escolha_principal: newProduct.nome,
-              justificativa_escolha: "Seleção natural - produto substituído por escolha do usuário",
-              top_ranking: aw.top_ranking?.map((rank: any, idx: number) => (
-                idx === 0
-                  ? {
-                      ...rank,
-                      nome: newProduct.nome,
-                      preco: newProduct.preco || rank.preco,
-                      url: newProduct.url || rank.url,
-                      justificativa: "Produto selecionado manualmente pelo usuário",
-                      pontos_fortes: ["Escolha do usuário", "Seleção manual"],
-                      score_estimado: 10,
-                    }
-                  : rank
-              )) || [],
+              justificativa_escolha: 'Seleção natural - produto substituído por escolha do usuário',
+              top_ranking: novoRanking,
             };
           }
           return aw;

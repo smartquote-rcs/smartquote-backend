@@ -54,6 +54,94 @@ export default class WebBuscaJobService {
   this.apiBaseUrl = process.env.API_BASE_URL || 'http://localhost:2000';
   }
 
+  /**
+   * Orquestra a criação de jobs e, caso não haja produtos escolhidos após a primeira rodada,
+   * cria jobs de reforço usando sites sugeridos (urls_add) e retorna os resultados combinados.
+   */
+  async createJobsForFaltantesWithReforco(
+    faltantes: Faltante[],
+    solicitacaoFallback: string,
+    ponderacaoWeb_LLM: Boolean
+  ): Promise<{ resultadosCompletos: (JobResultado & { tipo_busca?: 'principal' | 'reforco' })[]; produtosWeb: any[]; }> {
+    // 1) Primeira rodada
+    const statusUrlsRound1 = await this.createJobsForFaltantes(faltantes, solicitacaoFallback, ponderacaoWeb_LLM);
+    const { resultadosCompletos: r1, produtosWeb: aprovados1 } = await this.waitJobs(statusUrlsRound1);
+
+    // Mapear faltantes que não receberam produtos
+    const faltanteIdsComProdutos = new Set<number>();
+    for (const res of r1) {
+      const produtos = (res as any)?.produtos || [];
+      for (const p of produtos) {
+        if ((p as any)?.faltante_id) {
+          faltanteIdsComProdutos.add(Number((p as any).faltante_id));
+        }
+      }
+    }
+
+    // 2) Determinar faltantes sem produtos
+    const faltantesSemProdutos = (faltantes || []).filter((f: any) => {
+      const fid = typeof f.item_id !== 'undefined' && f.item_id !== null ? Number(f.item_id) : (typeof f.id !== 'undefined' ? Number(f.id) : undefined);
+      if (typeof fid === 'undefined') return false;
+      return !faltanteIdsComProdutos.has(fid);
+    });
+
+    if (faltantesSemProdutos.length === 0) {
+      return { resultadosCompletos: r1, produtosWeb: aprovados1 };
+    }
+
+    console.log(`🔁 [WEB-BUSCA] Preparando reforço para ${faltantesSemProdutos.length} faltantes sem produtos`);
+
+    // 3) Buscar sites sugeridos e criar jobs de reforço com urls_add
+    const statusUrlsRound2: string[] = [];
+    for (const f of faltantesSemProdutos) {
+      const termo = f.query_sugerida || solicitacaoFallback;
+      try {
+        const resp = await fetch(`${this.apiBaseUrl}/api/busca-automatica/procurarSites?q=${encodeURIComponent(termo)}&limit=5&location=Angola&is_mixed=true`, {
+          method: 'GET'
+        });
+        const data: any = await resp.json();
+        const sites = data?.data?.sites || [];
+        if (Array.isArray(sites) && sites.length > 0) {
+          const urls_add = sites.map((site: any) => ({ url: site.url, escala_mercado: site.escala_mercado || 'Nacional' }));
+
+          const payload: any = {
+            produto: termo,
+            quantidade: Number.isFinite(Number(f.quantidade)) && Number(f.quantidade) > 0 ? Math.floor(Number(f.quantidade)) : 1,
+            salvamento: false,
+            refinamento: true,
+            urls_add,
+          };
+          if (typeof f.custo_beneficio !== 'undefined') payload.custo_beneficio = f.custo_beneficio;
+          if (typeof (f as any).rigor === 'number' && isFinite((f as any).rigor)) payload.rigor = Math.max(0, Math.min(5, Math.round((f as any).rigor)));
+          if (typeof f.ponderacao_busca_externa === 'number' && isFinite(f.ponderacao_busca_externa)) payload.ponderacao_web_llm = Math.max(0, Math.min(1, f.ponderacao_busca_externa));
+          const faltId = (typeof (f as any).item_id !== 'undefined' && (f as any).item_id !== null) ? (f as any).item_id : f.id;
+          if (typeof faltId !== 'undefined' && faltId !== null) payload.faltante_id = String(faltId);
+
+          const resp2 = await fetch(`${this.apiBaseUrl}/api/busca-automatica/background`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const data2 = (await resp2.json()) as BackgroundBuscaResponse;
+          if (data2?.statusUrl) statusUrlsRound2.push(`${this.apiBaseUrl}${data2.statusUrl}`);
+          else if (data2?.jobId) statusUrlsRound2.push(`${this.apiBaseUrl}/api/busca-automatica/job/${data2.jobId}`);
+        }
+      } catch (e: any) {
+        console.warn(`⚠️ [WEB-BUSCA] Falha ao montar reforço para termo "${termo}":`, e?.message || e);
+      }
+    }
+
+    if (statusUrlsRound2.length === 0) {
+      return { resultadosCompletos: r1, produtosWeb: aprovados1 };
+    }
+
+    const { resultadosCompletos: r2, produtosWeb: aprovados2 } = await this.waitJobs(statusUrlsRound2);
+    // 4) Combinar resultados
+    const resultadosCompletos = [...r1, ...r2];
+    const produtosWeb = [...aprovados1, ...aprovados2];
+    return { resultadosCompletos, produtosWeb };
+  }
+
   private sleep(ms: number) {
     return new Promise(res => setTimeout(res, ms));
   }
@@ -134,7 +222,7 @@ export default class WebBuscaJobService {
     return statusUrls;
   }
 
-  async waitJobs(statusUrls: string[], maxWaitMs: number = 30 * 60 * 1000, pollIntervalMs: number = 2000): Promise<{ resultadosCompletos: JobResultado[]; produtosWeb: any[]; }> {
+  async waitJobs(statusUrls: string[], maxWaitMs: number = 30 * 60 * 1000, pollIntervalMs: number = 2000): Promise<{ resultadosCompletos: (JobResultado & { tipo_busca?: 'principal' | 'reforco' })[]; produtosWeb: any[]; }> {
     const aguardarJob = async (url: string) => {
       const inicio = Date.now();
       while (Date.now() - inicio < maxWaitMs) {
@@ -146,6 +234,11 @@ export default class WebBuscaJobService {
           if (status === 'concluido') {
             if (job?.resultado) {
               job.resultado.quantidade = job.parametros?.quantidade;
+              // Marcar tipo de busca com base no uso de urls_add
+              const tipo: 'principal' | 'reforco' = (Array.isArray((job as any)?.parametros?.urls_add) && (job as any).parametros.urls_add.length > 0)
+                ? 'reforco'
+                : 'principal';
+              (job.resultado as any).tipo_busca = tipo;
             }
             return job?.resultado || { produtos: [] };
           }
@@ -164,12 +257,13 @@ export default class WebBuscaJobService {
 
     const resultadosPorJob = await Promise.all(statusUrls.map(aguardarJob));
     const produtosWeb = resultadosPorJob.flatMap((r: any) => r?.produtos || []);
-    const resultadosCompletos = resultadosPorJob.filter((r: any) => r && typeof r === 'object' && 'produtos' in r);
+    const resultadosCompletos = resultadosPorJob.filter((r: any) => r && typeof r === 'object' && 'produtos' in r) as (JobResultado & { tipo_busca?: 'principal' | 'reforco' })[];
     return { resultadosCompletos, produtosWeb };
   }
 
-  async insertJobResultsInCotacao(cotacaoId: number, resultadosCompletos: JobResultado[]): Promise<number> {
+  async insertJobResultsInCotacao(cotacaoId: number, resultadosCompletos: (JobResultado & { tipo_busca?: 'principal' | 'reforco' })[]): Promise<number> {
     let inseridos = 0;
+
     // Carregar placeholders atuais (status=false) em cotacoes_itens
     let placeholdersRestantes: any[] = [];
     try {
@@ -185,6 +279,7 @@ export default class WebBuscaJobService {
 
     for (const resultadoJob of resultadosCompletos) {
       try {
+        const tipoBusca = (resultadoJob as any).tipo_busca === 'reforco' ? 'reforco' : 'principal';
 
         // Para cada produto retornado, tentar cumprir um placeholder correspondente (status=true + update)
         if (resultadoJob.produtos && resultadoJob.produtos.length > 0) {
@@ -208,17 +303,32 @@ export default class WebBuscaJobService {
                 : undefined;
 
               const quantidade = (resultadoJob as any)?.quantidade || alvo?.quantidade || 1;
-              const produtoIdSalvo = produto.id;
+              
+              // Buscar ID do produto salvo no resultado do salvamento
+              let produtoIdSalvo = null;
+              const salvamento = (resultadoJob as any)?.salvamento;
+              if (salvamento?.detalhes) {
+                for (const fornecedorDetalhe of salvamento.detalhes) {
+                  if (fornecedorDetalhe.detalhes && fornecedorDetalhe.detalhes.length > 0) {
+                    const produtoSalvo = fornecedorDetalhe.detalhes[0];
+                    if (produtoSalvo.status === 'salvo' && produtoSalvo.id) {
+                      produtoIdSalvo = produtoSalvo.id;
+                      break;
+                    }
+                  }
+                }
+              }
 
               if (alvo) {
                 // Cumprir placeholder: atualizar registro com dados do produto web
-                await CotacoesItensService.fulfillPlaceholderWithWebProduct(
+                await (CotacoesItensService as any).fulfillPlaceholderWithAnalysis(
                   Number(cotacaoId),
                   alvo.id,
                   produto,
                   quantidade,
                   produtoIdSalvo,
-                  resultadoJob.relatorio
+                  resultadoJob.relatorio,
+                  tipoBusca
                 );
                 inseridos++;
                 if ((resultadoJob as any).relatorio) {
@@ -254,13 +364,14 @@ export default class WebBuscaJobService {
             }
 
             if (alvo) {
-              await CotacoesItensService.fulfillPlaceholderWithWebProduct(
+              await (CotacoesItensService as any).fulfillPlaceholderWithAnalysis(
                 Number(cotacaoId),
                 alvo.id,
                 null, // sem produto, apenas anexar análise
                 0,
                 undefined,
-                rel
+                rel,
+                tipoBusca
               );
               console.log(`📝 [ANALISE] Análise web anexada ao placeholder ${alvo.id} (sem produto)`);
             } else {
@@ -269,12 +380,12 @@ export default class WebBuscaJobService {
           } catch (e) {
             console.warn('⚠️ [ANALISE] Falha ao anexar análise web sem produto:', (e as any)?.message || e);
           }
-        }}
-      catch (e) {
+        }
+      } catch (e) {
         console.error('❌ [COTACAO-ITEM] Erro ao inserir itens do job:', (e as any)?.message || e);
       }
     }
-    
+
     // Atualizar status da cotação com base em placeholders restantes
     try {
       const { data: phsFinais } = await supabase

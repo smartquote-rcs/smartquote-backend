@@ -419,6 +419,9 @@ async function processarJob(message: JobMessage) {
         if (!url.url.endsWith('/')) {
           url.url += '/*';
         }
+        else if (url.url.endsWith('-')) {
+          url.url = url.url.slice(0, -1);
+        }
         else {
           url.url += '*';
         }
@@ -433,6 +436,7 @@ async function processarJob(message: JobMessage) {
       });
     } else {
       sitesParaBusca = fornecedoresFiltrados.map(f => ({url: f.url, escala_mercado: f.escala_mercado}));
+      //sitesParaBusca = [{url: "https://loja.sistec.co.ao/*", escala_mercado: "Nacional"}]; // Buscar em todos os sites cadastrados
       enviarMensagem({
         progresso: {
           etapa: 'busca',
@@ -476,7 +480,8 @@ async function processarJob(message: JobMessage) {
     const configuracoes = await FornecedorService.getConfiguracoesSistema();
 
     // 4. Aplicar refinamento LLM se solicitado
-    let relatorioLLM = null;
+    // Sempre manter um objeto para evitar null access ao definir propriedades posteriormente
+    let relatorioLLM: any = {};
     if (refinamento && todosProdutos.length > 0) {
       enviarMensagem({
         progresso: {
@@ -487,7 +492,7 @@ async function processarJob(message: JobMessage) {
       const produtosAntesLLM = todosProdutos.length;
       const resultadoLLM = await filtrarProdutosComLLM(todosProdutos, termo , quantidade, custo_beneficio, rigor, ponderacao_web_llm);
       todosProdutos = resultadoLLM.produtos;
-      relatorioLLM = resultadoLLM.relatorio; // Capturar o relatório
+      relatorioLLM = resultadoLLM.relatorio || {}; // Capturar o relatório (garantir objeto)
       log(`Produtos após refinamento LLM: ${todosProdutos.length} de ${produtosAntesLLM}`);
 
       // Classificar categoria do(s) produto(s) selecionado(s)
@@ -501,69 +506,7 @@ async function processarJob(message: JobMessage) {
       }
 
       if (todosProdutos.length === 0) {
-        log(`🧠 [LLM-FILTER] Nenhum produto aprovado pelo LLM para salvamento`);
-        if (!(urls_add && Array.isArray(urls_add) && urls_add.length > 0)) {
-          log(`Limite de pesquisa não especificado, iniciando busca na internet`);
-          //aplica RECURCIVIDADE
-          //buscar urls na web para pesquisar
-          try {
-            enviarMensagem({
-              progresso: {
-                etapa: 'busca',
-                detalhes: 'Buscando novos sites na internet...'
-              }
-            });
-
-            // Chamar a rota /busca-automatica/procurarSites para sugerir novos links
-            const baseUrl = process.env.API_BASE_URL || 'http://localhost:2000';
-            const response = await axios.get(`${baseUrl}/api/busca-automatica/procurarSites`, {
-              params: {
-                q: termo,
-                limit: 5, // Limitar a 5 sites sugeridos para evitar recursão excessiva
-                location: 'Angola',
-                is_mixed: true
-              }
-            });
-
-            if (response.data.success && response.data.data.sites.length > 0) {
-              const sitesSugeridos = response.data.data.sites;
-              log(`🔄 [RECURSIVE] Encontrados ${sitesSugeridos.length} sites sugeridos para busca recursiva`);
-
-              // Converter sites sugeridos para formato urls_add
-              const urlsRecursivas = sitesSugeridos.map((site: any) => ({
-                url: site.url,
-                escala_mercado: 'medio' // Definir escala padrão para sites sugeridos
-              }));
-
-              // Criar nova mensagem para chamada recursiva
-              const mensagemRecursiva: JobMessage = {
-                id: `${id}-recursive-${Date.now()}`,
-                termo,
-                urls_add: urlsRecursivas,
-                numResultados,
-                salvamento,
-                fornecedores,
-                usuarioId,
-                quantidade,
-                custo_beneficio,
-                rigor,
-                ponderacao_web_llm,
-                refinamento,
-                faltante_id
-              };
-
-              log(`🔄 [RECURSIVE] Iniciando busca recursiva com ${urlsRecursivas.length} URLs sugeridas`);
-              
-              // Chamada recursiva do processarJob com as novas URLs
-              await processarJob(mensagemRecursiva);
-              return; // Sair da função atual após a chamada recursiva
-            } else {
-              log(`⚠️ [RECURSIVE] Nenhum site sugerido encontrado para busca recursiva`);
-            }
-          } catch (error) {
-            log(`❌ [RECURSIVE] Erro ao buscar sites sugeridos: ${error}`);
-          }
-        }
+        log(`🧠 [LLM-FILTER] Nenhum produto aprovado pelo LLM; retornando sem recursividade.`);
       }
     }
 
@@ -644,7 +587,14 @@ async function processarJob(message: JobMessage) {
       // 6. Enviar resultado final
       const tempoTotal = Date.now() - inicioTempo;
     
-      relatorioLLM.query = termo;
+      // Garantir que relatorioLLM é um objeto e registrar metadados úteis
+      try {
+        if (!relatorioLLM || typeof relatorioLLM !== 'object') relatorioLLM = {};
+        (relatorioLLM as any).query = termo;
+      } catch {}
+      if (faltante_id) {
+        (relatorioLLM as any).faltante_id = faltante_id;
+      }
       enviarMensagem({
         status: 'sucesso',
         produtos: todosProdutos,
@@ -665,6 +615,12 @@ async function processarJob(message: JobMessage) {
       // Se não for para salvar, apenas retornar os produtos encontrados
       const tempoTotal = Date.now() - inicioTempo;
       
+      if (faltante_id) {
+        try {
+          if (!relatorioLLM || typeof relatorioLLM !== 'object') relatorioLLM = {};
+          (relatorioLLM as any).faltante_id = faltante_id;
+        } catch {}
+      }
       enviarMensagem({
         status: 'sucesso',
         produtos: todosProdutos,
@@ -684,6 +640,9 @@ async function processarJob(message: JobMessage) {
       // Nenhum produto encontrado
       const tempoTotal = Date.now() - inicioTempo;
       
+      if (relatorioLLM && faltante_id) {
+        (relatorioLLM as any).faltante_id = faltante_id;
+      }
       enviarMensagem({
         status: 'sucesso',
         produtos: [],

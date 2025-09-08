@@ -435,8 +435,8 @@ async function processarJob(message: JobMessage) {
         }
       });
     } else {
-      //sitesParaBusca = fornecedoresFiltrados.map(f => ({url: f.url, escala_mercado: f.escala_mercado}));
-      sitesParaBusca = [{url: "https://loja.sistec.co.ao/*", escala_mercado: "Nacional"}]; // Buscar em todos os sites cadastrados
+      sitesParaBusca = fornecedoresFiltrados.map(f => ({url: f.url, escala_mercado: f.escala_mercado}));
+      //sitesParaBusca = [{url: "https://loja.sistec.co.ao/*", escala_mercado: "Nacional"}]; // Buscar em todos os sites cadastrados
       enviarMensagem({
         progresso: {
           etapa: 'busca',
@@ -480,7 +480,8 @@ async function processarJob(message: JobMessage) {
     const configuracoes = await FornecedorService.getConfiguracoesSistema();
 
     // 4. Aplicar refinamento LLM se solicitado
-    let relatorioLLM = null;
+    // Sempre manter um objeto para evitar null access ao definir propriedades posteriormente
+    let relatorioLLM: any = {};
     if (refinamento && todosProdutos.length > 0) {
       enviarMensagem({
         progresso: {
@@ -491,7 +492,7 @@ async function processarJob(message: JobMessage) {
       const produtosAntesLLM = todosProdutos.length;
       const resultadoLLM = await filtrarProdutosComLLM(todosProdutos, termo , quantidade, custo_beneficio, rigor, ponderacao_web_llm);
       todosProdutos = resultadoLLM.produtos;
-      relatorioLLM = resultadoLLM.relatorio; // Capturar o relatório
+      relatorioLLM = resultadoLLM.relatorio || {}; // Capturar o relatório (garantir objeto)
       log(`Produtos após refinamento LLM: ${todosProdutos.length} de ${produtosAntesLLM}`);
 
       // Classificar categoria do(s) produto(s) selecionado(s)
@@ -586,7 +587,11 @@ async function processarJob(message: JobMessage) {
       // 6. Enviar resultado final
       const tempoTotal = Date.now() - inicioTempo;
     
-      relatorioLLM.query = termo;
+      // Garantir que relatorioLLM é um objeto e registrar metadados úteis
+      try {
+        if (!relatorioLLM || typeof relatorioLLM !== 'object') relatorioLLM = {};
+        (relatorioLLM as any).query = termo;
+      } catch {}
       if (faltante_id) {
         (relatorioLLM as any).faltante_id = faltante_id;
       }
@@ -610,8 +615,11 @@ async function processarJob(message: JobMessage) {
       // Se não for para salvar, apenas retornar os produtos encontrados
       const tempoTotal = Date.now() - inicioTempo;
       
-      if (relatorioLLM && faltante_id) {
-        (relatorioLLM as any).faltante_id = faltante_id;
+      if (faltante_id) {
+        try {
+          if (!relatorioLLM || typeof relatorioLLM !== 'object') relatorioLLM = {};
+          (relatorioLLM as any).faltante_id = faltante_id;
+        } catch {}
       }
       enviarMensagem({
         status: 'sucesso',

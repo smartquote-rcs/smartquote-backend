@@ -1,1 +1,0 @@
-{"version":3,"file":"FooterRenderer.d.ts","sourceRoot":"","sources":["../../../../../src/services/relatorio/renderers/FooterRenderer.ts"],"names":[],"mappings":"AAGA,qBAAa,cAAc;IACzB,OAAO,CAAC,GAAG,CAAqB;IAChC,OAAO,CAAC,MAAM,CAAS;gBAEX,GAAG,EAAE,MAAM,CAAC,WAAW,EAAE,MAAM,GAAE,MAAW;IAKxD;;OAEG;IACI,MAAM;CAqDd"}

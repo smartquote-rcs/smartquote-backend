@@ -6,12 +6,30 @@ import PromptsService from './PromptsService';
 import supabase from '../infra/supabase/connect';
 
 // Import modular components
-import { RelatorioData } from './relatorio/types';
+import { RelatorioData , DadosBruto} from './relatorio/types';
 import { PDFGenerator } from './relatorio/PDFGenerator';
 import { AnaliseLocalRenderer } from './relatorio/renderers/AnaliseLocalRenderer';
 import { AnaliseWebRenderer } from './relatorio/renderers/AnaliseWebRenderer';
 import { AnaliseCacheRenderer } from './relatorio/renderers/AnaliseCacheRenderer';
 import { AnaliseExternaRenderer } from './relatorio/renderers/AnaliseExternaRenderer';
+
+/**
+ * Unifica os campos principais de DadosBruto em uma string coesa
+ */
+function formarStringComdadosBrutos(dados?: {
+  snippet?: string;
+  from?: string;
+  subject?: string;
+  date?: string;
+}): string {
+  if (!dados) return '';
+  const partes: string[] = [];
+  if (dados.snippet) partes.push(`Assunto: ${dados.snippet}`);
+  if (dados.subject && dados.subject !== dados.snippet) partes.push(`Título: ${dados.subject}`);
+  if (dados.from) partes.push(`Remetente: ${dados.from}`);
+  if (dados.date) partes.push(`Data: ${dados.date}`);
+  return partes.join(' | ');
+}
 
 export class RelatorioService {
   constructor() {
@@ -112,7 +130,7 @@ export class RelatorioService {
           prompt_id, 
           orcamento_geral,
           proposta_email,
-          prompt:prompts(id, texto_original, cliente)
+          prompt:prompts(id, texto_original, cliente, dados_bruto)
         `)
         .eq('id', cotacaoId)
         .single();
@@ -276,16 +294,19 @@ export class RelatorioService {
             }
           }
         }
-      }
+  }
+  const promptObj = (cotacao as any).prompt;
+  formarStringComdadosBrutos(promptObj?.dados_bruto);
 
       // Estruturar dados para o relatório
+  // promptObj já normalizado acima; manter uso como objeto
       const data: RelatorioData = {
         cotacaoId: cotacao.id,
         promptId: cotacao.prompt_id,
-        solicitacao: (cotacao as any).prompt?.texto_original || 'Solicitação não encontrada',
+        solicitacao: promptObj?.texto_original || 'Solicitação não encontrada',
         orcamentoGeral: cotacao.orcamento_geral,
-        cliente: (cotacao as any).prompt?.cliente || {},
-        propostaEmail: (cotacao as any).proposta_email,
+        cliente: promptObj?.cliente || {},
+        propostaEmail: cotacao.proposta_email,
         analiseCache,
         analiseLocal,
         analiseWeb,

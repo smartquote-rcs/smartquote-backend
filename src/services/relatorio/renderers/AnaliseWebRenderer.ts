@@ -18,7 +18,7 @@ public adicionarSecaoAnaliseWeb(doc: PDFKit.PDFDocument, data: RelatorioData) {
   const contentWidth = pageWidth - margin * 2;
 
   // Ensure sufficient page space
-  this.verificarEspacoPagina(doc, 80);
+  this.verificarEspacoPagina(doc, 180);
 
   // ========== Section Header ==========
   doc

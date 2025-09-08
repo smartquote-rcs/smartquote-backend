@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import RelatorioService from '../services/RelatorioService';
+import GeminiInterpretationService from '../services/GeminiInterpretationService';
 import { ExportService } from '../services/relatorio/ExportService';
 import supabase from '../infra/supabase/connect';
 import fs from 'fs';
@@ -239,55 +240,31 @@ export default class RelatoriosController {
       if (isNaN(cotacaoIdNum)) {
         return res.status(400).json({ success: false, message: 'ID da cotação deve ser um número válido' });
       }
-      const { data: cotacao, error: cotacaoError } = await supabase
+      const { data: cotacao, error: cotError } = await supabase
         .from('cotacoes')
         .select('id')
         .eq('id', cotacaoIdNum)
         .single();
-      if (cotacaoError || !cotacao) {
+      if (cotError || !cotacao) {
         return res.status(404).json({ success: false, message: 'Cotação não encontrada' });
       }
-      const { data: relatorioExistente, error: buscaError } = await supabase
-        .from('relatorios')
-        .select('id, versao')
-        .eq('cotacao_id', cotacaoIdNum)
-        .order('id', { ascending: false })
-        .limit(1)
+
+      const { data, error } = await supabase
+        .from('cotacoes')
+        .update({ proposta_email: propostaEmail, atualizado_em: new Date().toISOString() as any })
+        .eq('id', cotacaoIdNum)
+        .select()
         .single();
-      let resultado;
-      if (buscaError && buscaError.code === 'PGRST116') {
-        const { data, error } = await supabase
-          .from('relatorios')
-          .insert({ cotacao_id: cotacaoIdNum, proposta_email: propostaEmail, status: 'rascunho', versao: 1 })
-          .select()
-          .single();
-        if (error) {
-          return res.status(500).json({ success: false, message: 'Erro ao criar relatório com proposta de email', error: error.message });
-        }
-        resultado = data;
-      } else if (relatorioExistente) {
-        const { data, error } = await supabase
-          .from('relatorios')
-          .update({ proposta_email: propostaEmail, atualizado_em: new Date().toISOString() })
-          .eq('id', relatorioExistente.id)
-          .select()
-          .single();
-        if (error) {
-          return res.status(500).json({ success: false, message: 'Erro ao atualizar proposta de email', error: error.message });
-        }
-        resultado = data;
-      } else {
-        return res.status(500).json({ success: false, message: 'Erro ao verificar relatório existente', error: buscaError.message });
+      if (error) {
+        return res.status(500).json({ success: false, message: 'Erro ao atualizar proposta de email', error: error.message });
       }
+
       res.json({
         success: true,
         message: 'Proposta de email atualizada com sucesso',
         data: {
-          relatorioId: resultado.id,
           cotacaoId: cotacaoIdNum,
-          versao: resultado.versao,
-          status: resultado.status,
-          atualizadoEm: resultado.atualizado_em
+          propostaEmail: data?.proposta_email
         }
       });
     } catch (error: any) {
@@ -304,25 +281,103 @@ export default class RelatoriosController {
     if (isNaN(cotacaoIdNum)) {
       return res.status(400).json({ success: false, message: 'ID da cotação deve ser um número válido' });
     }
-    const { data: relatorio, error: buscaError } = await supabase
-      .from('relatorios')
+    // Buscar proposta diretamente na tabela de cotações
+    const { data: cot, error: cotacaoError } = await supabase
+      .from('cotacoes')
       .select('id, proposta_email')
-      .eq('cotacao_id', cotacaoIdNum)
-      .order('id', { ascending: false })
-      .limit(1)
+      .eq('id', cotacaoIdNum)
       .single();
-    if (buscaError) {
-      return res.status(500).json({ success: false, message: 'Erro ao buscar proposta de email', error: buscaError.message });
+    if (cotacaoError || !cot) {
+      return res.status(404).json({ success: false, message: 'Cotação não encontrada' });
     }
-    if (!relatorio) {
-      return res.status(404).json({ success: false, message: 'Proposta de email não encontrada' });
+
+    let propostaEmail = (cot as any).proposta_email as string | null;
+
+    // Se não houver proposta, gerar um template padrão com base nos dados do relatório
+    if (!propostaEmail || propostaEmail.trim().length === 0) {
+      try {
+        const dataRel = await RelatorioService.gerarDadosRelatorio(cotacaoIdNum);
+
+        const totalAnalises = (dataRel?.analiseLocal?.length || 0) + (dataRel?.analiseWeb?.length || 0);
+        const valorTotal = (dataRel?.orcamentoGeral || 0).toLocaleString('pt-AO', {
+          style: 'currency',
+          currency: 'AOA',
+          minimumFractionDigits: 2,
+        });
+
+        const nomeCliente = (dataRel as any)?.cliente?.nome || 'Cliente';
+
+        const templateDefault = `Prezado(a) ${nomeCliente},
+
+Espero que esta mensagem o(a) encontre bem.
+
+Tenho o prazer de apresentar nossa proposta comercial detalhada para sua solicitação de cotação #${cotacaoIdNum}.
+
+=== RESUMO DA PROPOSTA ===
+
+• Investimento Total: ${valorTotal}
+• Itens/Análises consideradas: ${totalAnalises}
+• Prazo de Entrega: 5-10 dias úteis
+• Validade da Proposta: 30 dias
+
+=== NOSSA METODOLOGIA ===
+
+Nossa equipe técnica realizou análise detalhada para garantir:
+✓ Melhor custo-benefício do mercado
+✓ Produtos de qualidade comprovada
+✓ Análise comparativa detalhada
+✓ Recomendações personalizadas
+
+=== PRÓXIMOS PASSOS ===
+
+1. Análise da proposta apresentada
+2. Esclarecimento de dúvidas (se necessário)
+3. Aprovação e formalização do pedido
+4. Início da execução conforme cronograma
+
+=== INFORMAÇÕES IMPORTANTES ===
+
+• Todos os preços incluem impostos aplicáveis
+• Condições de pagamento: A combinar
+• Garantia: Conforme especificação de cada produto
+• Suporte técnico: Incluído no primeiro ano
+
+Estamos à disposição para esclarecer qualquer dúvida e ajustar a proposta conforme suas necessidades específicas.
+
+Aguardamos seu retorno e esperamos iniciar esta parceria em breve.
+
+Atenciosamente,
+
+Equipe SmartQuote
+E-mail: contato@smartquote.ao
+Telefone: +244 XXX XXX XXX
+
+---
+Este é um relatório gerado automaticamente pelo sistema SmartQuote.
+Para mais informações, visite: www.smartquote.ao`;
+
+        // Persistir na coluna da cotação
+        const { error: updErr } = await supabase
+          .from('cotacoes')
+          .update({ proposta_email: templateDefault, atualizado_em: new Date().toISOString() as any })
+          .eq('id', cotacaoIdNum);
+        if (!updErr) {
+          propostaEmail = templateDefault;
+        } else {
+          console.warn('[RELATORIO] Falha ao persistir proposta_email default:', updErr.message);
+          propostaEmail = templateDefault; // mesmo com falha, retornar o template
+        }
+      } catch (e: any) {
+        return res.status(500).json({ success: false, message: 'Erro ao gerar template de email padrão', error: e?.message || String(e) });
+      }
     }
-    res.json({
+
+    return res.json({
       success: true,
       message: 'Proposta de email obtida com sucesso',
       data: {
-        relatorioId: relatorio.id,
-        propostaEmail: relatorio.proposta_email
+        cotacaoId: cotacaoIdNum,
+        propostaEmail: propostaEmail
       }
     });
   }
@@ -392,6 +447,44 @@ export default class RelatoriosController {
         message: 'Erro ao gerar relatório XLSX', 
         error: error.message 
       });
+    }
+  }
+
+  /**
+   * Gera um email reformulado por IA com base no email original e um prompt de modificação
+   */
+  static async gerarPropostaEmailIA(req: Request, res: Response) {
+    try {
+      const { cotacaoId } = req.params;
+      const { emailOriginal, promptModificacao } = req.body || {};
+
+      if (!cotacaoId) {
+        return res.status(400).json({ success: false, message: 'ID da cotação é obrigatório' });
+      }
+      const cotacaoIdNum = parseInt(cotacaoId);
+      if (isNaN(cotacaoIdNum)) {
+        return res.status(400).json({ success: false, message: 'ID da cotação deve ser um número válido' });
+      }
+      if (!emailOriginal || typeof emailOriginal !== 'string' || emailOriginal.trim().length === 0) {
+        return res.status(400).json({ success: false, message: 'emailOriginal é obrigatório' });
+      }
+      if (!promptModificacao || typeof promptModificacao !== 'string' || promptModificacao.trim().length === 0) {
+        return res.status(400).json({ success: false, message: 'promptModificacao é obrigatório' });
+      }
+
+      // Gera dados consolidados do relatório usados como contexto
+      const dados = await RelatorioService.gerarDadosRelatorio(cotacaoIdNum);
+      if (!dados) {
+        return res.status(500).json({ success: false, message: 'Falha ao obter dados do relatório para a cotação' });
+      }
+
+      // Usa Gemini para reformular
+      const gemini = new GeminiInterpretationService();
+      const resultado = await gemini.gerarTemplateEmailTextoIA(dados, emailOriginal, promptModificacao);
+
+      return res.json({ success: true, data: resultado });
+    } catch (error: any) {
+      return res.status(500).json({ success: false, message: 'Erro ao gerar email com IA', error: error?.message || String(error) });
     }
   }
 }

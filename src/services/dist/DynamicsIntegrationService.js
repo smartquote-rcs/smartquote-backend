@@ -1,4 +1,15 @@
 "use strict";
+var __assign = (this && this.__assign) || function () {
+    __assign = Object.assign || function(t) {
+        for (var s, i = 1, n = arguments.length; i < n; i++) {
+            s = arguments[i];
+            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
+                t[p] = s[p];
+        }
+        return t;
+    };
+    return __assign.apply(this, arguments);
+};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -46,9 +57,20 @@ var __rest = (this && this.__rest) || function (s, e) {
         }
     return t;
 };
+var __spreadArrays = (this && this.__spreadArrays) || function () {
+    for (var s = 0, i = 0, il = arguments.length; i < il; i++) s += arguments[i].length;
+    for (var r = Array(s), k = 0, i = 0; i < il; i++)
+        for (var a = arguments[i], j = 0, jl = a.length; j < jl; j++, k++)
+            r[k] = a[j];
+    return r;
+};
 exports.__esModule = true;
 var DynamicsIntegrationService = /** @class */ (function () {
     function DynamicsIntegrationService() {
+        /**
+         * Processa uma cotação aprovada e tenta enviá-la para o Dynamics
+         */
+        this.cotacoesProcessadas = new Set();
         this.config = {
             webApiEndpoint: process.env.DYNAMICS_WEB_API_ENDPOINT || '',
             azureTenantId: process.env.AZURE_TENANT_ID || '',
@@ -172,53 +194,6 @@ var DynamicsIntegrationService = /** @class */ (function () {
         });
     };
     /**
-     * Transforma dados da cotação para formato do Dynamics
-     */
-    DynamicsIntegrationService.prototype.transformCotacaoToDynamicsSimples = function (cotacao, entidade) {
-        console.log("\uD83D\uDD04 [DYNAMICS] Transformando cota\u00E7\u00E3o " + cotacao.id + " para entidade " + entidade);
-        var entity = {};
-        if (entidade === 'quotes') {
-            entity.name = "Cota\u00E7\u00E3o #" + cotacao.id + " - SmartQuote";
-            entity.description = cotacao.motivo || "Cota\u00E7\u00E3o gerada no SmartQuote - ID " + cotacao.id;
-            entity.quotenumber = "SQ-" + cotacao.id;
-            if (cotacao.orcamento_geral)
-                entity.totalamount = cotacao.orcamento_geral;
-            entity.statecode = 0; // Ativo
-            entity.statuscode = 1; // Em progresso
-        }
-        if (entidade === 'opportunities') {
-            entity.name = "Oportunidade #" + cotacao.id + " - SmartQuote";
-            entity.description = cotacao.motivo || "Oportunidade gerada no SmartQuote - ID " + cotacao.id;
-            if (cotacao.orcamento_geral)
-                entity.estimatedvalue = cotacao.orcamento_geral;
-            entity.statecode = 0; // Aberto
-            entity.statuscode = 1; // Em progresso
-        }
-        if (entidade === 'incidents') {
-            entity.title = "Ticket #" + cotacao.id + " - SmartQuote";
-            entity.description = cotacao.motivo || "Ticket gerado no SmartQuote - ID " + cotacao.id;
-            entity.ticketnumber = "SQ-" + cotacao.id;
-            entity.prioritycode = 2; // Normal
-            entity.severitycode = 1; // Padrão (valor válido)
-            entity.statecode = 0; // Ativo
-            entity.statuscode = 1; // Em progresso
-        }
-        if (entidade === 'leads') {
-            entity.fullname = "Lead SmartQuote #" + cotacao.id;
-            entity.subject = "Lead da cota\u00E7\u00E3o #" + cotacao.id;
-            entity.description = cotacao.motivo || "Lead gerado no SmartQuote - ID " + cotacao.id;
-            entity.firstname = 'SmartQuote';
-            entity.lastname = "Lead " + cotacao.id;
-            entity.companyname = 'SmartQuote System';
-            if (cotacao.orcamento_geral)
-                entity.budgetamount = cotacao.orcamento_geral;
-            entity.statecode = 0; // Ativo
-            entity.statuscode = 1; // Novo
-        }
-        console.log("\u2705 [DYNAMICS] Payload simples criado:", JSON.stringify(entity, null, 2));
-        return entity;
-    };
-    /**
      * Envia dados para o Dynamics 365
      */
     DynamicsIntegrationService.prototype.enviarParaDynamics = function (entity, entityName) {
@@ -297,52 +272,220 @@ var DynamicsIntegrationService = /** @class */ (function () {
             });
         });
     };
-    /**
-     * Processa cotação aprovada e envia para Dynamics
-     */
     DynamicsIntegrationService.prototype.processarCotacaoAprovada = function (cotacao) {
         return __awaiter(this, void 0, Promise, function () {
-            var entidadesCandidatas, _i, entidadesCandidatas_1, entidade, entity, sucesso, error_4;
+            var cotacaoComItens, entidadesParaTestar, _i, entidadesParaTestar_1, entidade, entity, resultado, error_4, err_1;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
+                        // Verificar se já foi processada
+                        if (this.cotacoesProcessadas.has(cotacao.id)) {
+                            console.log("\u26A0\uFE0F [DYNAMICS] Cota\u00E7\u00E3o " + cotacao.id + " j\u00E1 foi processada, ignorando...");
+                            return [2 /*return*/, true];
+                        }
+                        this.cotacoesProcessadas.add(cotacao.id);
                         console.log("\uD83D\uDCCB [DYNAMICS] Processando cota\u00E7\u00E3o aprovada ID: " + cotacao.id);
-                        entidadesCandidatas = ['quotes', 'opportunities', 'incidents', 'leads'];
-                        _i = 0, entidadesCandidatas_1 = entidadesCandidatas;
-                        _a.label = 1;
+                        return [4 /*yield*/, this.buscarCotacaoComItens(cotacao.id)];
                     case 1:
-                        if (!(_i < entidadesCandidatas_1.length)) return [3 /*break*/, 6];
-                        entidade = entidadesCandidatas_1[_i];
+                        cotacaoComItens = _a.sent();
+                        entidadesParaTestar = ['quotes', 'opportunities', 'incidents', 'leads'];
+                        _i = 0, entidadesParaTestar_1 = entidadesParaTestar;
                         _a.label = 2;
                     case 2:
-                        _a.trys.push([2, 4, , 5]);
+                        if (!(_i < entidadesParaTestar_1.length)) return [3 /*break*/, 7];
+                        entidade = entidadesParaTestar_1[_i];
                         console.log("\uD83C\uDFAF [DYNAMICS] Tentando enviar como " + entidade + "...");
-                        entity = this.transformCotacaoToDynamicsSimples(cotacao, entidade);
-                        return [4 /*yield*/, this.enviarParaDynamics(entity, entidade)];
+                        _a.label = 3;
                     case 3:
-                        sucesso = _a.sent();
-                        if (sucesso) {
+                        _a.trys.push([3, 5, , 6]);
+                        entity = this.transformCotacaoToDynamics(cotacaoComItens, entidade);
+                        return [4 /*yield*/, this.enviarParaDynamics(entity, entidade)];
+                    case 4:
+                        resultado = _a.sent();
+                        if (resultado) {
                             console.log("\u2705 [DYNAMICS] Cota\u00E7\u00E3o " + cotacao.id + " enviada com sucesso como " + entidade + "!");
                             return [2 /*return*/, true];
                         }
-                        else {
-                            console.log("\u274C [DYNAMICS] Falha ao enviar como " + entidade + ", tentando pr\u00F3xima...");
-                        }
-                        return [3 /*break*/, 5];
-                    case 4:
-                        error_4 = _a.sent();
-                        console.error("\u274C [DYNAMICS] Erro ao tentar " + entidade + ":", error_4);
-                        console.log("\u274C [DYNAMICS] Falha ao enviar como " + entidade + ", tentando pr\u00F3xima...");
-                        return [3 /*break*/, 5];
+                        return [3 /*break*/, 6];
                     case 5:
-                        _i++;
-                        return [3 /*break*/, 1];
+                        error_4 = _a.sent();
+                        console.log("\u274C [DYNAMICS] Falha ao enviar como " + entidade + ", tentando pr\u00F3xima...");
+                        return [3 /*break*/, 6];
                     case 6:
-                        console.error("\u274C [DYNAMICS] Falha ao enviar cota\u00E7\u00E3o " + cotacao.id + " em todas as entidades testadas");
-                        return [2 /*return*/, false];
+                        _i++;
+                        return [3 /*break*/, 2];
+                    case 7:
+                        console.log("\u274C [DYNAMICS] Falha ao enviar cota\u00E7\u00E3o " + cotacao.id + " em todas as entidades testadas");
+                        _a.label = 8;
+                    case 8:
+                        _a.trys.push([8, 10, , 11]);
+                        console.log("\uD83D\uDD0D [DYNAMICS] Consultando entidades dispon\u00EDveis...");
+                        return [4 /*yield*/, this.consultarEntidadesDisponiveis()];
+                    case 9:
+                        _a.sent();
+                        return [3 /*break*/, 11];
+                    case 10:
+                        err_1 = _a.sent();
+                        console.error('Erro ao consultar entidades:', err_1);
+                        return [3 /*break*/, 11];
+                    case 11: return [2 /*return*/, false];
                 }
             });
         });
+    };
+    /**
+     * Busca a cotação junto com seus itens para ter dados mais ricos
+     */
+    DynamicsIntegrationService.prototype.buscarCotacaoComItens = function (cotacaoId) {
+        return __awaiter(this, void 0, Promise, function () {
+            var supabase, _a, cotacao, errorCotacao, _b, itens, errorItens, error_5;
+            return __generator(this, function (_c) {
+                switch (_c.label) {
+                    case 0:
+                        _c.trys.push([0, 3, , 4]);
+                        supabase = require('../infra/supabase/connect')["default"];
+                        return [4 /*yield*/, supabase
+                                .from('cotacoes')
+                                .select('*')
+                                .eq('id', cotacaoId)
+                                .single()];
+                    case 1:
+                        _a = _c.sent(), cotacao = _a.data, errorCotacao = _a.error;
+                        if (errorCotacao) {
+                            console.warn("\u26A0\uFE0F [DYNAMICS] Erro ao buscar cota\u00E7\u00E3o " + cotacaoId + ":", errorCotacao);
+                            return [2 /*return*/, { id: cotacaoId, itens: [], orcamento_geral: 0 }];
+                        }
+                        return [4 /*yield*/, supabase
+                                .from('cotacoes_itens')
+                                .select('*')
+                                .eq('cotacao_id', cotacaoId)];
+                    case 2:
+                        _b = _c.sent(), itens = _b.data, errorItens = _b.error;
+                        if (errorItens) {
+                            console.warn("\u26A0\uFE0F [DYNAMICS] Erro ao buscar itens da cota\u00E7\u00E3o " + cotacaoId + ":", errorItens);
+                        }
+                        console.log("\uD83D\uDCE6 [DYNAMICS] Cota\u00E7\u00E3o " + cotacaoId + " - Or\u00E7amento: R$ " + (cotacao.orcamento_geral || 0) + " - Itens: " + ((itens === null || itens === void 0 ? void 0 : itens.length) || 0));
+                        return [2 /*return*/, __assign(__assign({}, cotacao), { itens: itens || [], customerNeed: this.montarCustomerNeed(itens || []) })];
+                    case 3:
+                        error_5 = _c.sent();
+                        console.error("\u274C [DYNAMICS] Erro ao buscar cota\u00E7\u00E3o com itens:", error_5);
+                        return [2 /*return*/, { id: cotacaoId, itens: [], orcamento_geral: 0 }];
+                    case 4: return [2 /*return*/];
+                }
+            });
+        });
+    };
+    /**
+     * Monta a descrição customer need baseada nos pedidos dos itens
+     */
+    DynamicsIntegrationService.prototype.montarCustomerNeed = function (itens) {
+        if (!itens || itens.length === 0) {
+            return 'Cotação aprovada sem itens específicos';
+        }
+        var pedidos = itens
+            .filter(function (item) { return item.pedido && item.pedido.trim(); })
+            .map(function (item) { return "\u2022 " + item.pedido; })
+            .join('\n');
+        var itensComNome = itens
+            .filter(function (item) { return item.item_nome && item.item_nome.trim(); })
+            .map(function (item) { return "\u2022 " + item.item_nome + (item.quantidade ? " (Qtd: " + item.quantidade + ")" : ''); })
+            .join('\n');
+        var description = 'NECESSIDADES DO CLIENTE:\n';
+        if (pedidos) {
+            description += pedidos + '\n\n';
+        }
+        if (itensComNome) {
+            description += 'ITENS COTADOS:\n' + itensComNome;
+        }
+        return description;
+    };
+    /**
+     * Transforma uma cotação (com itens) em formato para Dynamics
+     */
+    DynamicsIntegrationService.prototype.transformCotacaoToDynamics = function (cotacao, entityName) {
+        console.log("\uD83D\uDD04 [DYNAMICS] Transformando cota\u00E7\u00E3o " + cotacao.id + " para entidade " + entityName);
+        var baseDescription = "Cota\u00E7\u00E3o gerada no SmartQuote - ID " + cotacao.id;
+        var customerNeed = cotacao.customerNeed || this.extrairPedidosPrincipais(cotacao.itens);
+        switch (entityName) {
+            case 'quotes':
+                return {
+                    name: "Cota\u00E7\u00E3o #" + cotacao.id + " - SmartQuote",
+                    description: baseDescription,
+                    quotenumber: "SQ-" + cotacao.id,
+                    totalamount: cotacao.orcamento_geral || 0,
+                    statecode: 0,
+                    statuscode: 1
+                };
+            case 'opportunities':
+                return {
+                    name: "Oportunidade #" + cotacao.id + " - SmartQuote",
+                    description: baseDescription,
+                    customerneed: customerNeed,
+                    estimatedvalue: cotacao.orcamento_geral || 0,
+                    statecode: 0,
+                    statuscode: 1
+                };
+            case 'incidents':
+                return {
+                    title: "Ticket #" + cotacao.id + " - SmartQuote",
+                    description: baseDescription,
+                    ticketnumber: "SQ-" + cotacao.id,
+                    prioritycode: 2,
+                    severitycode: 1,
+                    statecode: 0,
+                    statuscode: 1
+                };
+            case 'leads':
+                return {
+                    fullname: "Lead SmartQuote #" + cotacao.id,
+                    subject: "Lead da cota\u00E7\u00E3o #" + cotacao.id,
+                    description: baseDescription,
+                    firstname: 'SmartQuote',
+                    lastname: "Lead " + cotacao.id,
+                    companyname: 'SmartQuote System',
+                    budgetamount: cotacao.orcamento_geral || 0,
+                    statecode: 0,
+                    statuscode: 1
+                };
+            default:
+                return {
+                    name: "Cota\u00E7\u00E3o #" + cotacao.id + " - SmartQuote",
+                    description: baseDescription
+                };
+        }
+    };
+    /**
+     * Extrai os pedidos principais dos itens de forma concisa para o campo customerneed
+     */
+    DynamicsIntegrationService.prototype.extrairPedidosPrincipais = function (itens) {
+        if (!itens || itens.length === 0) {
+            return 'Customer needs high-quality products and services to meet business requirements.';
+        }
+        // Buscar pedidos únicos e formatá-los de forma concisa
+        var pedidosUnicos = __spreadArrays(new Set(itens
+            .filter(function (item) { return item.pedido && item.pedido.trim(); })
+            .map(function (item) { return item.pedido.trim(); })));
+        if (pedidosUnicos.length === 0) {
+            // Se não há pedidos específicos, criar baseado nos itens
+            var itensNomes = itens
+                .filter(function (item) { return item.item_nome && item.item_nome.trim(); })
+                .slice(0, 3) // Pegar apenas os 3 primeiros
+                .map(function (item) { return item.item_nome.trim(); });
+            if (itensNomes.length > 0) {
+                return "Customer needs " + itensNomes.join(', ') + " to enhance business operations.";
+            }
+        }
+        // Juntar pedidos de forma legível
+        if (pedidosUnicos.length === 1) {
+            return pedidosUnicos[0];
+        }
+        else if (pedidosUnicos.length <= 3) {
+            return pedidosUnicos.join('. ') + '.';
+        }
+        else {
+            // Se há muitos pedidos, resumir
+            return pedidosUnicos.slice(0, 2).join('. ') + (" and " + (pedidosUnicos.length - 2) + " additional requirements.");
+        }
     };
     /**
      * Busca todas as oportunidades (opportunities) no Dynamics 365
@@ -350,7 +493,7 @@ var DynamicsIntegrationService = /** @class */ (function () {
     DynamicsIntegrationService.prototype.listarOportunidades = function () {
         var _a;
         return __awaiter(this, void 0, Promise, function () {
-            var token, url, response, errorText, data, error_5;
+            var token, url, response, errorText, data, error_6;
             return __generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
@@ -382,9 +525,9 @@ var DynamicsIntegrationService = /** @class */ (function () {
                         console.log("\u2705 [DYNAMICS] " + (((_a = data.value) === null || _a === void 0 ? void 0 : _a.length) || 0) + " oportunidades encontradas");
                         return [2 /*return*/, data.value || []];
                     case 6:
-                        error_5 = _b.sent();
-                        console.error('❌ [DYNAMICS] Erro ao listar oportunidades:', error_5);
-                        throw error_5;
+                        error_6 = _b.sent();
+                        console.error('❌ [DYNAMICS] Erro ao listar oportunidades:', error_6);
+                        throw error_6;
                     case 7: return [2 /*return*/];
                 }
             });
@@ -395,7 +538,7 @@ var DynamicsIntegrationService = /** @class */ (function () {
      */
     DynamicsIntegrationService.prototype.listarEntidadesDisponiveis = function () {
         return __awaiter(this, void 0, Promise, function () {
-            var token, headers, baseUrl, response, _a, _b, _c, data, entidades_1, error_6;
+            var token, headers, baseUrl, response, _a, _b, _c, data, entidades_1, error_7;
             return __generator(this, function (_d) {
                 switch (_d.label) {
                     case 0:
@@ -452,8 +595,8 @@ var DynamicsIntegrationService = /** @class */ (function () {
                         console.log("\uD83D\uDCCB [DYNAMICS] Primeiras 10:", entidades_1.slice(0, 10));
                         return [2 /*return*/, entidades_1];
                     case 6:
-                        error_6 = _d.sent();
-                        console.error("\u274C [DYNAMICS] Erro ao listar entidades:", error_6);
+                        error_7 = _d.sent();
+                        console.error("\u274C [DYNAMICS] Erro ao listar entidades:", error_7);
                         return [2 /*return*/, []];
                     case 7: return [2 /*return*/];
                 }
@@ -465,7 +608,7 @@ var DynamicsIntegrationService = /** @class */ (function () {
      */
     DynamicsIntegrationService.prototype.consultarEntidadesDisponiveis = function () {
         return __awaiter(this, void 0, Promise, function () {
-            var token, headers, metadataUrl, response, _a, _b, _c, metadataXml, entityMatches, quotesRelated_1, salesRelated_1, allEntities_1, error_7;
+            var token, headers, metadataUrl, response, _a, _b, _c, metadataXml, entityMatches, quotesRelated_1, salesRelated_1, allEntities_1, error_8;
             return __generator(this, function (_d) {
                 switch (_d.label) {
                     case 0:
@@ -530,8 +673,8 @@ var DynamicsIntegrationService = /** @class */ (function () {
                                 salesRelated: salesRelated_1
                             }];
                     case 6:
-                        error_7 = _d.sent();
-                        console.error("\u274C [DYNAMICS] Erro ao consultar entidades:", error_7);
+                        error_8 = _d.sent();
+                        console.error("\u274C [DYNAMICS] Erro ao consultar entidades:", error_8);
                         return [2 /*return*/, {
                                 entidades: [],
                                 quotesRelated: [],
@@ -547,7 +690,7 @@ var DynamicsIntegrationService = /** @class */ (function () {
      */
     DynamicsIntegrationService.prototype.consultarEntidadesPadrao = function () {
         return __awaiter(this, void 0, Promise, function () {
-            var token, headers, baseUrl, accountsResponse, accounts, _a, currenciesResponse, currencies, _b, pricelevelsResponse, pricelevels, _c, error_8;
+            var token, headers, baseUrl, accountsResponse, accounts, _a, currenciesResponse, currencies, _b, pricelevelsResponse, pricelevels, _c, error_9;
             return __generator(this, function (_d) {
                 switch (_d.label) {
                     case 0:
@@ -620,8 +763,8 @@ var DynamicsIntegrationService = /** @class */ (function () {
                                 pricelevels: pricelevels
                             }];
                     case 14:
-                        error_8 = _d.sent();
-                        console.error("\u274C [DYNAMICS] Erro ao consultar entidades padr\u00E3o:", error_8);
+                        error_9 = _d.sent();
+                        console.error("\u274C [DYNAMICS] Erro ao consultar entidades padr\u00E3o:", error_9);
                         return [2 /*return*/, {
                                 accounts: [],
                                 currencies: [],

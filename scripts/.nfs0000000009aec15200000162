@@ -1,0 +1,20 @@
+# Configuração para tornar Supabase case-sensitive para emails
+# Execute estes comandos no terminal:
+
+# 1. Instalar Supabase CLI (se não tiver)
+npm install -g @supabase/cli
+
+# 2. Fazer login no Supabase
+supabase login
+
+# 3. Conectar ao projeto
+supabase link --project-ref hpkbzabbwghxlsoyvomq
+
+# 4. Criar e aplicar migração
+supabase migration new email_case_sensitive
+
+# 5. Editar o arquivo de migração gerado e adicionar o SQL do arquivo
+# supabase-email-case-sensitive.sql
+
+# 6. Aplicar a migração
+supabase db push

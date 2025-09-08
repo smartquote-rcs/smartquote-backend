@@ -137,57 +137,6 @@ class DynamicsIntegrationService {
   }
 
   /**
-   * Transforma dados da cotação para formato do Dynamics
-   */
-  private transformCotacaoToDynamicsSimples(cotacao: CotacaoDTO, entidade: string): DynamicsEntity {
-    console.log(`🔄 [DYNAMICS] Transformando cotação ${cotacao.id} para entidade ${entidade}`);
-
-    const entity: DynamicsEntity = {};
-
-    if (entidade === 'quotes') {
-      entity.name = `Cotação #${cotacao.id} - SmartQuote`;
-      entity.description = cotacao.motivo || `Cotação gerada no SmartQuote - ID ${cotacao.id}`;
-      entity.quotenumber = `SQ-${cotacao.id}`;
-      if (cotacao.orcamento_geral) entity.totalamount = cotacao.orcamento_geral;
-      entity.statecode = 0; // Ativo
-      entity.statuscode = 1; // Em progresso
-    }
-
-    if (entidade === 'opportunities') {
-      entity.name = `Oportunidade #${cotacao.id} - SmartQuote`;
-      entity.description = cotacao.motivo || `Oportunidade gerada no SmartQuote - ID ${cotacao.id}`;
-      if (cotacao.orcamento_geral) entity.estimatedvalue = cotacao.orcamento_geral;
-      entity.statecode = 0; // Aberto
-      entity.statuscode = 1; // Em progresso
-    }
-
-    if (entidade === 'incidents') {
-      entity.title = `Ticket #${cotacao.id} - SmartQuote`;
-      entity.description = cotacao.motivo || `Ticket gerado no SmartQuote - ID ${cotacao.id}`;
-      entity.ticketnumber = `SQ-${cotacao.id}`;
-      entity.prioritycode = 2; // Normal
-      entity.severitycode = 1; // Padrão (valor válido)
-      entity.statecode = 0; // Ativo
-      entity.statuscode = 1; // Em progresso
-    }
-
-    if (entidade === 'leads') {
-      entity.fullname = `Lead SmartQuote #${cotacao.id}`;
-      entity.subject = `Lead da cotação #${cotacao.id}`;
-      entity.description = cotacao.motivo || `Lead gerado no SmartQuote - ID ${cotacao.id}`;
-      entity.firstname = 'SmartQuote';
-      entity.lastname = `Lead ${cotacao.id}`;
-      entity.companyname = 'SmartQuote System';
-      if (cotacao.orcamento_geral) entity.budgetamount = cotacao.orcamento_geral;
-      entity.statecode = 0; // Ativo
-      entity.statuscode = 1; // Novo
-    }
-
-    console.log(`✅ [DYNAMICS] Payload simples criado:`, JSON.stringify(entity, null, 2));
-    return entity;
-  }
-
-  /**
    * Envia dados para o Dynamics 365
    */
   private async enviarParaDynamics(entity: DynamicsEntity, entityName?: string): Promise<boolean> {
@@ -267,34 +216,239 @@ class DynamicsIntegrationService {
   }
 
   /**
-   * Processa cotação aprovada e envia para Dynamics
+   * Processa uma cotação aprovada e tenta enviá-la para o Dynamics
    */
-  async processarCotacaoAprovada(cotacao: CotacaoDTO): Promise<boolean> {
+
+  private cotacoesProcessadas = new Set<number>();
+
+  async processarCotacaoAprovada(cotacao: any): Promise<boolean> {
+    // Verificar se já foi processada
+    if (this.cotacoesProcessadas.has(cotacao.id)) {
+      console.log(`⚠️ [DYNAMICS] Cotação ${cotacao.id} já foi processada, ignorando...`);
+      return true;
+    }
+    
+    this.cotacoesProcessadas.add(cotacao.id);
     console.log(`📋 [DYNAMICS] Processando cotação aprovada ID: ${cotacao.id}`);
-
-    const entidadesCandidatas = ['quotes', 'opportunities', 'incidents', 'leads'];
-
-    for (const entidade of entidadesCandidatas) {
+      
+    // Buscar itens da cotação para enriquecer os dados
+    const cotacaoComItens = await this.buscarCotacaoComItens(cotacao.id);
+    
+    const entidadesParaTestar = ['quotes', 'opportunities', 'incidents', 'leads'];
+    
+    for (const entidade of entidadesParaTestar) {
+      console.log(`🎯 [DYNAMICS] Tentando enviar como ${entidade}...`);
+      
       try {
-        console.log(`🎯 [DYNAMICS] Tentando enviar como ${entidade}...`);
-        
-        const entity = this.transformCotacaoToDynamicsSimples(cotacao, entidade);
-        const sucesso = await this.enviarParaDynamics(entity, entidade);
+        const entity = this.transformCotacaoToDynamics(cotacaoComItens, entidade);
+        const resultado = await this.enviarParaDynamics(entity, entidade);
 
-        if (sucesso) {
+        if (resultado) {
           console.log(`✅ [DYNAMICS] Cotação ${cotacao.id} enviada com sucesso como ${entidade}!`);
           return true;
-        } else {
-          console.log(`❌ [DYNAMICS] Falha ao enviar como ${entidade}, tentando próxima...`);
         }
       } catch (error) {
-        console.error(`❌ [DYNAMICS] Erro ao tentar ${entidade}:`, error);
         console.log(`❌ [DYNAMICS] Falha ao enviar como ${entidade}, tentando próxima...`);
+        continue;
       }
     }
-
-    console.error(`❌ [DYNAMICS] Falha ao enviar cotação ${cotacao.id} em todas as entidades testadas`);
+    
+    console.log(`❌ [DYNAMICS] Falha ao enviar cotação ${cotacao.id} em todas as entidades testadas`);
+    
+    // Tentar descobrir entidades disponíveis
+    try {
+      console.log(`🔍 [DYNAMICS] Consultando entidades disponíveis...`);
+      await this.consultarEntidadesDisponiveis();
+    } catch (err) {
+      console.error('Erro ao consultar entidades:', err);
+    }
+    
     return false;
+  }
+
+  /**
+   * Busca a cotação junto com seus itens para ter dados mais ricos
+   */
+  private async buscarCotacaoComItens(cotacaoId: number): Promise<any> {
+    try {
+      // Importar supabase para buscar os dados
+      const supabase = require('../infra/supabase/connect').default;
+      
+      // Buscar dados da cotação principal
+      const { data: cotacao, error: errorCotacao } = await supabase
+        .from('cotacoes')
+        .select('*')
+        .eq('id', cotacaoId)
+        .single();
+      
+      if (errorCotacao) {
+        console.warn(`⚠️ [DYNAMICS] Erro ao buscar cotação ${cotacaoId}:`, errorCotacao);
+        return { id: cotacaoId, itens: [], orcamento_geral: 0 };
+      }
+      
+      // Buscar itens da cotação
+      const { data: itens, error: errorItens } = await supabase
+        .from('cotacoes_itens')
+        .select('*')
+        .eq('cotacao_id', cotacaoId);
+      
+      if (errorItens) {
+        console.warn(`⚠️ [DYNAMICS] Erro ao buscar itens da cotação ${cotacaoId}:`, errorItens);
+      }
+      
+      console.log(`📦 [DYNAMICS] Cotação ${cotacaoId} - Orçamento: R$ ${cotacao.orcamento_geral || 0} - Itens: ${itens?.length || 0}`);
+      
+      return {
+        ...cotacao, // Todos os dados da cotação (incluindo orcamento_geral)
+        itens: itens || [],
+        customerNeed: this.montarCustomerNeed(itens || [])
+      };
+      
+    } catch (error) {
+      console.error(`❌ [DYNAMICS] Erro ao buscar cotação com itens:`, error);
+      return { id: cotacaoId, itens: [], orcamento_geral: 0 };
+    }
+  }
+
+  /**
+   * Monta a descrição customer need baseada nos pedidos dos itens
+   */
+  private montarCustomerNeed(itens: any[]): string {
+    if (!itens || itens.length === 0) {
+      return 'Cotação aprovada sem itens específicos';
+    }
+    
+    const pedidos = itens
+      .filter(item => item.pedido && item.pedido.trim())
+      .map(item => `• ${item.pedido}`)
+      .join('\n');
+    
+    const itensComNome = itens
+      .filter(item => item.item_nome && item.item_nome.trim())
+      .map(item => `• ${item.item_nome}${item.quantidade ? ` (Qtd: ${item.quantidade})` : ''}`)
+      .join('\n');
+    
+    let description = 'NECESSIDADES DO CLIENTE:\n';
+    
+    if (pedidos) {
+      description += pedidos + '\n\n';
+    }
+    
+    if (itensComNome) {
+      description += 'ITENS COTADOS:\n' + itensComNome;
+    }
+    
+    return description;
+  }
+
+  /**
+   * Transforma uma cotação (com itens) em formato para Dynamics
+   */
+  private transformCotacaoToDynamics(cotacao: any, entityName: string): DynamicsEntity {
+    console.log(`🔄 [DYNAMICS] Transformando cotação ${cotacao.id} para entidade ${entityName}`);
+    
+    const baseDescription = `Cotação gerada no SmartQuote - ID ${cotacao.id}`;
+    const customerNeed = cotacao.customerNeed || this.extrairPedidosPrincipais(cotacao.itens);
+
+    switch (entityName) {
+      case 'quotes':
+        return {
+          name: `Cotação #${cotacao.id} - SmartQuote`,
+          description: baseDescription,
+          quotenumber: `SQ-${cotacao.id}`,
+          totalamount: cotacao.orcamento_geral || 0,
+          statecode: 0,
+          statuscode: 1,
+          // Adicione outros campos específicos de quotes aqui, se necessário
+        };
+        
+      case 'opportunities':
+        return {
+          name: `Oportunidade #${cotacao.id} - SmartQuote`,
+          description: baseDescription,
+          customerneed: customerNeed,
+          estimatedvalue: cotacao.orcamento_geral || 0,
+          statecode: 0,
+          statuscode: 1,
+          // Exemplos de campos adicionais (adicione conforme necessário e conforme o Dynamics aceita):
+          // parentaccountid: cotacao.parentaccountid,
+          // parentcontactid: cotacao.parentcontactid,
+          // opportunityratingcode: cotacao.opportunityratingcode,
+          // closeprobability: cotacao.closeprobability,
+          // estimatedclosedate: cotacao.estimatedclosedate,
+          // campaignid: cotacao.campaignid,
+          // transactioncurrencyid: cotacao.transactioncurrencyid,
+          // ...outros campos customizados...
+        };
+        
+      case 'incidents':
+        return {
+          title: `Ticket #${cotacao.id} - SmartQuote`,
+          description: baseDescription,
+          ticketnumber: `SQ-${cotacao.id}`,
+          prioritycode: 2,
+          severitycode: 1,
+          statecode: 0,
+          statuscode: 1
+        };
+        
+      case 'leads':
+        return {
+          fullname: `Lead SmartQuote #${cotacao.id}`,
+          subject: `Lead da cotação #${cotacao.id}`,
+          description: baseDescription,
+          firstname: 'SmartQuote',
+          lastname: `Lead ${cotacao.id}`,
+          companyname: 'SmartQuote System',
+          budgetamount: cotacao.orcamento_geral || 0,
+          statecode: 0,
+          statuscode: 1
+        };
+        
+      default:
+        return {
+          name: `Cotação #${cotacao.id} - SmartQuote`,
+          description: baseDescription
+        };
+    }
+  }
+
+  /**
+   * Extrai os pedidos principais dos itens de forma concisa para o campo customerneed
+   */
+  private extrairPedidosPrincipais(itens: any[]): string {
+    if (!itens || itens.length === 0) {
+      return 'Customer needs high-quality products and services to meet business requirements.';
+    }
+    
+    // Buscar pedidos únicos e formatá-los de forma concisa
+    const pedidosUnicos = [...new Set(
+      itens
+        .filter(item => item.pedido && item.pedido.trim())
+        .map(item => item.pedido.trim())
+    )];
+    
+    if (pedidosUnicos.length === 0) {
+      // Se não há pedidos específicos, criar baseado nos itens
+      const itensNomes = itens
+        .filter(item => item.item_nome && item.item_nome.trim())
+        .slice(0, 3) // Pegar apenas os 3 primeiros
+        .map(item => item.item_nome.trim());
+      
+      if (itensNomes.length > 0) {
+        return `Customer needs ${itensNomes.join(', ')} to enhance business operations.`;
+      }
+    }
+    
+    // Juntar pedidos de forma legível
+    if (pedidosUnicos.length === 1) {
+      return pedidosUnicos[0];
+    } else if (pedidosUnicos.length <= 3) {
+      return pedidosUnicos.join('. ') + '.';
+    } else {
+      // Se há muitos pedidos, resumir
+      return pedidosUnicos.slice(0, 2).join('. ') + ` and ${pedidosUnicos.length - 2} additional requirements.`;
+    }
   }
 
   /**

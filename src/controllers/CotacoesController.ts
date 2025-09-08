@@ -3,6 +3,7 @@ import CotacoesService from '../services/CotacoesService';
 import { cotacaoSchema } from '../schemas/CotacaoSchema';
 import { Cotacao } from '../models/Cotacao';
 import CotacaoNotificationService from '../services/CotacaoNotificationService';
+import DynamicsIntegrationService from '../services/DynamicsIntegrationService';
 
 class CotacoesController {
   async create(req: Request, res: Response): Promise<Response> {
@@ -105,8 +106,8 @@ class CotacoesController {
     try {
       const { id } = req.params;
       const updates = { ...req.body } as any;
-  if (updates.promptId && !updates.prompt_id) updates.prompt_id = updates.promptId;
-  if (updates.aprovadoPor && !updates.aprovado_por) updates.aprovado_por = updates.aprovadoPor;
+      if (updates.promptId && !updates.prompt_id) updates.prompt_id = updates.promptId;
+      if (updates.aprovadoPor && !updates.aprovado_por) updates.aprovado_por = updates.aprovadoPor;
       if (updates.orcamentoGeral && !updates.orcamento_geral) updates.orcamento_geral = updates.orcamentoGeral;
       if (updates.dataAprovacao && !updates.data_aprovacao) updates.data_aprovacao = updates.dataAprovacao;
       if (updates.dataSolicitacao && !updates.data_solicitacao) updates.data_solicitacao = updates.dataSolicitacao;
@@ -121,8 +122,8 @@ class CotacoesController {
 
         // Capturar usuário logado (enviado pelo frontend via aprovado_por ou em middleware futuro)
         const usuarioId = updates.aprovado_por || (req as any).user?.id || (req as any).userId;
-  let usuarioRole = (req as any).user?.role || (req as any).userRole || updates.user_role;
-  const usuarioPosition = (req as any).user?.position;
+        let usuarioRole = (req as any).user?.role || (req as any).userRole || updates.user_role;
+        const usuarioPosition = (req as any).user?.position;
         // fallback adicional: se não veio role, tentar extrair de posição/position enviada ou armazenada
         if (!usuarioRole) {
           usuarioRole = updates.position || updates.posicao || updates.perfil;
@@ -208,8 +209,9 @@ class CotacoesController {
         ) {
           try {
             console.log(`🚀 [DYNAMICS-AUTO] Cotação ${id} foi aprovada, enviando para Dynamics...`);
-            const DynamicsIntegrationService = require('../services/DynamicsIntegrationService').default;
-            const resultado = await DynamicsIntegrationService.processarCotacaoAprovada(cotacaoAtualizada);
+            // Import estático no topo do arquivo
+            const dynamicsService = new DynamicsIntegrationService();
+            const resultado = await dynamicsService.processarCotacaoAprovada(cotacaoAtualizada);
             if (resultado) {
               console.log(`✅ [DYNAMICS-AUTO] Cotação ${id} enviada para Dynamics com sucesso!`);
             } else {

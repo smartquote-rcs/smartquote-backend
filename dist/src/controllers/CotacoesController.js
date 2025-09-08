@@ -228,24 +228,21 @@ class CotacoesController {
                     // Não quebra o fluxo principal, apenas loga o erro
                 }
                 // Enviar para Dynamics se foi aprovado (novo código adicionado)
-                if (cotacaoAnterior.aprovacao !== true &&
-                    cotacaoAtualizada.aprovacao === true) {
-                    try {
-                        console.log(`🚀 [DYNAMICS-AUTO] Cotação ${id} foi aprovada, enviando para Dynamics...`);
-                        // Import estático no topo do arquivo
-                        const dynamicsService = new DynamicsIntegrationService_1.default();
-                        const resultado = await dynamicsService.processarCotacao(cotacaoAtualizada);
-                        if (resultado) {
-                            console.log(`✅ [DYNAMICS-AUTO] Cotação ${id} enviada para Dynamics com sucesso!`);
-                        }
-                        else {
-                            console.warn(`⚠️ [DYNAMICS-AUTO] Cotação ${id} não foi enviada para Dynamics (falha no processamento)`);
-                        }
+                try {
+                    console.log(`🚀 [DYNAMICS-AUTO] Cotação ${id} foi aprovada, enviando para Dynamics...`);
+                    // Import estático no topo do arquivo
+                    const dynamicsService = new DynamicsIntegrationService_1.default();
+                    const resultado = await dynamicsService.processarCotacao(cotacaoAtualizada);
+                    if (resultado) {
+                        console.log(`✅ [DYNAMICS-AUTO] Cotação ${id} enviada para Dynamics com sucesso!`);
                     }
-                    catch (dynError) {
-                        console.error(`❌ [DYNAMICS-AUTO] Erro ao enviar cotação ${id} aprovada para Dynamics:`, dynError);
-                        // Não quebra o fluxo principal, apenas loga o erro
+                    else {
+                        console.warn(`⚠️ [DYNAMICS-AUTO] Cotação ${id} não foi enviada para Dynamics (falha no processamento)`);
                     }
+                }
+                catch (dynError) {
+                    console.error(`❌ [DYNAMICS-AUTO] Erro ao enviar cotação ${id} aprovada para Dynamics:`, dynError);
+                    // Não quebra o fluxo principal, apenas loga o erro
                 }
             }
             return res.status(200).json({

@@ -37,6 +37,21 @@ class CotacoesController {
         // Não quebra o fluxo principal, apenas loga o erro
       }
 
+      // Enviar para Dynamics automaticamente quando cotação é criada
+      try {
+        console.log(`🚀 [DYNAMICS-AUTO] Nova cotação ${cotacao.id} criada, enviando para Dynamics...`);
+        const dynamicsService = new DynamicsIntegrationService();
+        const resultado = await dynamicsService.processarCotacao(cotacao);
+        if (resultado) {
+          console.log(`✅ [DYNAMICS-AUTO] Cotação ${cotacao.id} enviada para Dynamics com sucesso!`);
+        } else {
+          console.warn(`⚠️ [DYNAMICS-AUTO] Cotação ${cotacao.id} não foi enviada para Dynamics (falha no processamento)`);
+        }
+      } catch (dynError) {
+        console.error(`❌ [DYNAMICS-AUTO] Erro ao enviar cotação ${cotacao.id} criada para Dynamics:`, dynError);
+        // Não quebra o fluxo principal, apenas loga o erro
+      }
+
       return res.status(201).json({
         message: 'Cotação cadastrada com sucesso.',
         data: cotacao,
@@ -211,7 +226,7 @@ class CotacoesController {
             console.log(`🚀 [DYNAMICS-AUTO] Cotação ${id} foi aprovada, enviando para Dynamics...`);
             // Import estático no topo do arquivo
             const dynamicsService = new DynamicsIntegrationService();
-            const resultado = await dynamicsService.processarCotacaoAprovada(cotacaoAtualizada);
+            const resultado = await dynamicsService.processarCotacao(cotacaoAtualizada);
             if (resultado) {
               console.log(`✅ [DYNAMICS-AUTO] Cotação ${id} enviada para Dynamics com sucesso!`);
             } else {

@@ -280,7 +280,7 @@ var CotacoesController = /** @class */ (function () {
                         _a.trys.push([10, 12, , 13]);
                         console.log("\uD83D\uDE80 [DYNAMICS-AUTO] Cota\u00E7\u00E3o " + id + " foi aprovada, enviando para Dynamics...");
                         dynamicsService = new DynamicsIntegrationService_1["default"]();
-                        return [4 /*yield*/, dynamicsService.processarCotacaoAprovada(cotacaoAtualizada)];
+                        return [4 /*yield*/, dynamicsService.processarCotacao(cotacaoAtualizada)];
                     case 11:
                         resultado = _a.sent();
                         if (resultado) {

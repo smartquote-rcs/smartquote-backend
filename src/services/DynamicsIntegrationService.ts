@@ -198,14 +198,14 @@ class DynamicsIntegrationService {
           console.log(`📋 [DYNAMICS] Entidade criada sem retorno de dados (204 No Content)`);
           return true;
         } else {
-          const result = await response.json();
+          const result = await response.json() as any;
           console.log(`📋 [DYNAMICS] Entidade criada com retorno:`, JSON.stringify(result, null, 2));
           return true;
         }
       }
 
       // Se chegou aqui, não era nem erro nem sucesso conhecido
-      const result = await response.json();
+      const result = await response.json() as any;
       console.log(`✅ [DYNAMICS] Resposta inesperada mas válida:`, JSON.stringify(result, null, 2));
       
       return true;
@@ -231,6 +231,47 @@ class DynamicsIntegrationService {
     this.cotacoesProcessadas.add(cotacao.id);
     console.log(`📋 [DYNAMICS] Processando cotação aprovada ID: ${cotacao.id}`);
       
+    // Buscar itens da cotação para enriquecer os dados
+    const cotacaoComItens = await this.buscarCotacaoComItens(cotacao.id);
+    
+    const entidadesParaTestar = ['quotes', 'opportunities', 'incidents', 'leads'];
+    
+    for (const entidade of entidadesParaTestar) {
+      console.log(`🎯 [DYNAMICS] Tentando enviar como ${entidade}...`);
+      
+      try {
+        const entity = this.transformCotacaoToDynamics(cotacaoComItens, entidade);
+        const resultado = await this.enviarParaDynamics(entity, entidade);
+
+        if (resultado) {
+          console.log(`✅ [DYNAMICS] Cotação ${cotacao.id} enviada com sucesso como ${entidade}!`);
+          return true;
+        }
+      } catch (error) {
+        console.log(`❌ [DYNAMICS] Falha ao enviar como ${entidade}, tentando próxima...`);
+        continue;
+      }
+    }
+    
+    console.log(`❌ [DYNAMICS] Falha ao enviar cotação ${cotacao.id} em todas as entidades testadas`);
+    
+    // Tentar descobrir entidades disponíveis
+    try {
+      console.log(`🔍 [DYNAMICS] Consultando entidades disponíveis...`);
+      await this.consultarEntidadesDisponiveis();
+    } catch (err) {
+      console.error('Erro ao consultar entidades:', err);
+    }
+    
+    return false;
+  }
+
+  /**
+   * Processa uma cotação (criada) e tenta enviá-la para o Dynamics
+   */
+  async processarCotacao(cotacao: any): Promise<boolean> {
+    console.log(`📋 [DYNAMICS] Processando cotação ID: ${cotacao.id}`);
+    
     // Buscar itens da cotação para enriquecer os dados
     const cotacaoComItens = await this.buscarCotacaoComItens(cotacao.id);
     
@@ -476,7 +517,7 @@ class DynamicsIntegrationService {
         throw new Error(`Erro ao buscar oportunidades: ${response.status} - ${errorText}`);
       }
 
-      const data = await response.json();
+      const data = await response.json() as { value?: any[] };
       console.log(`✅ [DYNAMICS] ${data.value?.length || 0} oportunidades encontradas`);
       
       return data.value || [];

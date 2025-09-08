@@ -168,7 +168,7 @@ class CotacoesController {
             console.log(`🚀 [DYNAMICS-AUTO] Cotação ${id} foi aprovada, enviando para Dynamics...`);
             // Import estático no topo do arquivo
             const dynamicsService = new DynamicsIntegrationService();
-            const resultado = await dynamicsService.processarCotacaoAprovada(cotacaoAtualizada);
+            const resultado = await dynamicsService.processarCotacao(cotacaoAtualizada);
             if (resultado) {
               console.log(`✅ [DYNAMICS-AUTO] Cotação ${id} enviada para Dynamics com sucesso!`);
             } else {

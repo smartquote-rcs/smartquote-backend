@@ -50,8 +50,15 @@ export default class WebBuscaJobService {
   private apiBaseUrl: string;
 
   constructor() {
-  // Fallback padrão para o servidor Node desta própria API
-  this.apiBaseUrl = process.env.API_BASE_URL || 'http://localhost:2000';
+    // Em produção (Render), usar localhost para comunicação interna.
+    // Caso contrário, usar a URL definida no .env (útil para dev local).
+    if (process.env.NODE_ENV === 'production') {
+      const port = process.env.PORT || process.env.PORT_DEFAULT || 2000;
+      this.apiBaseUrl = `http://localhost:${port}`;
+    } else {
+      this.apiBaseUrl = process.env.API_BASE_URL || '';
+    }
+    console.log(`[WebBuscaJobService] API Base URL configurada para: ${this.apiBaseUrl}`);
   }
 
   /**

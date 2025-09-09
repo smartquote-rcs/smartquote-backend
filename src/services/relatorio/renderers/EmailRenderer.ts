@@ -1,7 +1,13 @@
 import PDFDocument from 'pdfkit';
 import { RelatorioData } from '../types';
 
-const API_BASE_URL = process.env.API_BASE_URL;
+function getApiBaseUrl() {
+  if (process.env.NODE_ENV === 'production') {
+    const port = process.env.PORT || process.env.PORT_DEFAULT || 2000;
+    return `http://localhost:${port}`;
+  }
+  return process.env.API_BASE_URL;
+}
 
 export class EmailRenderer {
   private doc: PDFKit.PDFDocument;
@@ -186,6 +192,7 @@ public async render(data: RelatorioData) {
       minimumFractionDigits: 2 
     });
  
+  const API_BASE_URL = getApiBaseUrl();
   if (!API_BASE_URL) {
     // Sem API_BASE_URL, seguir com template default e não tentar persistir
     updateInDb = false;

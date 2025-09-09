@@ -81,7 +81,14 @@ class CotacoesItensController {
                         salvamento: true,
                         quantidade_resultados: 1
                     };
-                    const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:2000';
+                    let API_BASE_URL;
+                    if (process.env.NODE_ENV === 'production') {
+                        const port = process.env.PORT || process.env.PORT_DEFAULT || 2000;
+                        API_BASE_URL = `http://localhost:${port}`;
+                    }
+                    else {
+                        API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:2000';
+                    }
                     const buscaResponse = await axios.post(`${API_BASE_URL}/api/busca-automatica/background`, buscaBody);
                     console.log('Resposta busca-automatica:', buscaResponse.data);
                     // Monitorar o job até completar (como no search)

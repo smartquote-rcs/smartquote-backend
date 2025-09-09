@@ -9,8 +9,16 @@ const PonderacaoWebService_1 = __importDefault(require("./PonderacaoWebService")
 class WebBuscaJobService {
     apiBaseUrl;
     constructor() {
-        // Fallback padrão para o servidor Node desta própria API
-        this.apiBaseUrl = process.env.API_BASE_URL || 'http://localhost:2000';
+        // Em produção (Render), usar localhost para comunicação interna.
+        // Caso contrário, usar a URL definida no .env (útil para dev local).
+        if (process.env.NODE_ENV === 'production') {
+            const port = process.env.PORT || process.env.PORT_DEFAULT || 2000;
+            this.apiBaseUrl = `http://localhost:${port}`;
+        }
+        else {
+            this.apiBaseUrl = process.env.API_BASE_URL || '';
+        }
+        console.log(`[WebBuscaJobService] API Base URL configurada para: ${this.apiBaseUrl}`);
     }
     /**
      * Orquestra a criação de jobs e, caso não haja produtos escolhidos após a primeira rodada,

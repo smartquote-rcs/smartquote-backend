@@ -1,7 +1,13 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.EmailRenderer = void 0;
-const API_BASE_URL = process.env.API_BASE_URL;
+function getApiBaseUrl() {
+    if (process.env.NODE_ENV === 'production') {
+        const port = process.env.PORT || process.env.PORT_DEFAULT || 2000;
+        return `http://localhost:${port}`;
+    }
+    return process.env.API_BASE_URL;
+}
 class EmailRenderer {
     doc;
     margin;
@@ -154,6 +160,7 @@ class EmailRenderer {
             currency: 'AOA',
             minimumFractionDigits: 2
         });
+        const API_BASE_URL = getApiBaseUrl();
         if (!API_BASE_URL) {
             // Sem API_BASE_URL, seguir com template default e não tentar persistir
             updateInDb = false;

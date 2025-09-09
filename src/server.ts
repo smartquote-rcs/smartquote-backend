@@ -9,7 +9,9 @@ import GlobalEmailMonitorManager from './services/GlobalEmailMonitorManager';
 import EstoqueMonitorService from './services/EstoqueMonitorService';
 import { removerCotacoesExpiradasHoje } from './services/RemoveExpiredCotacoes';
 
-const port = process.env.PORT_DEFAULT || 2001
+// Usar a porta fornecida pelo provedor (ex.: Render) quando em produção,
+// com fallbacks para PORT_DEFAULT e, por fim, 2001.
+const port = (process.env.PORT as unknown as string) || process.env.PORT_DEFAULT || 2001
 const app = express();
 
 app.use('/doc', swaggerUI.serve, swaggerUI.setup(swaggerDocumentation));

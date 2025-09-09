@@ -13,7 +13,9 @@ const swagger_json_1 = __importDefault(require("./swagger.json"));
 const GlobalEmailMonitorManager_1 = __importDefault(require("./services/GlobalEmailMonitorManager"));
 const EstoqueMonitorService_1 = __importDefault(require("./services/EstoqueMonitorService"));
 const RemoveExpiredCotacoes_1 = require("./services/RemoveExpiredCotacoes");
-const port = process.env.PORT_DEFAULT || 2001;
+// Usar a porta fornecida pelo provedor (ex.: Render) quando em produção,
+// com fallbacks para PORT_DEFAULT e, por fim, 2001.
+const port = process.env.PORT || process.env.PORT_DEFAULT || 2001;
 const app = (0, express_1.default)();
 app.use('/doc', swagger_ui_express_1.default.serve, swagger_ui_express_1.default.setup(swagger_json_1.default));
 app.use((0, cors_1.default)());

@@ -45,9 +45,10 @@ async function filtrarProdutosComLLM(produtos, termoBusca, quantidade, custo_ben
         // Usar a lib groq (deve estar instalada via npm install groq-sdk)
         // @ts-ignore
         const { Groq } = require('groq-sdk');
-        const apiKey = process.env.GROQ_API_KEY;
-        if (!apiKey) {
-            log('❌ [LLM-FILTER] GROQ_API_KEY não encontrada');
+        const primaryKey = process.env.GROQ_API_KEY;
+        const backupKey = process.env._GROQ_API_KEY;
+        if (!primaryKey && !backupKey) {
+            log('❌ [LLM-FILTER] Nenhuma API key do Groq encontrada (GROQ_API_KEY ou _GROQ_API_KEY)');
             log('🧠 [LLM-FILTER] Sem API key - nenhum produto será salvo');
             return { produtos: [], relatorio: { erro: "API key não disponível" } };
         }
@@ -137,18 +138,53 @@ async function filtrarProdutosComLLM(produtos, termoBusca, quantidade, custo_ben
             `PONDERACAO-WEB: ${ponderacao_web_llm || 0}\n` +
             `CANDIDATOS: ${JSON.stringify(candidatos)}\n` +
             "Analise e retorne o ranking completo com justificativas.";
-        const client = new Groq({ apiKey });
-        const resp = await client.chat.completions.create({
-            //model: "llama-3.3-70b-versatile",
-            model: "openai/gpt-oss-120b",
-            messages: [
-                { role: "system", content: prompt_sistema },
-                { role: "user", content: userMsg }
-            ],
-            temperature: 0,
-            max_tokens: 8000, // Aumentado para acomodar o relatório
-            stream: false
-        });
+        // Helper para identificar erro de rate limit/quota
+        const isRateLimitError = (err) => {
+            const msg = (err?.message || '').toLowerCase();
+            const status = err?.status || err?.response?.status;
+            const code = (err?.code || '').toString().toLowerCase();
+            return status === 429 ||
+                code.includes('429') ||
+                code.includes('rate') ||
+                msg.includes('rate limit') ||
+                msg.includes('too many requests') ||
+                msg.includes('quota') ||
+                msg.includes('exceeded');
+        };
+        // Função para efetuar a chamada com uma chave específica
+        const callWithKey = async (key) => {
+            const client = new Groq({ apiKey: key });
+            return await client.chat.completions.create({
+                //model: "llama-3.3-70b-versatile",
+                model: "openai/gpt-oss-120b",
+                messages: [
+                    { role: "system", content: prompt_sistema },
+                    { role: "user", content: userMsg }
+                ],
+                temperature: 0,
+                max_tokens: 8000, // Aumentado para acomodar o relatório
+                stream: false
+            });
+        };
+        // Tentar primeiro com a chave principal (se existir), ou diretamente com a de backup
+        let resp;
+        const firstKey = primaryKey || backupKey;
+        try {
+            if (!primaryKey && backupKey) {
+                log('🧠 [LLM-FILTER] Usando _GROQ_API_KEY (chave secundária) por ausência da principal');
+            }
+            resp = await callWithKey(firstKey);
+        }
+        catch (err) {
+            // Se falhar por limite com a chave principal, tenta com a secundária
+            if (primaryKey && backupKey && isRateLimitError(err)) {
+                log('⚠️ [LLM-FILTER] Limite/quota atingido na GROQ_API_KEY. Tentando com _GROQ_API_KEY...');
+                resp = await callWithKey(backupKey);
+            }
+            else {
+                throw err;
+            }
+        }
         const content = (resp.choices[0].message.content || '').trim();
         log(`🧠 [LLM-FILTER] Resposta bruta: ${content}`);
         // Tentar extrair JSON completo

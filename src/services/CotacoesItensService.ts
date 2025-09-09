@@ -575,22 +575,39 @@ class CotacoesItensService {
       const relatorio = await RelatorioService.gerarDadosRelatorio(cotacaoItem?.cotacao_id);
       console.log('[getSugeridosLocal] cotacaoItem:', cotacaoItem);
       console.log('[getSugeridosLocal] relatorio:', relatorio);
-      if (relatorio && relatorio.analiseLocal && Array.isArray(relatorio.analiseLocal)) {
-        const allSugs = relatorio.analiseLocal.flatMap((item: any) => item.llm_relatorio?.top_ranking || []);
-        const sugestoes = allSugs.map((item: any) => ({
-          nome: item.nome,
-          id: item.id,
-          preco: item.preco,
-          posicao: item.posicao,
-          justificativa: item.justificativa,
-          pontos_fortes: item.pontos_fortes,
-          pontos_fracos: item.pontos_fracos,
-          score_estimado: item.score_estimado,
-        })) || [];
-        console.log('[getSugeridosLocal] sugestões (todos):', sugestoes);
-        return sugestoes;
+      if (relatorio) {
+        const locaisArr = Array.isArray((relatorio as any).analiseLocal)
+          ? (relatorio as any).analiseLocal
+          : [];
+
+        const cacheArr = Array.isArray((relatorio as any).analiseCache)
+          ? (relatorio as any).analiseCache
+          : [];
+
+        const localSugs = locaisArr.flatMap((item: any) => item?.llm_relatorio?.top_ranking || []);
+        const cacheSugs = cacheArr.flatMap((item: any) => (item?.llm_relatorio?.top_ranking || item?.top_ranking || []));
+
+        const allSugs = [...localSugs, ...cacheSugs];
+
+        if (allSugs.length > 0) {
+          const sugestoes = allSugs.map((item: any) => ({
+            nome: item.nome,
+            id: item.id,
+            preco: item.preco,
+            posicao: item.posicao,
+            justificativa: item.justificativa,
+            pontos_fortes: item.pontos_fortes,
+            pontos_fracos: item.pontos_fracos,
+            score_estimado: item.score_estimado,
+          })) || [];
+          console.log('[getSugeridosLocal] sugestões (locais + cache):', sugestoes);
+          return sugestoes;
+        } else {
+          console.warn('[getSugeridosLocal] Relatório não possui sugestões em analiseLocal/analiseCache:', relatorio);
+          return [];
+        }
       } else {
-        console.warn('[getSugeridosLocal] Relatório não possui analiseLocal ou está vazio:', relatorio);
+        console.warn('[getSugeridosLocal] Relatório não encontrado para cotação:', cotacaoItem?.cotacao_id);
         return [];
       }
     } catch (err) {

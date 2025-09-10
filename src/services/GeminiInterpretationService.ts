@@ -283,93 +283,159 @@ DADOS DO EMAIL:
       
       console.log(`💾 [GEMINI] Interpretação salva: ${filename}`);
       
-      // 🐍 PROCESSAR COM PYTHON E BUSCA WEB DE FORMA INTEGRADA
+      // 🐍 PROCESSAR COM PYTHON EM PROCESSO FILHO
       console.log(`🐍 [GEMINI] Iniciando processamento Python para interpretação ${interpretation.id}`);
       
-      // Processar Python de forma síncrona para manter o contexto
-      try {
-        const result = await pythonProcessor.processInterpretation(interpretation);
-        
-        if (result.success) {
-          console.log(`✅ [PYTHON-SUCCESS] Interpretação ${interpretation.id} processada em ${result.executionTime}ms`);
-          console.log(`📄 [PYTHON-RESULT]`, result.result);
+      // Executar processamento Python de forma assíncrona (não bloquear)
+      pythonProcessor.processInterpretation(interpretation)
+        .then((result) => {
+          if (result.success) {
+            console.log(`✅ [PYTHON-SUCCESS] Interpretação ${interpretation.id} processada em ${result.executionTime}ms`);
+            console.log(`📄 [PYTHON-RESULT]`, result.result);
 
-          // 🌐 Fluxo adicional: buscar na web itens faltantes e inserir na cotação principal
-          const payload: any = result.result || {};
-          let cotacaoPrincipalId: number | null = payload?.cotacoes?.principal_id ?? null;
-          
-          try {
-            const faltantes = Array.isArray(payload.faltantes) ? payload.faltantes : [];
+            // 🌐 Fluxo adicional: buscar na web itens faltantes e inserir na cotação principal
+      (async () => {
+        const payload: any = result.result || {};
+        let cotacaoPrincipalId: number | null = payload?.cotacoes?.principal_id ?? null;
+              try {
+                // Fonte da verdade agora: placeholders em cotacoes_itens (status=false)
+                // Não dependemos mais de payload.faltantes para a busca web
+                let faltantes: any[] = [];
+                let cotacaoCriadaLocalmente = false;
 
-            if (faltantes.length > 0) {
-              console.log(`🌐 [GEMINI] Iniciando busca web para ${faltantes.length} faltantes da interpretação`);
-              
-              const svc = new WebBuscaJobService();
-              const { resultadosCompletos, produtosWeb } = await svc.createJobsForFaltantesWithReforco(
-                faltantes,
-                interpretation.solicitacao,
-                true
-              );
-              console.log(`🧠 [LLM-FILTER] ${produtosWeb.length} produtos selecionados pelos jobs`);
-              console.log(`🧠 [LLM-FILTER] Atualizando a coluna de analise_web em cotações_itens`);
-
-              // Se não há cotação principal ainda, criar uma para receber itens/faltantes
-              if (!cotacaoPrincipalId && (produtosWeb.length > 0 || faltantes.length > 0)) {
-                // Usar dados extraídos do Python se disponível, senão criar estrutura mínima
-                const dadosExtraidos = payload?.dados_extraidos || {
-                  solucao_principal: interpretation.solicitacao,
-                  tipo_de_solucao: 'sistema',
-                  itens_a_comprar: faltantes.map((f: any) => ({
-                    nome: f.nome || 'Item não especificado',
-                    prioridade: 'media',
-                    categoria: f.categoria || 'Geral',
-                    quantidade: f.quantidade || 1
-                  }))
-                };
-                const prompt = await PromptsService.create({
-                  texto_original: interpretation.solicitacao,
-                  dados_extraidos: dadosExtraidos,
-                  cliente: interpretation.cliente || {},
-                  dados_bruto: interpretation.dados_bruto || {},
-                  origem: { tipo: 'servico', fonte: 'email' },
-                  status: 'analizado',
-                });
-                if (prompt.id) {
-                  const nova: Cotacao = {
-                    prompt_id: prompt.id,
-                    status: 'incompleta',
-                    faltantes: faltantes?.length ? faltantes : [],
-                    orcamento_geral: 0,
-                  };
+                // 1. Se já existe cotação principal, carregar placeholders pendentes
+                if (cotacaoPrincipalId) {
                   try {
-                    const criada = await CotacoesService.create(nova);
-                    cotacaoPrincipalId = criada?.id ?? null;
-                    console.log(`✅ [GEMINI] Cotação criada para email: ID ${cotacaoPrincipalId}`);
+                    const placeholdersDB = await CotacoesItensService.listPlaceholders(Number(cotacaoPrincipalId));
+                    if (placeholdersDB.length > 0) {
+                      faltantes = placeholdersDB.map((p: any) => ({
+                        id: p.id,
+                        item_id: p.id,
+                        nome: p.item_nome,
+                        quantidade: p.quantidade,
+                        query_sugerida: p.pedido,
+                        categoria: 'Geral'
+                      }));
+                      console.log(`🔄 [GEMINI-WEB] Carregados ${faltantes.length} placeholders (faltantes) do BD para busca web`);
+                    } else {
+                      console.log('ℹ️ [GEMINI-WEB] Nenhum placeholder pendente encontrado na cotação existente');
+                    }
                   } catch (e) {
-                    console.error('❌ [COTACAO] Erro ao criar cotação principal:', (e as any)?.message || e);
+                    console.warn('⚠️ [GEMINI-WEB] Falha ao carregar placeholders existentes:', (e as any)?.message || e);
                   }
                 }
-              }
 
-              // Inserir itens web na cotação principal
-              let inseridos = 0;
-              if (cotacaoPrincipalId) {
-                inseridos = await svc.insertJobResultsInCotacao(Number(cotacaoPrincipalId), resultadosCompletos as any);
-                const total = await svc.recalcOrcamento(Number(cotacaoPrincipalId));
-                console.log(`🧮 [COTACAO] Orçamento recalculado: ${total} (itens web inseridos: ${inseridos})`);
+                // 2. Se não existe cotação ainda, criá-la e gerar placeholders a partir de dados_extraidos / itens_a_comprar
+                if (!cotacaoPrincipalId) {
+                  const itensFonte: any[] = (payload?.dados_extraidos?.itens_a_comprar && Array.isArray(payload.dados_extraidos.itens_a_comprar))
+                    ? payload.dados_extraidos.itens_a_comprar
+                    : (Array.isArray(payload.faltantes) ? payload.faltantes : []); // fallback legado apenas para criar placeholders
+
+                  const faltantesBase = itensFonte.map((f: any) => ({
+                    nome: f.nome || f.item_nome || 'Item não especificado',
+                    categoria: f.categoria || 'Geral',
+                    quantidade: f.quantidade || 1,
+                    prioridade: f.prioridade || 'media'
+                  }));
+
+                  if (faltantesBase.length > 0) {
+                    const dadosExtraidos = payload?.dados_extraidos || {
+                      solucao_principal: interpretation.solicitacao,
+                      tipo_de_solucao: 'sistema',
+                      itens_a_comprar: faltantesBase
+                    };
+                    const prompt = await PromptsService.create({
+                      texto_original: interpretation.solicitacao,
+                      dados_extraidos: dadosExtraidos,
+                      cliente: interpretation.cliente || {},
+                      dados_bruto: interpretation.dados_bruto || {},
+                      origem: { tipo: 'servico', fonte: 'email' },
+                      status: 'analizado'
+                    });
+                    if (prompt.id) {
+                      const nova: Cotacao = {
+                        prompt_id: prompt.id,
+                        status: 'incompleta',
+                        aprovacao: false,
+                        orcamento_geral: 0
+                      } as any;
+                      try {
+                        const criada = await CotacoesService.create(nova);
+                        cotacaoPrincipalId = criada?.id ?? null;
+                        cotacaoCriadaLocalmente = !!cotacaoPrincipalId;
+                        console.log(`✅ [GEMINI-WEB] Cotação criada (ID ${cotacaoPrincipalId}) para placeholders iniciais`);
+                      } catch (e) {
+                        console.error('❌ [GEMINI-WEB] Erro ao criar cotação principal:', (e as any)?.message || e);
+                      }
+                    }
+
+                    // Inserir placeholders se criamos a cotação agora
+                    if (cotacaoCriadaLocalmente && cotacaoPrincipalId) {
+                      for (const f of faltantesBase) {
+                        try {
+                          await CotacoesItensService.insertPlaceholderItem(Number(cotacaoPrincipalId), f);
+                        } catch (e) {
+                          console.warn('⚠️ [GEMINI-WEB] Falha ao inserir placeholder:', (e as any)?.message || e);
+                        }
+                      }
+                      console.log(`🧩 [GEMINI-WEB] ${faltantesBase.length} placeholders inseridos na cotação ${cotacaoPrincipalId}`);
+                      // Recarregar para montar objeto faltantes uniforme
+                      try {
+                        const placeholdersDB = await CotacoesItensService.listPlaceholders(Number(cotacaoPrincipalId));
+                        faltantes = placeholdersDB.map((p: any) => ({
+                          id: p.id,
+                          item_id: p.id,
+                          nome: p.item_nome,
+                          quantidade: p.quantidade,
+                          query_sugerida: p.pedido,
+                          categoria: 'Geral'
+                        }));
+                      } catch {}
+                    }
+                  } else {
+                    console.log('ℹ️ [GEMINI-WEB] Nenhum item base para criar cotação/placeholder; busca web será ignorada');
+                  }
+                }
+
+                // 3. Executar busca web somente se houver faltantes (placeholders) atuais
+                if (faltantes.length > 0) {
+                  console.log(`🌐 [GEMINI-WEB] Iniciando busca web para ${faltantes.length} faltantes (placeholders)`);
+                  const svc = new WebBuscaJobService();
+                  const { resultadosCompletos, produtosWeb } = await svc.createJobsForFaltantesWithReforco(
+                    faltantes,
+                    interpretation.solicitacao,
+                    true
+                  );
+                  console.log(`🧠 [LLM-FILTER] ${produtosWeb.length} produtos retornados dos jobs web`);
+
+                  // 4. Inserir resultados dos jobs na cotação (cumprindo placeholders)
+                  if (cotacaoPrincipalId) {
+                    try {
+                      const inseridos = await svc.insertJobResultsInCotacao(Number(cotacaoPrincipalId), resultadosCompletos as any);
+                      const total = await svc.recalcOrcamento(Number(cotacaoPrincipalId));
+                      console.log(`🧮 [GEMINI-WEB] Orçamento recalculado: ${total} (itens web inseridos: ${inseridos})`);
+                    } catch (e) {
+                      console.error('❌ [GEMINI-WEB] Erro ao inserir resultados web na cotação:', (e as any)?.message || e);
+                    }
+                  } else {
+                    console.log('⚠️ [GEMINI-WEB] Resultados web obtidos mas sem cotação para inserir');
+                  }
+                } else {
+                  console.log('ℹ️ [GEMINI-WEB] Nenhum faltante (placeholder) disponível para busca web. Etapa ignorada.');
+                }
+              } catch (e: any) {
+                console.error('❌ [BUSCA-WEB] Falha no fluxo pós-Python:', e?.message || e);
               }
-            } else {
-              console.log(`ℹ️ [GEMINI] Nenhum faltante encontrado para busca web`);
-            }
-          } catch (e: any) {
-            console.error('❌ [BUSCA-WEB] Falha no fluxo pós-Python:', e?.message || e);
+        
+            })();
+                        
+          } else {
+            console.error(`❌ [PYTHON-ERROR] Falha ao processar interpretação ${interpretation.id}: ${result.error}`);
           }
-        } else {
-          console.error(`❌ [PYTHON-ERROR] Falha ao processar interpretação ${interpretation.id}: ${result.error}`);
-        }
-      } catch (error: any) {
-        console.error(`❌ [PYTHON-CRITICAL] Erro crítico no processamento Python: ${error?.message || error}`);
-      }
+        })
+        .catch((error) => {
+          console.error(`❌ [PYTHON-CRITICAL] Erro crítico no processamento Python: ${error}`);
+        });
       
     } catch (error) {
       console.error('❌ [GEMINI] Erro ao salvar interpretação:', error);

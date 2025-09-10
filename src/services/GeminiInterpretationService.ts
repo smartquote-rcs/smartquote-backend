@@ -283,89 +283,93 @@ DADOS DO EMAIL:
       
       console.log(`💾 [GEMINI] Interpretação salva: ${filename}`);
       
-      // 🐍 PROCESSAR COM PYTHON EM PROCESSO FILHO
+      // 🐍 PROCESSAR COM PYTHON E BUSCA WEB DE FORMA INTEGRADA
       console.log(`🐍 [GEMINI] Iniciando processamento Python para interpretação ${interpretation.id}`);
       
-      // Executar processamento Python de forma assíncrona (não bloquear)
-      pythonProcessor.processInterpretation(interpretation)
-        .then((result) => {
-          if (result.success) {
-            console.log(`✅ [PYTHON-SUCCESS] Interpretação ${interpretation.id} processada em ${result.executionTime}ms`);
-            console.log(`📄 [PYTHON-RESULT]`, result.result);
+      // Processar Python de forma síncrona para manter o contexto
+      try {
+        const result = await pythonProcessor.processInterpretation(interpretation);
+        
+        if (result.success) {
+          console.log(`✅ [PYTHON-SUCCESS] Interpretação ${interpretation.id} processada em ${result.executionTime}ms`);
+          console.log(`📄 [PYTHON-RESULT]`, result.result);
 
-            // 🌐 Fluxo adicional: buscar na web itens faltantes e inserir na cotação principal
-      (async () => {
-        const payload: any = result.result || {};
-        let cotacaoPrincipalId: number | null = payload?.cotacoes?.principal_id ?? null;
-              try {
-                const faltantes = Array.isArray(payload.faltantes) ? payload.faltantes : [];
+          // 🌐 Fluxo adicional: buscar na web itens faltantes e inserir na cotação principal
+          const payload: any = result.result || {};
+          let cotacaoPrincipalId: number | null = payload?.cotacoes?.principal_id ?? null;
+          
+          try {
+            const faltantes = Array.isArray(payload.faltantes) ? payload.faltantes : [];
 
-        const svc = new WebBuscaJobService();
-                const { resultadosCompletos, produtosWeb } = await svc.createJobsForFaltantesWithReforco(
-                  faltantes,
-                  interpretation.solicitacao,
-                  true
-                );
-                console.log(`🧠 [LLM-FILTER] ${produtosWeb.length} produtos selecionados pelos jobs`);
-                console.log(`🧠 [LLM-FILTER] Atualizando a coluna de analise_web em cotações_itens`) ;
+            if (faltantes.length > 0) {
+              console.log(`🌐 [GEMINI] Iniciando busca web para ${faltantes.length} faltantes da interpretação`);
+              
+              const svc = new WebBuscaJobService();
+              const { resultadosCompletos, produtosWeb } = await svc.createJobsForFaltantesWithReforco(
+                faltantes,
+                interpretation.solicitacao,
+                true
+              );
+              console.log(`🧠 [LLM-FILTER] ${produtosWeb.length} produtos selecionados pelos jobs`);
+              console.log(`🧠 [LLM-FILTER] Atualizando a coluna de analise_web em cotações_itens`);
 
-                // Se não há cotação principal ainda, criar uma para receber itens/faltantes
-                if (!cotacaoPrincipalId && (produtosWeb.length > 0 || faltantes.length > 0)) {
-                  // Usar dados extraídos do Python se disponível, senão criar estrutura mínima
-                  const dadosExtraidos = payload?.dados_extraidos || {
-                    solucao_principal: interpretation.solicitacao,
-                    tipo_de_solucao: 'sistema',
-                    itens_a_comprar: faltantes.map((f: any) => ({
-                      nome: f.nome || 'Item não especificado',
-                      prioridade: 'media',
-                      categoria: f.categoria || 'Geral',
-                      quantidade: f.quantidade || 1
-                    }))
+              // Se não há cotação principal ainda, criar uma para receber itens/faltantes
+              if (!cotacaoPrincipalId && (produtosWeb.length > 0 || faltantes.length > 0)) {
+                // Usar dados extraídos do Python se disponível, senão criar estrutura mínima
+                const dadosExtraidos = payload?.dados_extraidos || {
+                  solucao_principal: interpretation.solicitacao,
+                  tipo_de_solucao: 'sistema',
+                  itens_a_comprar: faltantes.map((f: any) => ({
+                    nome: f.nome || 'Item não especificado',
+                    prioridade: 'media',
+                    categoria: f.categoria || 'Geral',
+                    quantidade: f.quantidade || 1
+                  }))
+                };
+                const prompt = await PromptsService.create({
+                  texto_original: interpretation.solicitacao,
+                  dados_extraidos: dadosExtraidos,
+                  cliente: interpretation.cliente || {},
+                  dados_bruto: interpretation.dados_bruto || {},
+                  origem: { tipo: 'servico', fonte: 'email' },
+                  status: 'analizado',
+                });
+                if (prompt.id) {
+                  const nova: Cotacao = {
+                    prompt_id: prompt.id,
+                    status: 'incompleta',
+                    faltantes: faltantes?.length ? faltantes : [],
+                    orcamento_geral: 0,
                   };
-                  const prompt = await PromptsService.create({
-                    texto_original: interpretation.solicitacao,
-                    dados_extraidos: dadosExtraidos,
-                    cliente: interpretation.cliente || {},
-                    dados_bruto: interpretation.dados_bruto || {},
-                    origem: { tipo: 'servico', fonte: 'email' },
-                    status: 'analizado',
-                  });
-                  if (prompt.id) {
-                    const nova: Cotacao = {
-                      prompt_id: prompt.id,
-                      status: 'incompleta',
-                      faltantes: faltantes?.length ? faltantes : [],
-                      orcamento_geral: 0,
-                    };
-                    try {
-                      const criada = await CotacoesService.create(nova);
-                      cotacaoPrincipalId = criada?.id ?? null;
-                    } catch (e) {
-                      console.error('❌ [COTACAO] Erro ao criar cotação principal:', (e as any)?.message || e);
-                    }
+                  try {
+                    const criada = await CotacoesService.create(nova);
+                    cotacaoPrincipalId = criada?.id ?? null;
+                    console.log(`✅ [GEMINI] Cotação criada para email: ID ${cotacaoPrincipalId}`);
+                  } catch (e) {
+                    console.error('❌ [COTACAO] Erro ao criar cotação principal:', (e as any)?.message || e);
                   }
                 }
-
-                // Inserir itens web na cotação principal
-                let inseridos = 0;
-                if (cotacaoPrincipalId) {
-                  inseridos = await svc.insertJobResultsInCotacao(Number(cotacaoPrincipalId), resultadosCompletos as any);
-                  const total = await svc.recalcOrcamento(Number(cotacaoPrincipalId));
-                  console.log(`🧮 [COTACAO] Orçamento recalculado: ${total} (itens web inseridos: ${inseridos})`);
-                }
-              } catch (e: any) {
-                console.error('❌ [BUSCA-WEB] Falha no fluxo pós-Python:', e?.message || e);
               }
-        
-            })();
-                        
-          } else {
-            console.error(`❌ [PYTHON-ERROR] Falha ao processar interpretação ${interpretation.id}: ${result.error}`);
+
+              // Inserir itens web na cotação principal
+              let inseridos = 0;
+              if (cotacaoPrincipalId) {
+                inseridos = await svc.insertJobResultsInCotacao(Number(cotacaoPrincipalId), resultadosCompletos as any);
+                const total = await svc.recalcOrcamento(Number(cotacaoPrincipalId));
+                console.log(`🧮 [COTACAO] Orçamento recalculado: ${total} (itens web inseridos: ${inseridos})`);
+              }
+            } else {
+              console.log(`ℹ️ [GEMINI] Nenhum faltante encontrado para busca web`);
+            }
+          } catch (e: any) {
+            console.error('❌ [BUSCA-WEB] Falha no fluxo pós-Python:', e?.message || e);
           }
-        })
-        .catch((error) => {
-          console.error(`❌ [PYTHON-CRITICAL] Erro crítico no processamento Python: ${error}`);
-        });
+        } else {
+          console.error(`❌ [PYTHON-ERROR] Falha ao processar interpretação ${interpretation.id}: ${result.error}`);
+        }
+      } catch (error: any) {
+        console.error(`❌ [PYTHON-CRITICAL] Erro crítico no processamento Python: ${error?.message || error}`);
+      }
       
     } catch (error) {
       console.error('❌ [GEMINI] Erro ao salvar interpretação:', error);

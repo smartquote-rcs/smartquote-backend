@@ -198,20 +198,21 @@ DADOS DO EMAIL:
             const filepath = path.join(interpretationsDir, filename);
             await fs.writeFile(filepath, JSON.stringify(interpretation, null, 2), 'utf8');
             console.log(`💾 [GEMINI] Interpretação salva: ${filename}`);
-            // 🐍 PROCESSAR COM PYTHON EM PROCESSO FILHO
+            // 🐍 PROCESSAR COM PYTHON E BUSCA WEB DE FORMA INTEGRADA
             console.log(`🐍 [GEMINI] Iniciando processamento Python para interpretação ${interpretation.id}`);
-            // Executar processamento Python de forma assíncrona (não bloquear)
-            PythonInterpretationProcessor_1.pythonProcessor.processInterpretation(interpretation)
-                .then((result) => {
+            // Processar Python de forma síncrona para manter o contexto
+            try {
+                const result = await PythonInterpretationProcessor_1.pythonProcessor.processInterpretation(interpretation);
                 if (result.success) {
                     console.log(`✅ [PYTHON-SUCCESS] Interpretação ${interpretation.id} processada em ${result.executionTime}ms`);
                     console.log(`📄 [PYTHON-RESULT]`, result.result);
                     // 🌐 Fluxo adicional: buscar na web itens faltantes e inserir na cotação principal
-                    (async () => {
-                        const payload = result.result || {};
-                        let cotacaoPrincipalId = payload?.cotacoes?.principal_id ?? null;
-                        try {
-                            const faltantes = Array.isArray(payload.faltantes) ? payload.faltantes : [];
+                    const payload = result.result || {};
+                    let cotacaoPrincipalId = payload?.cotacoes?.principal_id ?? null;
+                    try {
+                        const faltantes = Array.isArray(payload.faltantes) ? payload.faltantes : [];
+                        if (faltantes.length > 0) {
+                            console.log(`🌐 [GEMINI] Iniciando busca web para ${faltantes.length} faltantes da interpretação`);
                             const svc = new WebBuscaJobService_1.default();
                             const { resultadosCompletos, produtosWeb } = await svc.createJobsForFaltantesWithReforco(faltantes, interpretation.solicitacao, true);
                             console.log(`🧠 [LLM-FILTER] ${produtosWeb.length} produtos selecionados pelos jobs`);
@@ -247,6 +248,7 @@ DADOS DO EMAIL:
                                     try {
                                         const criada = await CotacoesService_1.default.create(nova);
                                         cotacaoPrincipalId = criada?.id ?? null;
+                                        console.log(`✅ [GEMINI] Cotação criada para email: ID ${cotacaoPrincipalId}`);
                                     }
                                     catch (e) {
                                         console.error('❌ [COTACAO] Erro ao criar cotação principal:', e?.message || e);
@@ -261,18 +263,21 @@ DADOS DO EMAIL:
                                 console.log(`🧮 [COTACAO] Orçamento recalculado: ${total} (itens web inseridos: ${inseridos})`);
                             }
                         }
-                        catch (e) {
-                            console.error('❌ [BUSCA-WEB] Falha no fluxo pós-Python:', e?.message || e);
+                        else {
+                            console.log(`ℹ️ [GEMINI] Nenhum faltante encontrado para busca web`);
                         }
-                    })();
+                    }
+                    catch (e) {
+                        console.error('❌ [BUSCA-WEB] Falha no fluxo pós-Python:', e?.message || e);
+                    }
                 }
                 else {
                     console.error(`❌ [PYTHON-ERROR] Falha ao processar interpretação ${interpretation.id}: ${result.error}`);
                 }
-            })
-                .catch((error) => {
-                console.error(`❌ [PYTHON-CRITICAL] Erro crítico no processamento Python: ${error}`);
-            });
+            }
+            catch (error) {
+                console.error(`❌ [PYTHON-CRITICAL] Erro crítico no processamento Python: ${error?.message || error}`);
+            }
         }
         catch (error) {
             console.error('❌ [GEMINI] Erro ao salvar interpretação:', error);

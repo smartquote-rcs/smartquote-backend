@@ -14,7 +14,8 @@ class GmailMonitorService {
     oauth2Client = null;
     tokenPath = path_1.default.join(__dirname, '../tData.json');
     credentialsPath = path_1.default.join(__dirname, '../cData.json');
-    statusPath = path_1.default.join(__dirname, '../data/email_status.json');
+    // Usar caminho baseado no diretório do projeto para ser consistente entre TS (src) e build (dist)
+    statusPath = path_1.default.join(process.cwd(), 'src/data/email_status.json');
     scopes = ['https://www.googleapis.com/auth/gmail.readonly'];
     constructor() {
         this.ensureDataDirectory();
@@ -23,7 +24,7 @@ class GmailMonitorService {
      * Garante que o diretório de dados existe
      */
     ensureDataDirectory() {
-        const dataDir = path_1.default.join(__dirname, '../data');
+        const dataDir = path_1.default.dirname(this.statusPath);
         if (!fs_1.default.existsSync(dataDir)) {
             fs_1.default.mkdirSync(dataDir, { recursive: true });
         }

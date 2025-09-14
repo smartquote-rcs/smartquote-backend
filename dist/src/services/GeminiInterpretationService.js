@@ -13,6 +13,7 @@ const CotacoesItensService_1 = __importDefault(require("./CotacoesItensService")
 const WebBuscaJobService_1 = __importDefault(require("./WebBuscaJobService"));
 const PromptsService_1 = __importDefault(require("./PromptsService"));
 const CotacoesService_1 = __importDefault(require("./CotacoesService"));
+const paths_1 = require("../utils/paths");
 class GeminiInterpretationService {
     genAI;
     model;
@@ -187,10 +188,10 @@ DADOS DO EMAIL:
         try {
             const fs = await import('fs/promises');
             const path = await import('path');
-            const interpretationsDir = path.join(process.cwd(), 'src/data/interpretations');
+            const interpretationsDir = (0, paths_1.getDataPath)('interpretations');
             // Criar diretório se não existir
             try {
-                await fs.mkdir(interpretationsDir, { recursive: true });
+                (0, paths_1.ensureDir)(interpretationsDir);
             }
             catch (error) {
                 // Diretório já existe
@@ -366,7 +367,7 @@ DADOS DO EMAIL:
         try {
             const fs = await import('fs/promises');
             const path = await import('path');
-            const interpretationsDir = path.join(process.cwd(), 'src/data/interpretations');
+            const interpretationsDir = (0, paths_1.getDataPath)('interpretations');
             try {
                 const files = await fs.readdir(interpretationsDir);
                 const jsonFiles = files.filter(file => file.endsWith('.json'));

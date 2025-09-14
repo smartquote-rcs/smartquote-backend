@@ -11,8 +11,8 @@ interface WorkerMessage {
     };
 }
 export declare class WorkerCommunication {
-    private readonly messageDir;
     private readonly messageFile;
+    private readonly messageDir;
     private isIPCAvailable;
     constructor();
     /**

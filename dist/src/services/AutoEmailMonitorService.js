@@ -9,6 +9,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const child_process_1 = require("child_process");
 const path_1 = __importDefault(require("path"));
+const paths_1 = require("../utils/paths");
 const fs_1 = __importDefault(require("fs"));
 const EmailSaverService_1 = __importDefault(require("./EmailSaverService"));
 const GeminiInterpretationService_1 = __importDefault(require("./GeminiInterpretationService"));
@@ -24,7 +25,7 @@ class AutoEmailMonitorService {
     pollInterval = null;
     // Dedup: locks em memória por processo e por arquivo (entre processos)
     processingEmails = new Set();
-    lockDir = path_1.default.join(process.cwd(), 'src/data/.locks');
+    lockDir = (0, paths_1.getLocksDir)();
     exitHandlersRegistered = false;
     constructor() {
         this.emailSaver = new EmailSaverService_1.default();
@@ -46,7 +47,7 @@ class AutoEmailMonitorService {
         };
         // Garante pasta de locks
         try {
-            fs_1.default.mkdirSync(this.lockDir, { recursive: true });
+            (0, paths_1.ensureDir)(this.lockDir);
         }
         catch { }
         this.registerExitHandlers();
@@ -578,7 +579,7 @@ class AutoEmailMonitorService {
     async isEmailAlreadyProcessed(emailId) {
         try {
             const fs = await import('fs/promises');
-            const statusPath = path_1.default.join(process.cwd(), 'src/data/email_status.json');
+            const statusPath = (0, paths_1.getDataPath)('email_status.json');
             const data = await fs.readFile(statusPath, 'utf8');
             const status = JSON.parse(data);
             return Array.isArray(status.processed) && status.processed.includes(emailId);
@@ -594,7 +595,7 @@ class AutoEmailMonitorService {
     async markEmailAsProcessed(emailId) {
         try {
             const fs = await import('fs/promises');
-            const statusPath = path_1.default.join(process.cwd(), 'src/data/email_status.json');
+            const statusPath = (0, paths_1.getDataPath)('email_status.json');
             let status = {
                 processed: [],
                 lastCheck: new Date().toISOString()

@@ -10,9 +10,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.WorkerCommunication = void 0;
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
+const paths_1 = require("../utils/paths");
 class WorkerCommunication {
-    messageDir = path_1.default.join(__dirname, '../data/worker-messages');
-    messageFile = path_1.default.join(this.messageDir, 'messages.json');
+    messageFile = (0, paths_1.getWorkerMessagesFile)();
+    messageDir = path_1.default.dirname(this.messageFile);
     isIPCAvailable;
     constructor() {
         this.isIPCAvailable = !!(process.send && process.connected);
@@ -28,9 +29,7 @@ class WorkerCommunication {
      * Garante que o diretório de mensagens existe
      */
     ensureMessageDirectory() {
-        if (!fs_1.default.existsSync(this.messageDir)) {
-            fs_1.default.mkdirSync(this.messageDir, { recursive: true });
-        }
+        (0, paths_1.ensureDir)(this.messageDir);
     }
     /**
      * Envia mensagem do worker para o processo principal

@@ -10,13 +10,12 @@ exports.GmailMonitorService = void 0;
 const googleapis_1 = require("googleapis");
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
-const paths_1 = require("../utils/paths");
 class GmailMonitorService {
     oauth2Client = null;
     tokenPath = path_1.default.join(__dirname, '../tData.json');
     credentialsPath = path_1.default.join(__dirname, '../cData.json');
-    // Caminho consistente entre TS (src) e build (dist)
-    statusPath = (0, paths_1.getDataPath)('email_status.json');
+    // Usar caminho baseado no diretório do projeto para ser consistente entre TS (src) e build (dist)
+    statusPath = path_1.default.join(process.cwd(), 'src/data/email_status.json');
     scopes = ['https://www.googleapis.com/auth/gmail.readonly'];
     constructor() {
         this.ensureDataDirectory();
@@ -26,7 +25,9 @@ class GmailMonitorService {
      */
     ensureDataDirectory() {
         const dataDir = path_1.default.dirname(this.statusPath);
-        (0, paths_1.ensureDir)(dataDir);
+        if (!fs_1.default.existsSync(dataDir)) {
+            fs_1.default.mkdirSync(dataDir, { recursive: true });
+        }
     }
     /**
      * Carrega credenciais e autoriza o cliente

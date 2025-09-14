@@ -8,9 +8,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
-const paths_1 = require("../utils/paths");
 class EmailSaverService {
-    emailsDir = (0, paths_1.getDataPath)('emails');
+    emailsDir = path_1.default.join(process.cwd(), 'src/data/emails');
     jsonDir = path_1.default.join(this.emailsDir, 'json');
     metadataPath = path_1.default.join(this.emailsDir, 'saved_emails_metadata.json');
     constructor() {
@@ -21,7 +20,11 @@ class EmailSaverService {
      */
     ensureDirectories() {
         const dirs = [this.emailsDir, this.jsonDir];
-        dirs.forEach(dir => (0, paths_1.ensureDir)(dir));
+        dirs.forEach(dir => {
+            if (!fs_1.default.existsSync(dir)) {
+                fs_1.default.mkdirSync(dir, { recursive: true });
+            }
+        });
     }
     /**
      * Gera nome de arquivo único baseado no email

@@ -535,7 +535,13 @@ class CotacoesItensService {
         console.error('[getSugeridosWeb] Erro ao buscar cotacaoItem:', error);
         throw new Error('Item de cotação não encontrado');
       }
-      const relatorio = await RelatorioService.gerarDadosRelatorio(cotacaoItem?.cotacao_id);
+      // Normaliza analise_web para array
+      const analiseWebArr = Array.isArray(cotacaoItem.analise_web)
+        ? cotacaoItem.analise_web
+        : (cotacaoItem.analise_web ? [cotacaoItem.analise_web] : []);
+      let relatorio = {
+        analiseWeb: analiseWebArr
+      };
       console.log('[getSugeridosWeb] cotacaoItem:', cotacaoItem);
       console.log('[getSugeridosWeb] relatorio:', relatorio);
       if (relatorio && relatorio.analiseWeb && Array.isArray(relatorio.analiseWeb)) {
@@ -572,7 +578,17 @@ class CotacoesItensService {
         console.error('[getSugeridosLocal] Erro ao buscar cotacaoItem:', error);
         throw new Error('Item de cotação não encontrado');
       }
-      const relatorio = await RelatorioService.gerarDadosRelatorio(cotacaoItem?.cotacao_id);
+      // Normaliza analise_local e analise_cache para array
+      const analiseLocalArr = Array.isArray(cotacaoItem.analise_local)
+        ? cotacaoItem.analise_local
+        : (cotacaoItem.analise_local ? [cotacaoItem.analise_local] : []);
+      const analiseCacheArr = Array.isArray(cotacaoItem.analise_cache)
+        ? cotacaoItem.analise_cache
+        : (cotacaoItem.analise_cache ? [cotacaoItem.analise_cache] : []);
+      let relatorio = {
+        analiseLocal: analiseLocalArr,
+        analiseCache: analiseCacheArr
+      };
       console.log('[getSugeridosLocal] cotacaoItem:', cotacaoItem);
       console.log('[getSugeridosLocal] relatorio:', relatorio);
       if (relatorio) {

@@ -187,7 +187,7 @@ class CotacoesItensController {
       const analiseUpdates: any = {};
 
       // Atualizar análise local no item, se existir
-      if (existingItem.analise_local) {
+      if (existingItem.analise_local && newProductId) {
         const currentLocal = existingItem.analise_local;
         const updatedAnaliseLocal = Array.isArray(currentLocal) ? [...currentLocal] : [currentLocal];
         const localIndex = updatedAnaliseLocal.findIndex((item: any) => item?.llm_relatorio?.escolha_principal === existingItem.item_nome);
@@ -230,7 +230,7 @@ class CotacoesItensController {
       }
 
       // Atualizar análise web no item (analise_web)
-      if (existingItem.analise_web) {
+      if (existingItem.analise_web && url) {
         const currentWeb = existingItem.analise_web;
         const updatedAnaliseWeb = Array.isArray(currentWeb) ? [...currentWeb] : [currentWeb];
         const webUpdated = updatedAnaliseWeb.map((aw: any) => {

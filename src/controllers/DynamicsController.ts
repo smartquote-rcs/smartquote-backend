@@ -68,9 +68,23 @@ class DynamicsController {
     try {
       const config = this.dynamicsService.obterConfig();
       
+      // Debug: verificar se variáveis estão definidas
+      const debug = {
+        DYNAMICS_WEB_API_ENDPOINT_defined: !!process.env.DYNAMICS_WEB_API_ENDPOINT,
+        DYNAMICS_WEB_API_ENDPOINT_length: process.env.DYNAMICS_WEB_API_ENDPOINT?.length || 0,
+        DYNAMICS_WEB_API_ENDPOINT_preview: process.env.DYNAMICS_WEB_API_ENDPOINT?.substring(0, 30) || 'VAZIO',
+        AZURE_TENANT_ID_defined: !!process.env.AZURE_TENANT_ID,
+        AZURE_TENANT_ID_length: process.env.AZURE_TENANT_ID?.length || 0,
+        AZURE_CLIENT_ID_defined: !!process.env.AZURE_CLIENT_ID,
+        AZURE_CLIENT_ID_length: process.env.AZURE_CLIENT_ID?.length || 0,
+        AZURE_CLIENT_SECRET_defined: !!process.env.AZURE_CLIENT_SECRET,
+        AZURE_CLIENT_SECRET_length: process.env.AZURE_CLIENT_SECRET?.length || 0,
+      };
+      
       return res.status(200).json({
         message: 'Configurações do Dynamics 365',
-        data: config
+        data: config,
+        debug: debug
       });
     } catch (error: any) {
       return res.status(500).json({

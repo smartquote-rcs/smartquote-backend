@@ -5,6 +5,7 @@ import { ExportService } from '../services/relatorio/ExportService';
 import supabase from '../infra/supabase/connect';
 import fs from 'fs';
 import path from 'path';
+import { auditLog } from '../utils/AuditLogHelper';
 
 export default class RelatoriosController {
   private static exportService = new ExportService();
@@ -22,6 +23,15 @@ export default class RelatoriosController {
       
       // Gerar o relatório diretamente no buffer para download
       const pdfBuffer = await RelatorioService.gerarRelatorioParaDownload(cotacaoIdNum);
+      
+      // Log de auditoria: Exportação de relatório
+      const userId = (req as any).user?.id || 'system';
+      auditLog.logExport(
+        userId,
+        'cotacao_pdf',
+        'PDF',
+        1
+      ).catch(console.error);
       
       // Configurar headers para download do PDF
       const fileName = `relatorio_cotacao_${cotacaoIdNum}_${Date.now()}.pdf`;

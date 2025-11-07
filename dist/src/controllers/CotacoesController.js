@@ -7,6 +7,7 @@ const CotacoesService_1 = __importDefault(require("../services/CotacoesService")
 const CotacaoSchema_1 = require("../schemas/CotacaoSchema");
 const CotacaoNotificationService_1 = __importDefault(require("../services/CotacaoNotificationService"));
 const DynamicsIntegrationService_1 = __importDefault(require("../services/DynamicsIntegrationService"));
+const AuditLogHelper_1 = require("../utils/AuditLogHelper");
 class CotacoesController {
     async create(req, res) {
         // compat: aceitar camelCase e converter
@@ -34,6 +35,13 @@ class CotacoesController {
         }
         try {
             const cotacao = await CotacoesService_1.default.create(parsed.data);
+            // Log de auditoria: Criação de cotação
+            const userId = req.user?.id || 'system';
+            AuditLogHelper_1.auditLog.logCreate(userId, 'cotacoes', cotacao.id, {
+                orcamento_geral: cotacao.orcamento_geral,
+                status: cotacao.status,
+                prompt_id: cotacao.prompt_id
+            }).catch(console.error);
             // Criar notificação para nova cotação
             try {
                 await CotacaoNotificationService_1.default.processarNotificacaoCotacao(cotacao, 'criada');
@@ -95,6 +103,7 @@ class CotacoesController {
     async delete(req, res) {
         try {
             const { id } = req.params;
+            const userId = req.user?.id || 'system';
             // Buscar cotação antes de deletar para notificações
             let cotacaoParaDeletar;
             try {
@@ -105,6 +114,11 @@ class CotacoesController {
                 console.warn('Cotação não encontrada para notificação de deleção:', id);
             }
             await CotacoesService_1.default.delete(Number(id));
+            // Log de auditoria: Deleção de cotação
+            AuditLogHelper_1.auditLog.logDelete(userId, 'cotacoes', Number(id), cotacaoParaDeletar ? {
+                orcamento_geral: cotacaoParaDeletar.orcamento_geral,
+                status: cotacaoParaDeletar.status
+            } : undefined).catch(console.error);
             // Criar notificação de deleção se conseguiu buscar a cotação
             if (cotacaoParaDeletar) {
                 try {

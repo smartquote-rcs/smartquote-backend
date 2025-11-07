@@ -4,6 +4,7 @@ import { cotacaoSchema } from '../schemas/CotacaoSchema';
 import { Cotacao } from '../models/Cotacao';
 import CotacaoNotificationService from '../services/CotacaoNotificationService';
 import DynamicsIntegrationService from '../services/DynamicsIntegrationService';
+import { auditLog } from '../utils/AuditLogHelper';
 
 class CotacoesController {
   async create(req: Request, res: Response): Promise<Response> {
@@ -28,6 +29,19 @@ class CotacoesController {
 
     try {
       const cotacao = await CotacoesService.create(parsed.data as unknown as Cotacao);
+      
+      // Log de auditoria: Criação de cotação
+      const userId = (req as any).user?.id || 'system';
+      auditLog.logCreate(
+        userId,
+        'cotacoes',
+        cotacao.id!,
+        {
+          orcamento_geral: cotacao.orcamento_geral,
+          status: cotacao.status,
+          prompt_id: cotacao.prompt_id
+        }
+      ).catch(console.error);
       
       // Criar notificação para nova cotação
       try {
@@ -89,6 +103,7 @@ class CotacoesController {
   async delete(req: Request, res: Response): Promise<Response> {
     try {
       const { id } = req.params;
+      const userId = (req as any).user?.id || 'system';
       
       // Buscar cotação antes de deletar para notificações
       let cotacaoParaDeletar;
@@ -100,6 +115,17 @@ class CotacoesController {
       }
       
       await CotacoesService.delete(Number(id));
+      
+      // Log de auditoria: Deleção de cotação
+      auditLog.logDelete(
+        userId,
+        'cotacoes',
+        Number(id),
+        cotacaoParaDeletar ? {
+          orcamento_geral: cotacaoParaDeletar.orcamento_geral,
+          status: cotacaoParaDeletar.status
+        } : undefined
+      ).catch(console.error);
       
       // Criar notificação de deleção se conseguiu buscar a cotação
       if (cotacaoParaDeletar) {

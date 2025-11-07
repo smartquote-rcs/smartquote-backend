@@ -9,6 +9,7 @@ const ExportService_1 = require("../services/relatorio/ExportService");
 const connect_1 = __importDefault(require("../infra/supabase/connect"));
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
+const AuditLogHelper_1 = require("../utils/AuditLogHelper");
 class RelatoriosController {
     static exportService = new ExportService_1.ExportService();
     static async gerarRelatorio(req, res) {
@@ -23,6 +24,9 @@ class RelatoriosController {
             }
             // Gerar o relatório diretamente no buffer para download
             const pdfBuffer = await RelatorioService_1.default.gerarRelatorioParaDownload(cotacaoIdNum);
+            // Log de auditoria: Exportação de relatório
+            const userId = req.user?.id || 'system';
+            AuditLogHelper_1.auditLog.logExport(userId, 'cotacao_pdf', 'PDF', 1).catch(console.error);
             // Configurar headers para download do PDF
             const fileName = `relatorio_cotacao_${cotacaoIdNum}_${Date.now()}.pdf`;
             res.setHeader('Content-Type', 'application/pdf');

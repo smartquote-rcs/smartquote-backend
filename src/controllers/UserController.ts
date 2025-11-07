@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { userSchema } from '../schemas/UserSchema';
 import UserService from '../services/UserService';
+import { auditLog } from '../utils/AuditLogHelper';
 
 class UserController {
   async getByEmail(req: Request, res: Response): Promise<Response> {
@@ -63,7 +64,30 @@ class UserController {
   async delete(req: Request, res: Response): Promise<Response> {
     try {
       const { id } = req.params;
+      const currentUserId = (req as any).user?.id || 'system';
+      
+      // Buscar usuário antes de deletar
+      let userParaDeletar;
+      try {
+        userParaDeletar = await UserService.getById(String(id));
+      } catch (error) {
+        console.warn('Usuário não encontrado para log:', id);
+      }
+      
       await UserService.delete(String(id));
+      
+      // Log de auditoria: Deleção de usuário
+      auditLog.log(
+        currentUserId,
+        'DELETE_USER',
+        'users',
+        undefined,
+        {
+          usuario_deletado_id: id,
+          nome: userParaDeletar?.name
+        }
+      ).catch(console.error);
+      
       return res.status(200).json({ message: 'User deletado com sucesso.' });
     } catch (err: any) {
       return res.status(500).json({ error: err.message });

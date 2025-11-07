@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import FornecedoresService from '../services/FornecedoresService';
 import { fornecedorSchema } from '../schemas/FornecedorSchema';
 import { Fornecedor } from '../models/Fornecedor';
+import { auditLog } from '../utils/AuditLogHelper';
 
 class FornecedoresController {
   async create(req: Request, res: Response): Promise<Response> {
@@ -14,6 +15,20 @@ class FornecedoresController {
     try {
   console.log('✅ Validação fornecedor ok. Dados normalizados:', parsed.data);
   const fornecedor = await FornecedoresService.create(parsed.data as Fornecedor);
+      
+      // Log de auditoria: Criação de fornecedor
+      const userId = (req as any).user?.id || 'system';
+      auditLog.logCreate(
+        userId,
+        'fornecedores',
+        fornecedor.id!,
+        {
+          nome: fornecedor.nome,
+          contato: fornecedor.contato,
+          email: fornecedor.email
+        }
+      ).catch(console.error);
+      
       return res.status(201).json({
         message: 'Fornecedor cadastrado com sucesso.',
         data: fornecedor,
@@ -53,7 +68,29 @@ class FornecedoresController {
   async delete(req: Request, res: Response): Promise<Response> {
     try {
       const { id } = req.params;
+      const userId = (req as any).user?.id || 'system';
+      
+      // Buscar fornecedor antes de deletar
+      let fornecedorParaDeletar;
+      try {
+        fornecedorParaDeletar = await FornecedoresService.getById(Number(id));
+      } catch (error) {
+        console.warn('Fornecedor não encontrado para log:', id);
+      }
+      
       await FornecedoresService.delete(Number(id));
+      
+      // Log de auditoria: Deleção de fornecedor
+      auditLog.logDelete(
+        userId,
+        'fornecedores',
+        Number(id),
+        fornecedorParaDeletar ? {
+          nome: fornecedorParaDeletar.nome,
+          email: fornecedorParaDeletar.email
+        } : undefined
+      ).catch(console.error);
+      
       return res.status(200).json({ message: 'Fornecedor deletado com sucesso.' });
     } catch (err: any) {
       return res.status(500).json({ error: err.message });
@@ -63,8 +100,27 @@ class FornecedoresController {
   async patch(req: Request, res: Response): Promise<Response> {
     try {
       const { id } = req.params;
+      const userId = (req as any).user?.id || 'system';
       const updates = req.body;
+      
+      // Buscar dados antigos
+      let oldData;
+      try {
+        oldData = await FornecedoresService.getById(Number(id));
+      } catch (error) {
+        console.warn('Fornecedor não encontrado para log de update:', id);
+      }
+      
       const fornecedorAtualizado = await FornecedoresService.updatePartial(Number(id), updates);
+      
+      // Log de auditoria: Atualização de fornecedor
+      auditLog.logUpdate(
+        userId,
+        'fornecedores',
+        Number(id),
+        oldData,
+        updates
+      ).catch(console.error);
       return res.status(200).json({
         message: 'Fornecedor atualizado com sucesso.',
         data: fornecedorAtualizado,

@@ -3,6 +3,7 @@ import { ProdutosService } from '../services/ProdutoService';
 import { produtoSchema } from '../schemas/ProdutoSchema';
 import { Produto } from '../models/Produto';
 import supabase from '../infra/supabase/connect';
+import { auditLog } from '../utils/AuditLogHelper';
 
 // Tipos auxiliares para upload
 interface MulterRequest extends Request {
@@ -25,6 +26,22 @@ class ProdutosController {
 
     try {
   const produto = await produtosService.create(parsed.data as unknown as Produto);
+      
+      // Log de auditoria: Criação de produto
+      const userId = (req as any).user?.id || 'system';
+      if (produto) {
+        auditLog.logCreate(
+          userId,
+          'produtos',
+          produto.id!,
+          {
+            nome: produto.nome,
+            preco: produto.preco,
+            fornecedor_id: produto.fornecedor_id
+          }
+        ).catch(console.error);
+      }
+      
       return res.status(201).json({
         message: 'Produto cadastrado com sucesso.',
         data: produto,
@@ -62,7 +79,29 @@ class ProdutosController {
   async delete(req: Request, res: Response): Promise<Response> {
     try {
       const { id } = req.params;
+      const userId = (req as any).user?.id || 'system';
+      
+      // Buscar produto antes de deletar
+      let produtoParaDeletar;
+      try {
+        produtoParaDeletar = await produtosService.getById(Number(id));
+      } catch (error) {
+        console.warn('Produto não encontrado para log:', id);
+      }
+      
       await produtosService.delete(Number(id));
+      
+      // Log de auditoria: Deleção de produto
+      auditLog.logDelete(
+        userId,
+        'produtos',
+        Number(id),
+        produtoParaDeletar ? {
+          nome: produtoParaDeletar.nome,
+          preco: produtoParaDeletar.preco
+        } : undefined
+      ).catch(console.error);
+      
       return res.status(200).json({ message: 'Produto deletado com sucesso.' });
     } catch (err: any) {
       return res.status(500).json({ error: err.message });
@@ -72,10 +111,32 @@ class ProdutosController {
   async patch(req: Request, res: Response): Promise<Response> {
     try {
       const { id } = req.params;
+      const userId = (req as any).user?.id || 'system';
   const updates = { ...req.body };
   if (updates.fornecedorId && !updates.fornecedor_id) updates.fornecedor_id = updates.fornecedorId;
 
+      // Buscar dados antigos
+      let oldData;
+      try {
+        oldData = await produtosService.getById(Number(id));
+      } catch (error) {
+        console.warn('Produto não encontrado para log de update:', id);
+      }
+
       const produtoAtualizado = await produtosService.updatePartial(Number(id), updates);
+      
+      // Log de auditoria: Atualização de produto
+      auditLog.logUpdate(
+        userId,
+        'produtos',
+        Number(id),
+        oldData ? {
+          nome: oldData.nome,
+          preco: oldData.preco,
+          estoque: oldData.estoque
+        } : undefined,
+        updates
+      ).catch(console.error);
 
       return res.status(200).json({
         message: 'Produto atualizado com sucesso.',

@@ -7,6 +7,7 @@ const signUp_schema_1 = require("../schemas/signUp.schema");
 const signIn_schema_1 = require("../schemas/signIn.schema");
 const twoFactorAuth_schema_1 = require("../schemas/twoFactorAuth.schema");
 const AuthService_1 = __importDefault(require("../services/AuthService"));
+const AuditLogHelper_1 = require("../utils/AuditLogHelper");
 class AuthController {
     async signUp(req, res) {
         const parsed = signUp_schema_1.signUpSchema.safeParse(req.body);
@@ -16,6 +17,15 @@ class AuthController {
         }
         try {
             const result = await AuthService_1.default.signUp(parsed.data);
+            // Log de auditoria: Registro de novo usuário
+            if (result.userId) {
+                AuditLogHelper_1.auditLog.log(result.userId, 'USER_REGISTER', 'users', undefined, {
+                    email: parsed.data.email,
+                    username: parsed.data.username,
+                    ip: req.ip,
+                    user_agent: req.get('user-agent')
+                }).catch(console.error);
+            }
             return res.status(201).json({
                 message: 'Usuário cadastrado com sucesso.',
                 userId: result.userId,
@@ -33,9 +43,20 @@ class AuthController {
         }
         try {
             const result = await AuthService_1.default.signIn(parsed.data);
+            // Log de auditoria: Login bem-sucedido
+            if (result.user?.id) {
+                AuditLogHelper_1.auditLog.logLogin(result.user.id, req.ip, req.get('user-agent'), true).catch(console.error);
+            }
             return res.status(200).json(result);
         }
         catch (err) {
+            // Log de auditoria: Tentativa de login falhou
+            AuditLogHelper_1.auditLog.log('system', 'USER_LOGIN_FAILED', undefined, undefined, {
+                email: parsed.data?.email,
+                ip: req.ip,
+                user_agent: req.get('user-agent'),
+                erro: err.message
+            }).catch(console.error);
             return res.status(401).json({ error: err.message });
         }
     }
@@ -115,6 +136,10 @@ class AuthController {
         }
         try {
             const result = await AuthService_1.default.resetPassword(token, newPassword);
+            // Log de auditoria: Reset de senha
+            if (result.user?.id) {
+                AuditLogHelper_1.auditLog.logPasswordChange(result.user.id, 'reset').catch(console.error);
+            }
             return res.status(200).json(result);
         }
         catch (err) {

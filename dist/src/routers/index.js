@@ -24,6 +24,7 @@ const cotacoesItens_routes_1 = __importDefault(require("./cotacoesItens.routes")
 const relatorios_routes_1 = __importDefault(require("./relatorios.routes"));
 const usersUpsert_routes_1 = __importDefault(require("./usersUpsert.routes"));
 const sistema_routes_1 = __importDefault(require("./sistema.routes"));
+const auditLogs_routes_1 = __importDefault(require("./auditLogs.routes"));
 const routers = (0, express_1.Router)();
 const produtosService = new ProdutoService_1.ProdutosService();
 routers.get("/", (req, res) => {
@@ -50,6 +51,7 @@ routers.use('/dynamics', dynamics_routes_1.default); // Remove authMiddleware pa
 routers.use('/prompts', prompts_routes_1.default);
 routers.use('/relatorios', relatorios_routes_1.default);
 routers.use('/users-public', usersUpsert_routes_1.default); // rota pública para upsert mínimo
+routers.use('/audit-logs', authMiddleware_1.authMiddleware, auditLogs_routes_1.default); // Sistema de auditoria
 // Rotas públicas RESTful para products (compatível com frontend)
 // GET /api/products
 routers.get('/products', async (req, res) => {

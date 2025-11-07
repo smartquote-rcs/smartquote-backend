@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const UserSchema_1 = require("../schemas/UserSchema");
 const UserService_1 = __importDefault(require("../services/UserService"));
+const AuditLogHelper_1 = require("../utils/AuditLogHelper");
 class UserController {
     async getByEmail(req, res) {
         try {
@@ -67,7 +68,21 @@ class UserController {
     async delete(req, res) {
         try {
             const { id } = req.params;
+            const currentUserId = req.user?.id || 'system';
+            // Buscar usuário antes de deletar
+            let userParaDeletar;
+            try {
+                userParaDeletar = await UserService_1.default.getById(String(id));
+            }
+            catch (error) {
+                console.warn('Usuário não encontrado para log:', id);
+            }
             await UserService_1.default.delete(String(id));
+            // Log de auditoria: Deleção de usuário
+            AuditLogHelper_1.auditLog.log(currentUserId, 'DELETE_USER', 'users', undefined, {
+                usuario_deletado_id: id,
+                nome: userParaDeletar?.name
+            }).catch(console.error);
             return res.status(200).json({ message: 'User deletado com sucesso.' });
         }
         catch (err) {

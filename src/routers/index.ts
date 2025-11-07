@@ -19,6 +19,7 @@ import cotacoesItensRouter from './cotacoesItens.routes';
 import relatorioRouter from './relatorios.routes';
 import usersUpsertRouter from './usersUpsert.routes';
 import sistemaRouter from './sistema.routes';
+import auditLogsRouter from './auditLogs.routes';
 const routers = Router();
 const produtosService = new ProdutosService();
 
@@ -47,6 +48,7 @@ routers.use('/dynamics', dynamicsRouter); // Remove authMiddleware para permitir
 routers.use('/prompts', promptsRouter);
 routers.use('/relatorios', relatorioRouter);
 routers.use('/users-public', usersUpsertRouter); // rota pública para upsert mínimo
+routers.use('/audit-logs', authMiddleware, auditLogsRouter); // Sistema de auditoria
 
 // Rotas públicas RESTful para products (compatível com frontend)
 // GET /api/products

@@ -48,59 +48,67 @@ class WebBuscaJobService {
         if (faltantesSemProdutos.length === 0) {
             return { resultadosCompletos: r1, produtosWeb: aprovados1 };
         }
-        console.log(`🔁 [WEB-BUSCA] Preparando reforço para ${faltantesSemProdutos.length} faltantes sem produtos`);
-        // 3) Buscar sites sugeridos e criar jobs de reforço com urls_add
-        const statusUrlsRound2 = [];
-        for (const f of faltantesSemProdutos) {
-            const termo = f.query_sugerida || solicitacaoFallback;
-            try {
-                const resp = await fetch(`${this.apiBaseUrl}/api/busca-automatica/procurarSites?q=${encodeURIComponent(termo)}&limit=5&location=Angola&is_mixed=true`, {
-                    method: 'GET'
-                });
-                const data = await resp.json();
-                const sites = data?.data?.sites || [];
-                if (Array.isArray(sites) && sites.length > 0) {
-                    const urls_add = sites.map((site) => ({ url: site.url, escala_mercado: site.escala_mercado || 'Nacional' }));
-                    const payload = {
-                        produto: termo,
-                        quantidade: Number.isFinite(Number(f.quantidade)) && Number(f.quantidade) > 0 ? Math.floor(Number(f.quantidade)) : 1,
-                        salvamento: false,
-                        refinamento: true,
-                        urls_add,
-                    };
-                    if (typeof f.custo_beneficio !== 'undefined')
-                        payload.custo_beneficio = f.custo_beneficio;
-                    if (typeof f.rigor === 'number' && isFinite(f.rigor))
-                        payload.rigor = Math.max(0, Math.min(5, Math.round(f.rigor)));
-                    if (typeof f.ponderacao_busca_externa === 'number' && isFinite(f.ponderacao_busca_externa))
-                        payload.ponderacao_web_llm = Math.max(0, Math.min(1, f.ponderacao_busca_externa));
-                    const faltId = (typeof f.item_id !== 'undefined' && f.item_id !== null) ? f.item_id : f.id;
-                    if (typeof faltId !== 'undefined' && faltId !== null)
-                        payload.faltante_id = String(faltId);
-                    const resp2 = await fetch(`${this.apiBaseUrl}/api/busca-automatica/background`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
+        // 🚧 REFORÇO TEMPORARIAMENTE DESABILITADO
+        // TODO: Habilitar quando estiver pronto para produção (alterar false para true)
+        if (false) {
+            console.log(`🔁 [WEB-BUSCA] Preparando reforço para ${faltantesSemProdutos.length} faltantes sem produtos`);
+            // 3) Buscar sites sugeridos e criar jobs de reforço com urls_add
+            const statusUrlsRound2 = [];
+            for (const f of faltantesSemProdutos) {
+                const termo = f.query_sugerida || solicitacaoFallback;
+                try {
+                    const resp = await fetch(`${this.apiBaseUrl}/api/busca-automatica/procurarSites?q=${encodeURIComponent(termo)}&limit=5&location=Angola&is_mixed=true`, {
+                        method: 'GET'
                     });
-                    const data2 = (await resp2.json());
-                    if (data2?.statusUrl)
-                        statusUrlsRound2.push(`${this.apiBaseUrl}${data2.statusUrl}`);
-                    else if (data2?.jobId)
-                        statusUrlsRound2.push(`${this.apiBaseUrl}/api/busca-automatica/job/${data2.jobId}`);
+                    const data = await resp.json();
+                    const sites = data?.data?.sites || [];
+                    if (Array.isArray(sites) && sites.length > 0) {
+                        const urls_add = sites.map((site) => ({ url: site.url, escala_mercado: site.escala_mercado || 'Nacional' }));
+                        const payload = {
+                            produto: termo,
+                            quantidade: Number.isFinite(Number(f.quantidade)) && Number(f.quantidade) > 0 ? Math.floor(Number(f.quantidade)) : 1,
+                            salvamento: false,
+                            refinamento: true,
+                            urls_add,
+                        };
+                        if (typeof f.custo_beneficio !== 'undefined')
+                            payload.custo_beneficio = f.custo_beneficio;
+                        if (typeof f.rigor === 'number' && isFinite(f.rigor))
+                            payload.rigor = Math.max(0, Math.min(5, Math.round(f.rigor)));
+                        if (typeof f.ponderacao_busca_externa === 'number') {
+                            payload.ponderacao_web_llm = Math.max(0, Math.min(1, f.ponderacao_busca_externa));
+                        }
+                        const faltId = (typeof f.item_id !== 'undefined' && f.item_id !== null) ? f.item_id : f.id;
+                        if (typeof faltId !== 'undefined' && faltId !== null)
+                            payload.faltante_id = String(faltId);
+                        const resp2 = await fetch(`${this.apiBaseUrl}/api/busca-automatica/background`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+                        const data2 = (await resp2.json());
+                        if (data2?.statusUrl)
+                            statusUrlsRound2.push(`${this.apiBaseUrl}${data2.statusUrl}`);
+                        else if (data2?.jobId)
+                            statusUrlsRound2.push(`${this.apiBaseUrl}/api/busca-automatica/job/${data2.jobId}`);
+                    }
+                }
+                catch (e) {
+                    console.warn(`⚠️ [WEB-BUSCA] Falha ao montar reforço para termo "${termo}":`, e?.message || e);
                 }
             }
-            catch (e) {
-                console.warn(`⚠️ [WEB-BUSCA] Falha ao montar reforço para termo "${termo}":`, e?.message || e);
+            if (statusUrlsRound2.length === 0) {
+                return { resultadosCompletos: r1, produtosWeb: aprovados1 };
             }
+            const { resultadosCompletos: r2, produtosWeb: aprovados2 } = await this.waitJobs(statusUrlsRound2);
+            // 4) Combinar resultados
+            const resultadosCompletos = [...r1, ...r2];
+            const produtosWeb = [...aprovados1, ...aprovados2];
+            return { resultadosCompletos, produtosWeb };
         }
-        if (statusUrlsRound2.length === 0) {
-            return { resultadosCompletos: r1, produtosWeb: aprovados1 };
-        }
-        const { resultadosCompletos: r2, produtosWeb: aprovados2 } = await this.waitJobs(statusUrlsRound2);
-        // 4) Combinar resultados
-        const resultadosCompletos = [...r1, ...r2];
-        const produtosWeb = [...aprovados1, ...aprovados2];
-        return { resultadosCompletos, produtosWeb };
+        // Retornar apenas resultados da primeira rodada (sem reforço)
+        console.log(`ℹ️ [WEB-BUSCA] Reforço desabilitado - retornando apenas resultados da busca principal`);
+        return { resultadosCompletos: r1, produtosWeb: aprovados1 };
     }
     sleep(ms) {
         return new Promise(res => setTimeout(res, ms));

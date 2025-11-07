@@ -138,5 +138,65 @@
     "filePaths": [
       "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\src\\data\\emails\\json\\2025-09-14T12-06-02-241Z_1993d04b669ac789_.json"
     ]
+  },
+  {
+    "id": "19a50f31f9d59771",
+    "savedAt": "2025-11-05T12:10:17.000Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\src\\data\\emails\\json\\2025-11-05T12-10-16-995Z_19a50f31f9d59771_Re_Preciso_de_verificar_preo_d.json"
+    ]
+  },
+  {
+    "id": "199ecf7a0dff180c",
+    "savedAt": "2025-11-05T12:10:29.081Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\src\\data\\emails\\json\\2025-11-05T12-10-29-080Z_199ecf7a0dff180c_Fwd_Computador_HP.json"
+    ]
+  },
+  {
+    "id": "19a54f87a6a4405e",
+    "savedAt": "2025-11-06T11:51:22.038Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\src\\data\\emails\\json\\2025-11-06T11-51-22-031Z_19a54f87a6a4405e_Pedido_de_cotaao.json"
+    ]
+  },
+  {
+    "id": "19a5905b4a1300ab",
+    "savedAt": "2025-11-06T14:56:13.522Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\src\\data\\emails\\json\\2025-11-06T14-56-13-520Z_19a5905b4a1300ab_pedido.json"
+    ]
+  },
+  {
+    "id": "19a54da55100974d",
+    "savedAt": "2025-11-06T14:56:13.585Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\src\\data\\emails\\json\\2025-11-06T14-56-13-583Z_19a54da55100974d_Re_Pedido_de_cotao.json"
+    ]
+  },
+  {
+    "id": "19a54e0452de37b9",
+    "savedAt": "2025-11-06T14:56:13.604Z",
+    "formats": [
+      "json"
+    ],
+    "filePaths": [
+      "C:\\Users\\DELL\\Downloads\\smartquote-backend-main (1)\\smartquote-backend-main\\smartquote-backend\\src\\data\\emails\\json\\2025-11-06T14-56-13-602Z_19a54e0452de37b9_Pedido_de_cotao.json"
+    ]
   }
 ]

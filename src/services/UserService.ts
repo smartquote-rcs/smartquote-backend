@@ -87,6 +87,20 @@ async create(data: User): Promise<UserDTO> {
 
     return data as unknown as UserDTO;
   }
+
+  async getByAuthId(authId: string): Promise<UserDTO | null> {
+    const { data, error } = await supabase
+      .from(this.table)
+      .select(`id, name, email, position, auth_id, created_at`)
+      .eq('auth_id', authId)
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to get User by auth_id: ${error.message}`);
+    }
+
+    return data as unknown as UserDTO;
+  }
   
   async delete(id: string): Promise<void> {
 

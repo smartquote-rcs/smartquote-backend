@@ -90,19 +90,13 @@ export class AuditLogHelper {
         userId: string,
         ip?: string,
         userAgent?: string,
-        success: boolean = true,
-        userName?: string,
-        userEmail?: string,
-        userRole?: string
+        success: boolean = true
     ): Promise<void> {
         await this.log(userId, 'USER_LOGIN', undefined, undefined, {
             ip,
             user_agent: userAgent,
             sucesso: success,
-            timestamp: new Date().toISOString(),
-            userName,
-            userEmail,
-            role: userRole
+            timestamp: new Date().toISOString()
         });
     }
 
@@ -111,19 +105,13 @@ export class AuditLogHelper {
      */
     static async logLogout(
         userId: string,
-        userName?: string,
-        userEmail?: string,
-        userRole?: string,
         ip?: string,
         userAgent?: string
     ): Promise<void> {
         await this.log(userId, 'USER_LOGOUT', undefined, undefined, {
-            timestamp: new Date().toISOString(),
-            userName,
-            userEmail,
-            role: userRole,
             ip,
-            user_agent: userAgent
+            user_agent: userAgent,
+            timestamp: new Date().toISOString()
         });
     }
 

@@ -19,6 +19,21 @@ class UserController {
       return res.status(500).json({ error: err.message });
     }
   }
+
+  async getByAuthId(req: Request, res: Response): Promise<Response> {
+    try {
+      const authId = req.params.authId as string;
+      const user = await UserService.getByAuthId(authId);
+      
+      if (!user) {
+        return res.status(404).json({ error: 'Usuário não encontrado' });
+      }
+      
+      return res.status(200).json(user);
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
   async create(req: Request, res: Response): Promise<Response> {
     const parsed = userSchema.safeParse(req.body);
     if (!parsed.success) {

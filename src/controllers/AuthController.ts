@@ -53,17 +53,13 @@ class AuthController {
     try {
       const result = await AuthService.signIn(parsed.data);
       
-      // Log de auditoria: Login bem-sucedido com dados completos do usuário
+      // Log de auditoria: Login bem-sucedido
       if (result.user?.id) {
-        console.log('✨ Registrando log de login no AuthController.ts', result);
         auditLog.logLogin(
           result.user.id,
           req.ip,
           req.get('user-agent'),
-          true,
-          result.user.name,
-          result.user.email,
-          result.user.position
+          true
         ).catch(console.error);
       }
       
@@ -200,12 +196,9 @@ class AuthController {
 
       // Log de auditoria: Logout
       auditLog.logLogout(
-        user.id,           // UUID do Supabase Auth
-        user.name,         // Nome do usuário
-        user.email,        // Email do usuário
-        user.position,     // Role/Position
-        req.ip,            // IP do cliente
-        req.get('user-agent') // User Agent
+        user.id,
+        req.ip,
+        req.get('user-agent')
       ).catch(console.error);
       
       return res.status(200).json({ 

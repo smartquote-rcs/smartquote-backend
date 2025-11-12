@@ -53,13 +53,17 @@ class AuthController {
     try {
       const result = await AuthService.signIn(parsed.data);
       
-      // Log de auditoria: Login bem-sucedido
+      // Log de auditoria: Login bem-sucedido com dados completos do usuário
       if (result.user?.id) {
+        console.log('✨ Registrando log de login no AuthController.ts', result);
         auditLog.logLogin(
           result.user.id,
           req.ip,
           req.get('user-agent'),
-          true
+          true,
+          result.user.name,
+          result.user.email,
+          result.user.position
         ).catch(console.error);
       }
       
@@ -183,6 +187,32 @@ class AuthController {
       return res.status(200).json(result);
     } catch (err: any) {
       return res.status(400).json({ error: err.message });
+    }
+  }
+
+  async logout(req: Request, res: Response): Promise<Response> {
+    try {
+      const user = (req as any).user;
+      
+      if (!user) {
+        return res.status(401).json({ error: 'Usuário não autenticado' });
+      }
+
+      // Log de auditoria: Logout
+      auditLog.logLogout(
+        user.id,           // UUID do Supabase Auth
+        user.name,         // Nome do usuário
+        user.email,        // Email do usuário
+        user.position,     // Role/Position
+        req.ip,            // IP do cliente
+        req.get('user-agent') // User Agent
+      ).catch(console.error);
+      
+      return res.status(200).json({ 
+        message: 'Logout realizado com sucesso' 
+      });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
     }
   }
 

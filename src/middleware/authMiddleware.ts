@@ -7,7 +7,7 @@ async function loadAppUser(email: string) {
     // Busca case-sensitive - email deve ser exatamente igual ao da DB
     const { data, error } = await supabase
       .from('users')
-      .select('id, email, position')
+      .select('id, email, name, position, auth_id')
       .eq('email', email)
       .single();
     if (error || !data) return null;
@@ -17,7 +17,7 @@ async function loadAppUser(email: string) {
     else if (['manager','gestor','coordenador'].some(k=>k===pos) || pos.includes('manager') || pos.includes('gestor')) role = 'manager';
     // log resolução
     console.log('[authMiddleware] user role resolved', { email: data.email, position: data.position, role });
-    return { id: data.id, email: data.email, position: data.position, role };
+    return { id: data.id, email: data.email, name: data.name, position: data.position, role, auth_id: data.auth_id };
   } catch {
     return null;
   }
@@ -53,8 +53,10 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
   }
   
   (req as any).user = {
-    id: enriched?.id || user.id,
+    id: user.id, // UUID do Supabase Auth
+    internalId: enriched?.id, // ID numérico da tabela users
     email: user.email,
+    name: enriched?.name || user.email?.split('@')[0] || 'Usuário',
     role: enriched?.role || 'user',
     position: enriched?.position,
     raw: user

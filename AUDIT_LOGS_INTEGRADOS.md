@@ -12,7 +12,7 @@ Localização: `src/controllers/AuthController.ts`
   - Registra: email, username, IP, user-agent
   
 - ✅ **USER_LOGIN** - Login bem-sucedido
-  - Registra: user_id, IP, user-agent, sucesso
+  - Registra: user_id (UUID), IP, user-agent, sucesso, **userName, userEmail, role** ✨
   
 - ✅ **USER_LOGIN_FAILED** - Tentativa de login falhou
   - Registra: email, IP, user-agent, motivo do erro
@@ -20,13 +20,38 @@ Localização: `src/controllers/AuthController.ts`
 - ✅ **PASSWORD_CHANGE** - Reset de senha via token
   - Registra: user_id, método (reset)
 
+**Dados Completos nos Logs:**
+```json
+{
+  "user_id": "90629d29-7312-42c6-86b4-292ab79c140b",
+  "action": "USER_LOGIN",
+  "detalhes_alteracao": {
+    "ip": "::1",
+    "user_agent": "Mozilla/5.0...",
+    "sucesso": true,
+    "timestamp": "2025-11-12T10:30:00Z",
+    "userName": "João Silva",
+    "userEmail": "joao@example.com",
+    "role": "admin"
+  }
+}
+```
+
 **Exemplos de Uso:**
 ```typescript
 // Registro de usuário
 await auditLog.log(userId, 'USER_REGISTER', 'users', undefined, {...});
 
-// Login
-await auditLog.logLogin(userId, ip, userAgent, true);
+// Login com dados completos
+await auditLog.logLogin(
+  userId,           // UUID do Supabase Auth
+  ip,               // Endereço IP
+  userAgent,        // User Agent do navegador
+  true,             // Sucesso
+  userName,         // Nome completo do usuário ✨
+  userEmail,        // Email do usuário ✨
+  userRole          // Role/Position do usuário ✨
+);
 
 // Reset de senha
 await auditLog.logPasswordChange(userId, 'reset');

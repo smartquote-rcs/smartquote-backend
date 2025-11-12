@@ -1,5 +1,6 @@
 import {Router} from "express";
 import AuthController from "../controllers/AuthController";
+import { authMiddleware } from "../middleware/authMiddleware";
 
 const authRouter = Router();
 
@@ -10,5 +11,6 @@ authRouter.post("/reset-password",AuthController.resetPassword);
 authRouter.post("/two-factor/init", AuthController.initiateTwoFactorAuth);
 authRouter.post("/two-factor/verify", AuthController.twoFactorAuth);
 authRouter.post("/two-factor/complete", AuthController.completeTwoFactorAuth);
+authRouter.post("/logout", authMiddleware, AuthController.logout); // ✨ Logout com audit log
 
 export default authRouter;

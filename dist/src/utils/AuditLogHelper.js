@@ -72,8 +72,10 @@ class AuditLogHelper {
     /**
      * Registra logout de usuário
      */
-    static async logLogout(userId) {
+    static async logLogout(userId, ip, userAgent) {
         await this.log(userId, 'USER_LOGOUT', undefined, undefined, {
+            ip,
+            user_agent: userAgent,
             timestamp: new Date().toISOString()
         });
     }

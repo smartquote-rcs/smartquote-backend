@@ -32,7 +32,7 @@ export declare class AuditLogHelper {
     /**
      * Registra logout de usuário
      */
-    static logLogout(userId: string): Promise<void>;
+    static logLogout(userId: string, ip?: string, userAgent?: string): Promise<void>;
     /**
      * Registra mudança de senha
      */

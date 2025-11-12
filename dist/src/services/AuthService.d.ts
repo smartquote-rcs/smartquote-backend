@@ -16,6 +16,8 @@ declare class AuthService {
         user: {
             id: string;
             email: string | undefined;
+            name: any;
+            position: any;
         };
     }>;
     recoverPassword(email: string): Promise<{

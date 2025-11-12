@@ -13,5 +13,7 @@ userRouter.delete("/:id", UserController_1.default.delete);
 userRouter.patch("/:id", UserController_1.default.patch);
 // Nova rota: buscar usuário por email
 userRouter.get("/by-email/:email", UserController_1.default.getByEmail);
+// Nova rota: buscar usuário por auth_id (UUID do Supabase)
+userRouter.get("/by-auth-id/:authId", UserController_1.default.getByAuthId);
 exports.default = userRouter;
 //# sourceMappingURL=users.route.js.map

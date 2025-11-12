@@ -7,6 +7,7 @@ declare class AuthController {
     twoFactorAuth(req: Request, res: Response): Promise<Response>;
     completeTwoFactorAuth(req: Request, res: Response): Promise<Response>;
     resetPassword(req: Request, res: Response): Promise<Response>;
+    logout(req: Request, res: Response): Promise<Response>;
 }
 declare const _default: AuthController;
 export default _default;

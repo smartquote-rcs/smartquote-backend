@@ -30,7 +30,7 @@ class AuthService {
         // VALIDAÇÃO CASE-SENSITIVE: Verificar se o email existe EXATAMENTE como digitado na tabela users
         const { data: userCheck, error: userCheckError } = await connect_1.default
             .from('users')
-            .select('email, id, position')
+            .select('email, id, name, position, auth_id')
             .eq('email', email)
             .single();
         if (userCheckError || !userCheck) {
@@ -53,6 +53,8 @@ class AuthService {
             user: {
                 id: data.user.id,
                 email: data.user.email,
+                name: userCheck.name,
+                position: userCheck.position,
             },
         };
     }

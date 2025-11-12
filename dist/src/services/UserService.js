@@ -78,6 +78,17 @@ class UserService {
         }
         return data;
     }
+    async getByAuthId(authId) {
+        const { data, error } = await connect_1.default
+            .from(this.table)
+            .select(`id, name, email, position, auth_id, created_at`)
+            .eq('auth_id', authId)
+            .single();
+        if (error) {
+            throw new Error(`Failed to get User by auth_id: ${error.message}`);
+        }
+        return data;
+    }
     async delete(id) {
         const { data: user, error: fetchError } = await connect_1.default
             .from(this.table)

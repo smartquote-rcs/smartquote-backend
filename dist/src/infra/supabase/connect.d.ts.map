@@ -1,1 +1,1 @@
-{"version":3,"file":"connect.d.ts","sourceRoot":"","sources":["../../../../src/infra/supabase/connect.ts"],"names":[],"mappings":"AAIA,QAAA,MAAM,QAAQ,mFAGb,CAAC;AAEF,eAAe,QAAQ,CAAC"}
+{"version":3,"file":"connect.d.ts","sourceRoot":"","sources":["../../../../src/infra/supabase/connect.ts"],"names":[],"mappings":"AAWA,QAAA,MAAM,QAAQ,mFAGb,CAAC;AAEF,eAAe,QAAQ,CAAC"}

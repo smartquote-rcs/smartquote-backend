@@ -35,7 +35,13 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 const supabase_js_1 = require("@supabase/supabase-js");
 const dotenv = __importStar(require("dotenv"));
-dotenv.config();
+const path = __importStar(require("path"));
+// Load the project's .env placed under src/.env when running from project root.
+// Default dotenv.config() loads from process.cwd(), but in some run setups the
+// .env is located in `src/.env`. Resolve and load that file explicitly so
+// SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are available when this module
+// is imported.
+dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 const supabase = (0, supabase_js_1.createClient)(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 exports.default = supabase;
 //# sourceMappingURL=connect.js.map

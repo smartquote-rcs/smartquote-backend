@@ -5,6 +5,7 @@ declare class UserService {
     create(data: User): Promise<UserDTO>;
     getAll(): Promise<UserDTO[]>;
     getById(id: string): Promise<UserDTO | null>;
+    getByAuthId(authId: string): Promise<UserDTO | null>;
     delete(id: string): Promise<void>;
     updatePartial(id: string, data: Partial<UserDTO>): Promise<UserDTO>;
 }

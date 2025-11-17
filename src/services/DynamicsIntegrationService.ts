@@ -137,9 +137,9 @@ class DynamicsIntegrationService {
   }
 
   /**
-   * Envia dados para o Dynamics 365
+   * Envia dados para o Dynamics 365 e retorna o ID criado
    */
-  private async enviarParaDynamics(entity: DynamicsEntity, entityName?: string): Promise<boolean> {
+  private async enviarParaDynamics(entity: DynamicsEntity, entityName?: string): Promise<string | boolean> {
     try {
       const url = `${this.config.webApiEndpoint}/${entityName}`;
       console.log(`🔄 [DYNAMICS] Preparando envio para: ${url}`);
@@ -193,6 +193,18 @@ class DynamicsIntegrationService {
       if (response.status === 201 || response.status === 204) {
         console.log(`✅ [DYNAMICS] Dados enviados com sucesso! Status: ${response.status}`);
         
+        // Extrair o ID do recurso criado do header OData-EntityId ou Location
+        const entityIdHeader = response.headers.get('OData-EntityId') || response.headers.get('Location');
+        if (entityIdHeader) {
+          // Extrair o GUID do header (formato: .../<entity>(<guid>))
+          const guidMatch = entityIdHeader.match(/\(([a-f0-9\-]+)\)/i);
+          if (guidMatch && guidMatch[1]) {
+            const entityId = guidMatch[1];
+            console.log(`📋 [DYNAMICS] ID da entidade criada: ${entityId}`);
+            return entityId;
+          }
+        }
+        
         // 204 não retorna conteúdo, 201 pode retornar
         if (response.status === 204) {
           console.log(`📋 [DYNAMICS] Entidade criada sem retorno de dados (204 No Content)`);
@@ -200,6 +212,13 @@ class DynamicsIntegrationService {
         } else {
           const result = await response.json() as any;
           console.log(`📋 [DYNAMICS] Entidade criada com retorno:`, JSON.stringify(result, null, 2));
+          // Tentar extrair ID do resultado se disponível
+          if (result && typeof result === 'object') {
+            const idKey = Object.keys(result).find(key => key.toLowerCase().includes('id'));
+            if (idKey && result[idKey]) {
+              return result[idKey];
+            }
+          }
           return true;
         }
       }
@@ -234,26 +253,89 @@ class DynamicsIntegrationService {
     // Buscar itens da cotação para enriquecer os dados
     const cotacaoComItens = await this.buscarCotacaoComItens(cotacao.id);
     
-    const entidadesParaTestar = ['quotes', 'opportunities', 'incidents', 'leads'];
+    const entidade = 'quotes';
+    const quotenumber = `SQ-${cotacao.id}`;
     
-    for (const entidade of entidadesParaTestar) {
-      console.log(`🎯 [DYNAMICS] Tentando enviar como ${entidade}...`);
+    // Verificar se a quote já existe no Dynamics
+    console.log(`🔍 [DYNAMICS] Verificando se quote ${quotenumber} já existe...`);
+    const quoteExistente = await this.buscarQuotePorNumero(quotenumber);
+    
+    if (quoteExistente) {
+      console.log(`📝 [DYNAMICS] Quote ${quotenumber} já existe (ID: ${quoteExistente.quoteid}). Atualizando...`);
       
-      try {
-        const entity = this.transformCotacaoToDynamics(cotacaoComItens, entidade);
-        const resultado = await this.enviarParaDynamics(entity, entidade);
-
-        if (resultado) {
-          console.log(`✅ [DYNAMICS] Cotação ${cotacao.id} enviada com sucesso como ${entidade}!`);
-          return true;
+      // Atualizar quote existente
+      const entity = this.transformCotacaoToDynamics(cotacaoComItens, entidade);
+      const atualizado = await this.atualizarQuote(quoteExistente.quoteid, entity);
+      
+      if (atualizado) {
+        console.log(`✅ [DYNAMICS] Quote ${quotenumber} atualizada com sucesso!`);
+        
+        // Enviar/atualizar os itens
+        if (!cotacaoComItens.itens || cotacaoComItens.itens.length === 0) {
+          console.warn(`⚠️ [DYNAMICS] Nenhum item encontrado para enviar!`);
+        } else {
+          console.log(`📦 [DYNAMICS] Enviando ${cotacaoComItens.itens.length} itens como quotedetails...`);
+          const itensEnviados = await this.enviarQuoteDetails(quoteExistente.quoteid, cotacaoComItens.itens);
+          if (itensEnviados) {
+            console.log(`✅ [DYNAMICS] Todos os ${cotacaoComItens.itens.length} itens enviados com sucesso!`);
+          } else {
+            console.warn(`⚠️ [DYNAMICS] Alguns itens falharam ao enviar`);
+          }
         }
-      } catch (error) {
-        console.log(`❌ [DYNAMICS] Falha ao enviar como ${entidade}, tentando próxima...`);
-        continue;
+        
+        // Também criar/atualizar Opportunity
+        await this.criarOpportunity(cotacaoComItens);
+        
+        return true;
+      } else {
+        console.error(`❌ [DYNAMICS] Falha ao atualizar quote no Dynamics`);
+        return false;
       }
     }
     
-    console.log(`❌ [DYNAMICS] Falha ao enviar cotação ${cotacao.id} em todas as entidades testadas`);
+    // Quote não existe, criar nova
+    console.log(`🎯 [DYNAMICS] Criando nova quote ${quotenumber}...`);
+    
+    try {
+      const entity = this.transformCotacaoToDynamics(cotacaoComItens, entidade);
+      const resultado = await this.enviarParaDynamics(entity, entidade);
+
+      if (resultado) {
+        console.log(`✅ [DYNAMICS] Cotação ${cotacao.id} enviada como ${entidade}!`);
+        
+        // Se temos um ID, enviar os itens (quotedetails)
+        if (typeof resultado === 'string') {
+          console.log(`📦 [DYNAMICS] Quote ID recebido: ${resultado}`);
+          console.log(`📦 [DYNAMICS] Enviando ${cotacaoComItens.itens?.length || 0} itens como quotedetails...`);
+          
+          if (!cotacaoComItens.itens || cotacaoComItens.itens.length === 0) {
+            console.warn(`⚠️ [DYNAMICS] Nenhum item encontrado para enviar!`);
+          } else {
+            const itensEnviados = await this.enviarQuoteDetails(resultado, cotacaoComItens.itens);
+            if (itensEnviados) {
+              console.log(`✅ [DYNAMICS] Todos os ${cotacaoComItens.itens.length} itens enviados com sucesso!`);
+            } else {
+              console.warn(`⚠️ [DYNAMICS] Alguns itens falharam ao enviar`);
+            }
+          }
+        } else {
+          console.warn(`⚠️ [DYNAMICS] Quote criada mas ID não foi retornado. Itens não podem ser adicionados.`);
+        }
+        
+        // Também criar como Opportunity
+        await this.criarOpportunity(cotacaoComItens);
+        
+        return true;
+      } else {
+        console.error(`❌ [DYNAMICS] Falha ao criar quote no Dynamics`);
+        return false;
+      }
+    } catch (error) {
+      console.error(`❌ [DYNAMICS] Erro ao enviar como ${entidade}:`, error);
+      return false;
+    }
+    
+    console.log(`❌ [DYNAMICS] Falha ao enviar cotação ${cotacao.id}`);
     
     // Tentar descobrir entidades disponíveis
     try {
@@ -275,26 +357,50 @@ class DynamicsIntegrationService {
     // Buscar itens da cotação para enriquecer os dados
     const cotacaoComItens = await this.buscarCotacaoComItens(cotacao.id);
     
-    const entidadesParaTestar = ['quotes', 'opportunities', 'incidents', 'leads'];
+    // Tentar criar apenas como Quote (para ter produtos/preços detalhados)
+    const entidade = 'quotes';
     
-    for (const entidade of entidadesParaTestar) {
-      console.log(`🎯 [DYNAMICS] Tentando enviar como ${entidade}...`);
+    console.log(`🎯 [DYNAMICS] Criando como ${entidade} com itens detalhados...`);
+    
+    try {
+      const entity = this.transformCotacaoToDynamics(cotacaoComItens, entidade);
+      console.log(`📤 [DYNAMICS] Dados da quote:`, JSON.stringify(entity, null, 2));
       
-      try {
-        const entity = this.transformCotacaoToDynamics(cotacaoComItens, entidade);
-        const resultado = await this.enviarParaDynamics(entity, entidade);
+      const resultado = await this.enviarParaDynamics(entity, entidade);
 
-        if (resultado) {
-          console.log(`✅ [DYNAMICS] Cotação ${cotacao.id} enviada com sucesso como ${entidade}!`);
-          return true;
+      if (resultado) {
+        console.log(`✅ [DYNAMICS] Cotação ${cotacao.id} enviada como ${entidade}!`);
+        
+        // Se temos um ID, enviar os itens (quotedetails)
+        if (typeof resultado === 'string') {
+          console.log(`📦 [DYNAMICS] Quote ID recebido: ${resultado}`);
+          console.log(`📦 [DYNAMICS] Enviando ${cotacaoComItens.itens?.length || 0} itens como quotedetails...`);
+          
+          if (!cotacaoComItens.itens || cotacaoComItens.itens.length === 0) {
+            console.warn(`⚠️ [DYNAMICS] Nenhum item encontrado para enviar!`);
+          } else {
+            const itensEnviados = await this.enviarQuoteDetails(resultado, cotacaoComItens.itens);
+            if (itensEnviados) {
+              console.log(`✅ [DYNAMICS] Todos os ${cotacaoComItens.itens.length} itens enviados com sucesso!`);
+            } else {
+              console.warn(`⚠️ [DYNAMICS] Alguns itens falharam ao enviar`);
+            }
+          }
+        } else {
+          console.warn(`⚠️ [DYNAMICS] Quote criada mas ID não foi retornado. Itens não podem ser adicionados.`);
         }
-      } catch (error) {
-        console.log(`❌ [DYNAMICS] Falha ao enviar como ${entidade}, tentando próxima...`);
-        continue;
+        
+        return true;
+      } else {
+        console.error(`❌ [DYNAMICS] Falha ao criar quote no Dynamics`);
+        return false;
       }
+    } catch (error) {
+      console.error(`❌ [DYNAMICS] Erro ao enviar como ${entidade}:`, error);
+      return false;
     }
     
-    console.log(`❌ [DYNAMICS] Falha ao enviar cotação ${cotacao.id} em todas as entidades testadas`);
+    console.log(`❌ [DYNAMICS] Falha ao enviar cotação ${cotacao.id}`);
     
     // Tentar descobrir entidades disponíveis
     try {
@@ -305,6 +411,236 @@ class DynamicsIntegrationService {
     }
     
     return false;
+  }
+
+  /**
+   * Cria uma Opportunity no Dynamics para a cotação
+   */
+  private async criarOpportunity(cotacao: any): Promise<boolean> {
+    try {
+      console.log(`💼 [DYNAMICS] Criando Opportunity para cotação ${cotacao.id}...`);
+      
+      const opportunityData = this.transformCotacaoToDynamics(cotacao, 'opportunities');
+      const resultado = await this.enviarParaDynamics(opportunityData, 'opportunities');
+      
+      if (resultado) {
+        console.log(`✅ [DYNAMICS] Opportunity criada com sucesso para cotação ${cotacao.id}!`);
+        return true;
+      } else {
+        console.warn(`⚠️ [DYNAMICS] Falha ao criar Opportunity para cotação ${cotacao.id}`);
+        return false;
+      }
+    } catch (error) {
+      console.error(`❌ [DYNAMICS] Erro ao criar Opportunity:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Busca uma quote no Dynamics pelo número (quotenumber)
+   */
+  private async buscarQuotePorNumero(quotenumber: string): Promise<any | null> {
+    try {
+      const token = await this.getOAuthToken();
+      const url = `${this.config.webApiEndpoint}/quotes?$filter=quotenumber eq '${quotenumber}'&$select=quoteid,quotenumber`;
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+          'OData-MaxVersion': '4.0',
+          'OData-Version': '4.0'
+        }
+      });
+
+      if (!response.ok) {
+        console.error(`❌ [DYNAMICS] Erro ao buscar quote ${quotenumber}:`, response.status);
+        return null;
+      }
+
+      const data = await response.json() as { value?: any[] };
+      
+      if (data.value && data.value.length > 0) {
+        console.log(`✅ [DYNAMICS] Quote ${quotenumber} encontrada`);
+        return data.value[0];
+      }
+      
+      return null;
+    } catch (error) {
+      console.error(`❌ [DYNAMICS] Erro ao buscar quote:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Atualiza uma quote existente no Dynamics
+   */
+  private async atualizarQuote(quoteId: string, dados: any): Promise<boolean> {
+    try {
+      const token = await this.getOAuthToken();
+      const url = `${this.config.webApiEndpoint}/quotes(${quoteId})`;
+      
+      // Remover campos que não podem ser atualizados
+      const { quotenumber, ...dadosAtualizacao } = dados;
+      
+      console.log(`🔄 [DYNAMICS] Atualizando quote ${quoteId}...`);
+      
+      const response = await fetch(url, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'OData-MaxVersion': '4.0',
+          'OData-Version': '4.0',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(dadosAtualizacao)
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`❌ [DYNAMICS] Erro ao atualizar quote: ${response.status} - ${errorText}`);
+        return false;
+      }
+
+      console.log(`✅ [DYNAMICS] Quote atualizada com sucesso`);
+      return true;
+    } catch (error) {
+      console.error(`❌ [DYNAMICS] Erro ao atualizar quote:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Envia os itens da cotação como quotedetails após criar a quote
+   */
+  private async enviarQuoteDetails(quoteId: string, itens: any[]): Promise<boolean> {
+    if (!itens || itens.length === 0) {
+      console.log(`⚠️ [DYNAMICS] Nenhum item para enviar como quotedetails`);
+      return true;
+    }
+
+    console.log(`📦 [DYNAMICS] Enviando ${itens.length} itens como quotedetails para quote ${quoteId}`);
+
+    let sucessos = 0;
+    let falhas = 0;
+
+    for (let index = 0; index < itens.length; index++) {
+      const item = itens[index];
+      try {
+          // Se item_preco não existe mas tem produto_id, buscar do produto
+        let precoUnitario = this.extrairPreco(item);
+        
+        if (precoUnitario === 0 && item.produto_id) {
+          const precoDoProduto = await this.buscarPrecoDoProduto(item.produto_id);
+          if (precoDoProduto > 0) {
+            precoUnitario = precoDoProduto;
+          }
+        }
+        
+        const quantidade = item.quantidade || 1;
+        const valorTotal = precoUnitario * quantidade;
+
+        const quoteDetail = {
+          'quoteid@odata.bind': `/quotes(${quoteId})`,
+          productdescription: item.item_nome || item.pedido || 'Produto',
+          quantity: quantidade,
+          priceperunit: precoUnitario,
+          baseamount: valorTotal,
+          extendedamount: valorTotal,
+          manualdiscountamount: 0,
+          // Se tiver product ID do Dynamics, adicione:
+          // 'productid@odata.bind': `/products(${item.dynamics_product_id})`
+        };
+
+        const resultado = await this.enviarParaDynamics(quoteDetail, 'quotedetails');
+        
+        if (resultado) {
+          sucessos++;
+        } else {
+          falhas++;
+          console.error(`❌ [DYNAMICS] Falha ao enviar item "${item.item_nome}"`);
+        }
+      } catch (error) {
+        falhas++;
+        console.error(`❌ [DYNAMICS] Erro ao enviar item:`, error);
+      }
+    }
+
+    console.log(`📊 [DYNAMICS] Resumo: ${sucessos} sucessos, ${falhas} falhas de ${itens.length} itens`);
+    return falhas === 0;
+  }
+
+  /**
+   * Busca o preço de um produto pelo ID
+   */
+  private async buscarPrecoDoProduto(produtoId: number): Promise<number> {
+    try {
+      const supabase = require('../infra/supabase/connect').default;
+      const { data, error } = await supabase
+        .from('produtos')
+        .select('preco')
+        .eq('id', produtoId)
+        .single();
+      
+      if (error || !data) {
+        console.warn(`⚠️ [DYNAMICS] Erro ao buscar preço do produto ${produtoId}`);
+        return 0;
+      }
+      
+      const preco = Number(data.preco);
+      return isNaN(preco) ? 0 : preco;
+    } catch (error) {
+      console.error(`❌ [DYNAMICS] Erro ao buscar produto:`, error);
+      return 0;
+    }
+  }
+
+  /**
+   * Extrai o preço de um item de cotação
+   */
+  private extrairPreco(item: any): number {
+    // Tentar diferentes campos onde o preço pode estar (em ordem de prioridade)
+    if (item.item_preco !== null && item.item_preco !== undefined && item.item_preco !== '') {
+      const preco = Number(item.item_preco);
+      if (!isNaN(preco) && preco > 0) return preco;
+    }
+    
+    if (item.preco_unitario) {
+      const preco = Number(item.preco_unitario);
+      if (!isNaN(preco)) return preco;
+    }
+    
+    if (item.preco) {
+      const preco = Number(item.preco);
+      if (!isNaN(preco)) return preco;
+    }
+    
+    if (item.valor_unitario) {
+      const preco = Number(item.valor_unitario);
+      if (!isNaN(preco)) return preco;
+    }
+    
+    if (item.valor) {
+      const preco = Number(item.valor);
+      if (!isNaN(preco)) return preco;
+    }
+    
+    if (item.price) {
+      const preco = Number(item.price);
+      if (!isNaN(preco)) return preco;
+    }
+    
+    // Se tiver valor total e quantidade, calcular
+    if (item.valor_total && item.quantidade) {
+      const preco = Number(item.valor_total) / Number(item.quantidade);
+      if (!isNaN(preco)) return preco;
+    }
+    
+    // Último recurso: retornar 0
+    console.warn(`⚠️ [DYNAMICS] Não foi possível extrair preço do item. Campos disponíveis:`, Object.keys(item));
+    return 0;
   }
 
   /**

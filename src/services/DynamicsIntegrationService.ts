@@ -418,7 +418,27 @@ class DynamicsIntegrationService {
    */
   private async criarOpportunity(cotacao: any): Promise<boolean> {
     try {
-      console.log(`💼 [DYNAMICS] Criando Opportunity para cotação ${cotacao.id}...`);
+      const opportunityName = `Oportunidade #${cotacao.id} - SmartQuote`;
+      
+      console.log(`💼 [DYNAMICS] Verificando se Opportunity "${opportunityName}" já existe...`);
+      const oppExistente = await this.buscarOpportunityPorNome(opportunityName);
+      
+      if (oppExistente) {
+        console.log(`📝 [DYNAMICS] Opportunity já existe (ID: ${oppExistente.opportunityid}). Atualizando...`);
+        
+        const opportunityData = this.transformCotacaoToDynamics(cotacao, 'opportunities');
+        const atualizado = await this.atualizarOpportunity(oppExistente.opportunityid, opportunityData);
+        
+        if (atualizado) {
+          console.log(`✅ [DYNAMICS] Opportunity atualizada com sucesso!`);
+          return true;
+        } else {
+          console.warn(`⚠️ [DYNAMICS] Falha ao atualizar Opportunity`);
+          return false;
+        }
+      }
+      
+      console.log(`💼 [DYNAMICS] Criando nova Opportunity para cotação ${cotacao.id}...`);
       
       const opportunityData = this.transformCotacaoToDynamics(cotacao, 'opportunities');
       const resultado = await this.enviarParaDynamics(opportunityData, 'opportunities');
@@ -432,6 +452,82 @@ class DynamicsIntegrationService {
       }
     } catch (error) {
       console.error(`❌ [DYNAMICS] Erro ao criar Opportunity:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Busca uma opportunity no Dynamics pelo nome
+   */
+  private async buscarOpportunityPorNome(name: string): Promise<any | null> {
+    try {
+      const token = await this.getOAuthToken();
+      const url = `${this.config.webApiEndpoint}/opportunities?$filter=name eq '${name}'&$select=opportunityid,name`;
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+          'OData-MaxVersion': '4.0',
+          'OData-Version': '4.0'
+        }
+      });
+
+      if (!response.ok) {
+        console.error(`❌ [DYNAMICS] Erro ao buscar opportunity ${name}:`, response.status);
+        return null;
+      }
+
+      const data = await response.json() as { value?: any[] };
+      
+      if (data.value && data.value.length > 0) {
+        console.log(`✅ [DYNAMICS] Opportunity encontrada`);
+        return data.value[0];
+      }
+      
+      return null;
+    } catch (error) {
+      console.error(`❌ [DYNAMICS] Erro ao buscar opportunity:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Atualiza uma opportunity existente no Dynamics
+   */
+  private async atualizarOpportunity(opportunityId: string, dados: any): Promise<boolean> {
+    try {
+      const token = await this.getOAuthToken();
+      const url = `${this.config.webApiEndpoint}/opportunities(${opportunityId})`;
+      
+      // Remover campos que não podem ser atualizados
+      const { name, ...dadosAtualizacao } = dados;
+      
+      console.log(`🔄 [DYNAMICS] Atualizando opportunity ${opportunityId}...`);
+      
+      const response = await fetch(url, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'OData-MaxVersion': '4.0',
+          'OData-Version': '4.0',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(dadosAtualizacao)
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`❌ [DYNAMICS] Erro ao atualizar opportunity: ${response.status} - ${errorText}`);
+        return false;
+      }
+
+      console.log(`✅ [DYNAMICS] Opportunity atualizada com sucesso`);
+      return true;
+    } catch (error) {
+      console.error(`❌ [DYNAMICS] Erro ao atualizar opportunity:`, error);
       return false;
     }
   }

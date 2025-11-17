@@ -20,7 +20,7 @@ declare class DynamicsIntegrationService {
      */
     testarConexao(): Promise<boolean>;
     /**
-     * Envia dados para o Dynamics 365
+     * Envia dados para o Dynamics 365 e retorna o ID criado
      */
     private enviarParaDynamics;
     /**
@@ -32,6 +32,38 @@ declare class DynamicsIntegrationService {
      * Processa uma cotação (criada) e tenta enviá-la para o Dynamics
      */
     processarCotacao(cotacao: any): Promise<boolean>;
+    /**
+     * Cria uma Opportunity no Dynamics para a cotação
+     */
+    private criarOpportunity;
+    /**
+     * Busca uma opportunity no Dynamics pelo nome
+     */
+    private buscarOpportunityPorNome;
+    /**
+     * Atualiza uma opportunity existente no Dynamics
+     */
+    private atualizarOpportunity;
+    /**
+     * Busca uma quote no Dynamics pelo número (quotenumber)
+     */
+    private buscarQuotePorNumero;
+    /**
+     * Atualiza uma quote existente no Dynamics
+     */
+    private atualizarQuote;
+    /**
+     * Envia os itens da cotação como quotedetails após criar a quote
+     */
+    private enviarQuoteDetails;
+    /**
+     * Busca o preço de um produto pelo ID
+     */
+    private buscarPrecoDoProduto;
+    /**
+     * Extrai o preço de um item de cotação
+     */
+    private extrairPreco;
     /**
      * Busca a cotação junto com seus itens para ter dados mais ricos
      */
